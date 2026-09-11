@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>行笺 - 首页</title>
+<script src="https://modao.cc/agent-py/static/source/js/tailwindcss.js"></script>
+<script src="https://modao.cc/agent-py/static/source/js/iconify-icon.min.js"></script>
+<style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f0f4f3; }
+        .soft-shadow { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="flex justify-center items-center min-h-screen">
+<!-- Mobile Container -->
+<div class="w-[375px] h-[812px] bg-[#F9FDFB] relative overflow-hidden shadow-2xl rounded-[40px] border-[8px] border-white flex flex-col">
+<!-- Top Gradient Overlay -->
+<div class="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-[#A8E6CF]/30 to-transparent pointer-events-none"></div>
+<!-- Header -->
+<header class="relative z-10 px-5 pt-10 pb-4 flex items-center justify-between">
+<h1 class="text-xl font-bold text-[#5A7B74]">行笺</h1>
+<div class="flex-1 mx-4">
+<div class="relative">
+<input class="w-full h-9 bg-[#E8F5F2] border border-[#A8E6CF]/30 rounded-full px-10 text-sm text-[#5A7B74] focus:outline-none" placeholder="搜索目的地..." type="text"/>
+<iconify-icon class="absolute left-3 top-1/2 -translate-y-1/2 text-[#5A7B74] text-lg" icon="ri:search-line"></iconify-icon>
+</div>
+</div>
+<button class="text-[#5A7B74] text-2xl flex items-center">
+<iconify-icon icon="ri:notification-3-line"></iconify-icon>
+</button>
+</header>
+<!-- Main Content (Scrollable) -->
+<main class="flex-1 overflow-y-auto hide-scrollbar px-5 pb-24">
+<!-- Banner -->
+<section class="mt-2 relative">
+<div class="w-full h-40 bg-gradient-to-br from-[#A8E6CF] to-[#D1F2EB] rounded-2xl soft-shadow overflow-hidden relative flex flex-col justify-center px-6">
+<div class="z-10">
+<h2 class="text-white text-lg font-bold">肇庆 · 七星岩</h2>
+<p class="text-white/90 text-xs mt-1">晨雾山林｜人间仙境</p>
+<button class="mt-3 px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full text-white text-[10px] border border-white/30">立即探索</button>
+</div>
+<iconify-icon class="absolute right-4 bottom-2 text-7xl text-white/20" icon="ri:landscape-line"></iconify-icon>
+</div>
+<!-- Indicators -->
+<div class="flex justify-center mt-3 gap-1.5">
+<div class="w-4 h-1.5 bg-[#A8E6CF] rounded-full"></div>
+<div class="w-1.5 h-1.5 bg-[#E8F5F2] rounded-full"></div>
+<div class="w-1.5 h-1.5 bg-[#E8F5F2] rounded-full"></div>
+</div>
+</section>
+<!-- Recommended Cities -->
+<section class="mt-6">
+<div class="flex items-center justify-between mb-3">
+<h3 class="text-[#5A7B74] font-bold">推荐城市</h3>
+</div>
+<div class="flex gap-3 overflow-x-auto hide-scrollbar">
+<span class="px-5 py-2 bg-[#A8E6CF] text-white rounded-full text-xs whitespace-nowrap">广州</span>
+<span class="px-5 py-2 bg-[#B5EAD7] text-[#5A7B74] rounded-full text-xs whitespace-nowrap">肇庆</span>
+<span class="px-5 py-2 bg-[#B5EAD7] text-[#5A7B74] rounded-full text-xs whitespace-nowrap">桂林</span>
+<span class="px-5 py-2 bg-[#B5EAD7] text-[#5A7B74] rounded-full text-xs whitespace-nowrap">成都</span>
+<span class="px-5 py-2 bg-[#B5EAD7] text-[#5A7B74] rounded-full text-xs whitespace-nowrap">更多→</span>
+</div>
+</section>
+<!-- My Itinerary -->
+<section class="mt-8 bg-[#D1F2EB] rounded-2xl p-4 soft-shadow flex items-center justify-between">
+<div>
+<h3 class="text-[#5A7B74] font-bold text-sm">我的行程</h3>
+<p class="text-[#5A7B74]/80 text-xs mt-1">肇庆1日游｜2026-05-01</p>
+</div>
+<iconify-icon class="text-[#5A7B74] text-xl" icon="ri:arrow-right-s-line"></iconify-icon>
+</section>
+<!-- Popular Attractions Grid -->
+<section class="mt-8">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-[#5A7B74] font-bold">热门景点</h3>
+<span class="text-xs text-[#A8E6CF]">查看全部</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<!-- Card 1 -->
+<div class="bg-white rounded-2xl p-3 border border-[#A8E6CF]/20 soft-shadow">
+<div class="w-full aspect-square bg-[#E8F5F2] rounded-xl flex items-center justify-center mb-2">
+<iconify-icon class="text-4xl text-[#A8E6CF]" icon="ri:mountain-line"></iconify-icon>
+</div>
+<h4 class="text-sm font-bold text-[#5A7B74]">七星岩</h4>
+<div class="flex items-center justify-between mt-1">
+<span class="text-[10px] text-[#5A7B74]/60">肇庆</span>
+<span class="text-[10px] text-[#A8E6CF] flex items-center">
+<iconify-icon class="mr-0.5" icon="ri:star-fill"></iconify-icon>4.8
+                            </span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white rounded-2xl p-3 border border-[#A8E6CF]/20 soft-shadow">
+<div class="w-full aspect-square bg-[#E8F5F2] rounded-xl flex items-center justify-center mb-2">
+<iconify-icon class="text-4xl text-[#A8E6CF]" icon="ri:ancient-gate-line"></iconify-icon>
+</div>
+<h4 class="text-sm font-bold text-[#5A7B74]">阳朔西街</h4>
+<div class="flex items-center justify-between mt-1">
+<span class="text-[10px] text-[#5A7B74]/60">桂林</span>
+<span class="text-[10px] text-[#A8E6CF] flex items-center">
+<iconify-icon class="mr-0.5" icon="ri:star-fill"></iconify-icon>4.6
+                            </span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-white rounded-2xl p-3 border border-[#A8E6CF]/20 soft-shadow">
+<div class="w-full aspect-square bg-[#E8F5F2] rounded-xl flex items-center justify-center mb-2">
+<iconify-icon class="text-4xl text-[#A8E6CF]" icon="ri:water-flash-line"></iconify-icon>
+</div>
+<h4 class="text-sm font-bold text-[#5A7B74]">星湖</h4>
+<div class="flex items-center justify-between mt-1">
+<span class="text-[10px] text-[#5A7B74]/60">肇庆</span>
+<span class="text-[10px] text-[#A8E6CF] flex items-center">
+<iconify-icon class="mr-0.5" icon="ri:star-fill"></iconify-icon>4.7
+                            </span>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-white rounded-2xl p-3 border border-[#A8E6CF]/20 soft-shadow">
+<div class="w-full aspect-square bg-[#E8F5F2] rounded-xl flex items-center justify-center mb-2">
+<iconify-icon class="text-4xl text-[#A8E6CF]" icon="ri:building-2-line"></iconify-icon>
+</div>
+<h4 class="text-sm font-bold text-[#5A7B74]">象鼻山</h4>
+<div class="flex items-center justify-between mt-1">
+<span class="text-[10px] text-[#5A7B74]/60">桂林</span>
+<span class="text-[10px] text-[#A8E6CF] flex items-center">
+<iconify-icon class="mr-0.5" icon="ri:star-fill"></iconify-icon>4.5
+                            </span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button -->
+<a class="absolute bottom-24 right-5 w-12 h-12 bg-gradient-to-br from-[#A8E6CF] to-[#B5EAD7] rounded-full flex items-center justify-center text-white text-2xl soft-shadow active:scale-95 transition-transform z-20" href="survey.html">
+<iconify-icon icon="ri:add-line"></iconify-icon>
+</a>
+<!-- Bottom Navigation -->
+<nav class="absolute bottom-0 left-0 w-full h-20 bg-white border-t border-[#E8F5F2] flex items-center justify-around px-2 pb-2 z-30">
+<a class="flex flex-col items-center gap-1" href="home.html">
+<iconify-icon class="text-2xl text-[#A8E6CF]" icon="ri:home-5-fill"></iconify-icon>
+<span class="text-[10px] text-[#A8E6CF]">首页</span>
+</a>
+<a class="flex flex-col items-center gap-1" href="itinerary.html">
+<iconify-icon class="text-2xl text-[#5A7B74]" icon="ri:calendar-event-line"></iconify-icon>
+<span class="text-[10px] text-[#5A7B74]">行程</span>
+</a>
+<a class="flex flex-col items-center gap-1" href="survey.html">
+<iconify-icon class="text-2xl text-[#5A7B74]" icon="ri:compass-3-line"></iconify-icon>
+<span class="text-[10px] text-[#5A7B74]">探索</span>
+</a>
+<a class="flex flex-col items-center gap-1" href="chat.html">
+<iconify-icon class="text-2xl text-[#5A7B74]" icon="ri:user-smile-line"></iconify-icon>
+<span class="text-[10px] text-[#5A7B74]">AI助手</span>
+</a>
+</nav>
+</div>
+</body>
+</html>

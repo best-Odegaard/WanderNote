@@ -1,0 +1,127 @@
+@import './variables.scss';
+@import './theme.scss';
+
+page {
+  background-color: var(--bg-page);
+  color: var(--text-body);
+  font-size: 28rpx;
+  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+}
+
+/* 竞品风格手写标题 */
+.font-hand {
+  font-family: 'STKaiti', 'KaiTi', 'PingFang SC', serif;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+
+.container {
+  padding: $page-padding;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: $card-radius;
+  padding: 24rpx;
+}
+
+.btn-black {
+  background: linear-gradient(90deg, $mint-primary, $mint-secondary);
+  color: #fff;
+  border: none;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  height: 96rpx;
+  line-height: 96rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 24rpx rgba(168, 230, 207, 0.35);
+
+  &::after {
+    border: none;
+  }
+
+  &[disabled] {
+    opacity: 0.5;
+  }
+}
+
+.btn-mint-outline {
+  background: var(--bg-card);
+  color: $mint-primary;
+  border: 2rpx solid $mint-primary;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+
+  &::after {
+    border: none;
+  }
+}
+
+.soft-shadow {
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
+}
+
+.btn-pill-outline {
+  background: var(--bg-card);
+  color: var(--text-body);
+  border: 2rpx solid var(--border);
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  padding: 12rpx 28rpx;
+  line-height: 1.4;
+
+  &::after {
+    border: none;
+  }
+}
+
+.section-title-hand {
+  font-family: 'STKaiti', 'KaiTi', serif;
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--text-body);
+}
+
+.safe-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 页面底部为自定义 TabBar 留白 */
+.page-with-tabbar {
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
+}

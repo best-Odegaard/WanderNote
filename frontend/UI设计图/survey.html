@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>行笺 - 旅行问卷</title>
+<script src="https://modao.cc/agent-py/static/source/js/tailwindcss.js"></script>
+<script src="https://modao.cc/agent-py/static/source/js/iconify-icon.min.js"></script>
+<style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f0f4f3; }
+        .soft-shadow { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .step-content { display: none; }
+        .step-content.active { display: block; }
+        .tag-btn { transition: all 0.2s ease; }
+        .tag-btn.selected { background-color: #A8E6CF !important; color: white !important; }
+        .star-rating .star { cursor: pointer; font-size: 28px; transition: all 0.15s ease; }
+        .star-rating .star.active { color: #FFB800; transform: scale(1.1); }
+        .star-rating .star { color: #E8F5F2; }
+    </style>
+</head>
+<body class="flex justify-center items-center min-h-screen">
+<!-- Mobile Container -->
+<div class="w-[375px] h-[812px] bg-[#F9FDFB] relative overflow-hidden shadow-2xl rounded-[40px] border-[8px] border-white flex flex-col">
+<!-- Header -->
+<header class="px-5 pt-12 pb-4 flex items-center">
+<a class="text-[#5A7B74] text-2xl mr-3" href="home.html">
+<iconify-icon icon="ri:arrow-left-s-line"></iconify-icon>
+</a>
+<h1 class="text-lg font-bold text-[#5A7B74]">旅行问卷</h1>
+</header>
+<!-- Progress Bar -->
+<div class="px-8 mt-4">
+<div class="flex justify-between items-center mb-2">
+<span class="text-xs text-[#5A7B74] font-medium" id="step-indicator">1/5 基础信息</span>
+</div>
+<div class="w-full h-1.5 bg-[#E8F5F2] rounded-full overflow-hidden">
+<div class="w-1/5 h-full bg-[#A8E6CF] transition-all duration-300" id="progress-bar"></div>
+</div>
+</div>
+<!-- Form Area -->
+<main class="flex-1 px-5 pt-8 overflow-y-auto">
+<div class="bg-white rounded-2xl p-6 soft-shadow min-h-[400px]">
+<!-- ==================== Step 1/5: 基础信息 ==================== -->
+<div class="step-content active space-y-5" id="step-1">
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-2">目的地</label>
+<select class="w-full h-11 bg-[#E8F5F2] rounded-xl px-4 text-sm text-[#5A7B74] outline-none">
+<option>肇庆</option>
+<option>广州</option>
+<option>桂林</option>
+<option>深圳</option>
+<option>厦门</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-2">天数</label>
+<select class="w-full h-11 bg-[#E8F5F2] rounded-xl px-4 text-sm text-[#5A7B74] outline-none">
+<option>1天</option>
+<option>2天</option>
+<option>3天</option>
+<option>4天</option>
+<option>5天及以上</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-2">人数</label>
+<select class="w-full h-11 bg-[#E8F5F2] rounded-xl px-4 text-sm text-[#5A7B74] outline-none">
+<option>单人出行</option>
+<option>2人同行</option>
+<option>3-4人</option>
+<option>5人以上</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-2">出行日期</label>
+<input class="w-full h-11 bg-[#E8F5F2] rounded-xl px-4 text-sm text-[#5A7B74] outline-none" type="date" value="2026-06-01"/>
+</div>
+</div>
+<!-- ==================== Step 2/5: 旅行偏好 ==================== -->
+<div class="step-content space-y-6" id="step-2">
+<h2 class="text-base font-bold text-[#5A7B74]">旅行偏好</h2>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">目的地类型</label>
+<div class="flex flex-wrap gap-2">
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">山川</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">大海</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">古城</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">田园</button>
+</div>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">交通偏好</label>
+<div class="flex flex-wrap gap-2">
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">自驾</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">高铁</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">飞机</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">自由行</button>
+</div>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">住宿等级</label>
+<div class="flex flex-wrap gap-2">
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">经济型</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">舒适型</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">高档型</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">特色民宿</button>
+</div>
+</div>
+</div>
+<!-- ==================== Step 3/5: 社交需求 ==================== -->
+<div class="step-content space-y-6" id="step-3">
+<h2 class="text-base font-bold text-[#5A7B74]">社交需求</h2>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">是否寻找旅伴</label>
+<div class="space-y-3">
+<label class="radio-group flex items-center gap-3 p-3 border border-[#E8F5F2] rounded-xl cursor-pointer" data-value="yes">
+<div class="w-5 h-5 rounded-full border-2 border-[#A8E6CF] flex items-center justify-center flex-shrink-0">
+<div class="radio-dot w-2.5 h-2.5 bg-[#A8E6CF] rounded-full hidden"></div>
+</div>
+<span class="text-sm text-[#5A7B74]">是，希望找到同行伙伴</span>
+</label>
+<label class="radio-group flex items-center gap-3 p-3 border border-[#E8F5F2] rounded-xl cursor-pointer" data-value="no">
+<div class="w-5 h-5 rounded-full border-2 border-[#E8F5F2] flex items-center justify-center flex-shrink-0">
+<div class="radio-dot w-2.5 h-2.5 bg-[#A8E6CF] rounded-full hidden"></div>
+</div>
+<span class="text-sm text-[#5A7B74]">否，独自出行</span>
+</label>
+</div>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">社交账号绑定</label>
+<div class="flex flex-wrap gap-2">
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">微信</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">小红书</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">抖音</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">微博</button>
+</div>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">分享游记意愿</label>
+<div class="space-y-3">
+<label class="radio-group flex items-center gap-3 p-3 border border-[#E8F5F2] rounded-xl cursor-pointer" data-value="share">
+<div class="w-5 h-5 rounded-full border-2 border-[#E8F5F2] flex items-center justify-center flex-shrink-0">
+<div class="radio-dot w-2.5 h-2.5 bg-[#A8E6CF] rounded-full hidden"></div>
+</div>
+<span class="text-sm text-[#5A7B74]">愿意分享游记</span>
+</label>
+<label class="radio-group flex items-center gap-3 p-3 border border-[#E8F5F2] rounded-xl cursor-pointer" data-value="keep">
+<div class="w-5 h-5 rounded-full border-2 border-[#E8F5F2] flex items-center justify-center flex-shrink-0">
+<div class="radio-dot w-2.5 h-2.5 bg-[#A8E6CF] rounded-full hidden"></div>
+</div>
+<span class="text-sm text-[#5A7B74]">仅记录不分享</span>
+</label>
+<label class="radio-group flex items-center gap-3 p-3 border border-[#E8F5F2] rounded-xl cursor-pointer" data-value="depends">
+<div class="w-5 h-5 rounded-full border-2 border-[#E8F5F2] flex items-center justify-center flex-shrink-0">
+<div class="radio-dot w-2.5 h-2.5 bg-[#A8E6CF] rounded-full hidden"></div>
+</div>
+<span class="text-sm text-[#5A7B74]">看情况</span>
+</label>
+</div>
+</div>
+</div>
+<!-- ==================== Step 4/5: 个人画像 ==================== -->
+<div class="step-content space-y-6" id="step-4">
+<h2 class="text-base font-bold text-[#5A7B74]">个人画像</h2>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-2">年龄段</label>
+<select class="w-full h-11 bg-[#E8F5F2] rounded-xl px-4 text-sm text-[#5A7B74] outline-none">
+<option>18-24岁</option>
+<option>25-34岁</option>
+<option>35-44岁</option>
+<option>45岁以上</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">性别</label>
+<div class="flex flex-wrap gap-2">
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">男</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">女</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">保密</button>
+</div>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-2">职业标签</label>
+<select class="w-full h-11 bg-[#E8F5F2] rounded-xl px-4 text-sm text-[#5A7B74] outline-none">
+<option>学生</option>
+<option>上班族</option>
+<option>自由职业</option>
+<option>退休</option>
+<option>其他</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">旅行频率</label>
+<div class="flex flex-wrap gap-2">
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">每月1次+</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">每季度1次</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">每年1-2次</button>
+<button class="tag-btn px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">偶尔</button>
+</div>
+</div>
+</div>
+<!-- ==================== Step 5/5: 产品反馈 ==================== -->
+<div class="step-content space-y-6" id="step-5">
+<h2 class="text-base font-bold text-[#5A7B74]">产品反馈</h2>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">满意度评价</label>
+<div class="star-rating flex gap-2 justify-center py-2">
+<span class="star" data-index="1">★</span>
+<span class="star" data-index="2">★</span>
+<span class="star" data-index="3">★</span>
+<span class="star" data-index="4">★</span>
+<span class="star" data-index="5">★</span>
+</div>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-2">改进建议</label>
+<textarea class="w-full h-28 bg-[#E8F5F2] rounded-xl p-4 text-sm text-[#5A7B74] outline-none resize-none" placeholder="请告诉我们您的建议…"></textarea>
+</div>
+<div>
+<label class="block text-xs font-bold text-[#5A7B74] mb-3">新功能期待</label>
+<div class="flex flex-wrap gap-2">
+<button class="tag-btn px-4 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">智能路线推荐</button>
+<button class="tag-btn px-4 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">社交结伴</button>
+<button class="tag-btn px-4 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">AR导览</button>
+<button class="tag-btn px-4 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">语音导游</button>
+<button class="tag-btn px-4 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs">旅拍攻略</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Buttons -->
+<footer class="px-5 pt-3 pb-2 flex gap-4 bg-white">
+<button class="flex-1 h-12 border border-[#E8F5F2] text-[#5A7B74] rounded-full text-sm font-medium bg-white invisible" id="prev-btn">上一步</button>
+<button class="flex-[2] h-12 bg-gradient-to-r from-[#A8E6CF] to-[#B5EAD7] text-white rounded-full text-sm font-bold shadow-lg shadow-[#A8E6CF]/30" id="next-btn">下一步</button>
+</footer>
+<!-- Bottom Navigation -->
+<nav class="w-full h-20 bg-white border-t border-[#E8F5F2] flex items-center justify-around px-2 pb-2 z-30 flex-shrink-0">
+<a class="flex flex-col items-center gap-1" href="home.html">
+<iconify-icon class="text-2xl text-[#5A7B74]" icon="ri:home-5-line"></iconify-icon>
+<span class="text-[10px] text-[#5A7B74]">首页</span>
+</a>
+<a class="flex flex-col items-center gap-1" href="itinerary.html">
+<iconify-icon class="text-2xl text-[#5A7B74]" icon="ri:calendar-event-line"></iconify-icon>
+<span class="text-[10px] text-[#5A7B74]">行程</span>
+</a>
+<a class="flex flex-col items-center gap-1" href="survey.html">
+<iconify-icon class="text-2xl text-[#A8E6CF]" icon="ri:compass-3-fill"></iconify-icon>
+<span class="text-[10px] text-[#A8E6CF]">探索</span>
+</a>
+<a class="flex flex-col items-center gap-1" href="chat.html">
+<iconify-icon class="text-2xl text-[#5A7B74]" icon="ri:user-smile-line"></iconify-icon>
+<span class="text-[10px] text-[#5A7B74]">AI助手</span>
+</a>
+</nav>
+</div>
+<script>
+        let currentStep = 1;
+        const totalSteps = 5;
+        const stepLabels = ["1/5 基础信息", "2/5 旅行偏好", "3/5 社交需求", "4/5 个人画像", "5/5 产品反馈"];
+
+        const nextBtn = document.getElementById('next-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const stepIndicator = document.getElementById('step-indicator');
+
+        function updateUI() {
+            const pct = (currentStep / totalSteps) * 100;
+            progressBar.style.width = pct + '%';
+            stepIndicator.innerText = stepLabels[currentStep - 1];
+
+            // Prev button
+            if (currentStep === 1) {
+                prevBtn.classList.add('invisible');
+            } else {
+                prevBtn.classList.remove('invisible');
+            }
+
+            // Next/Submit button
+            if (currentStep === totalSteps) {
+                nextBtn.innerText = '提交';
+            } else {
+                nextBtn.innerText = '下一步';
+            }
+        }
+
+        nextBtn.addEventListener('click', () => {
+            if (currentStep < totalSteps) {
+                document.getElementById('step-' + currentStep).classList.remove('active');
+                currentStep++;
+                document.getElementById('step-' + currentStep).classList.add('active');
+                updateUI();
+            } else {
+                // Submit action
+                window.location.href = 'chat.html';
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentStep > 1) {
+                document.getElementById('step-' + currentStep).classList.remove('active');
+                currentStep--;
+                document.getElementById('step-' + currentStep).classList.add('active');
+                updateUI();
+            }
+        });
+
+        // Tag button toggle (multi-select: click to toggle)
+        document.querySelectorAll('.tag-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.classList.toggle('selected');
+                if (this.classList.contains('selected')) {
+                    this.classList.remove('bg-[#E8F5F2]', 'text-[#5A7B74]');
+                } else {
+                    this.classList.add('bg-[#E8F5F2]', 'text-[#5A7B74]');
+                }
+            });
+        });
+
+        // Radio button: mutual exclusion within each radio group
+        document.querySelectorAll('.radio-group').forEach(label => {
+            label.addEventListener('click', function() {
+                const parent = this.parentElement;
+                parent.querySelectorAll('.radio-group').forEach(item => {
+                    item.querySelector('.radio-dot').classList.add('hidden');
+                    item.querySelector('div:first-child').style.borderColor = '#E8F5F2';
+                    item.querySelector('div:first-child').classList.remove('border-[#A8E6CF]');
+                    item.querySelector('div:first-child').classList.add('border-[#E8F5F2]');
+                });
+                this.querySelector('.radio-dot').classList.remove('hidden');
+                this.querySelector('div:first-child').style.borderColor = '#A8E6CF';
+                this.querySelector('div:first-child').classList.remove('border-[#E8F5F2]');
+                this.querySelector('div:first-child').classList.add('border-[#A8E6CF]');
+            });
+        });
+
+        // Star rating
+        const stars = document.querySelectorAll('.star');
+        let currentRating = 0;
+
+        stars.forEach(star => {
+            star.addEventListener('click', function() {
+                const rating = parseInt(this.getAttribute('data-index'));
+                currentRating = rating;
+                stars.forEach((s, idx) => {
+                    if (idx < rating) {
+                        s.classList.add('active');
+                    } else {
+                        s.classList.remove('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

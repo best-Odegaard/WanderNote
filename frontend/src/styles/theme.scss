@@ -1,0 +1,68 @@
+/**
+ * 主题令牌（CSS 自定义属性）
+ * 浅色为默认值；深色通过根元素 data-theme="dark" 覆盖（见 src/utils/theme.ts）
+ * 组件样式统一引用 var(--token)，避免硬编码色值，实现运行时主题切换
+ */
+
+:root,
+[data-theme='light'] {
+  // 背景
+  --bg-page: #F9FDFB;          // 页面背景（薄荷白）
+  --bg-card: #FFFFFF;          // 卡片 / 输入框 / 底栏表面
+  --bg-input: #E8F5F2;         // 输入类底色
+  --bg-muted: #F0F4F8;         // 次级表面（选项、灰底块）
+  --bg-bubble: #D1F2EB;        // AI 气泡底
+  --bg-card-blue: #E6F4FF;     // 浅蓝卡片（我的行程）——保留兼容，新卡统一用 --bg-mint-soft
+  --bg-mint-soft: #E8F7F0;     // 薄荷绿浅卡（我的行程等强调卡片）
+  // 文字
+  --text-main: #333333;        // 主文字（标题、正文）
+  --text-body: #5A7B74;        // 正文/说明文字（薄荷灰绿）
+  --text-secondary: rgba(90, 123, 116, 0.75);   // 次级文字
+  --text-tertiary: rgba(90, 123, 116, 0.5);     // 弱化文字（角标、占位辅助）
+  --text-placeholder: rgba(90, 123, 116, 0.45); // 输入占位符
+  // 边框 / 分隔线
+  --border: #E8F5F2;
+  // 功能色
+  --danger: #e64340;           // 删除 / 错误
+  --error-bg: #fff5f5;         // 错误提示卡背景
+  --error-border: #f9a8a8;     // 错误提示卡边框
+  --glass-bg: rgba(255, 255, 255, 0.72);        // Tab 栏玻璃底
+  // 详情页标签渐变
+  --tag-a: #e8f8f1;
+  --tag-b: #d4f0e2;
+  --tag-text: #1f5c44;
+  // 问卷页（蓝色系）
+  --survey-top: #e8f4fc;
+  --primary-soft: #e8f3fe;
+  --primary-strong: #2b7cd9;
+}
+
+[data-theme='dark'] {
+  --bg-page: #0F172A;
+  --bg-card: #1E293B;
+  --bg-input: #334155;
+  --bg-muted: #243244;
+  --bg-bubble: #1E293B;
+  --bg-card-blue: #1E293B;
+  --bg-mint-soft: #162D24;     // 深色下薄荷绿浅卡降级为深绿
+
+  --text-main: #F1F5F9;
+  --text-body: #CBD5E1;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #64748B;
+  --text-placeholder: rgba(148, 163, 184, 0.5);
+
+  --border: #334155;
+  --danger: #F87171;
+  --error-bg: #2B1518;
+  --error-border: #7F1D1D;
+  --glass-bg: rgba(30, 41, 59, 0.72);
+
+  --tag-a: #1F3A31;
+  --tag-b: #16302A;
+  --tag-text: #9BDCC0;
+  // 问卷页（蓝色系）
+  --survey-top: #16233A;
+  --primary-soft: #1E3A5F;
+  --primary-strong: #93C5FD;
+}

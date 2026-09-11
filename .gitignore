@@ -216,3 +216,44 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ============================================================
+# WanderNote 项目补充忽略项
+# ============================================================
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# 本地真实配置（含数据库/Redis/对象存储密钥，勿提交）
+backend/gkv-server/src/main/resources/application-dev.yml
+**/application-local.yml
+.env.local
+.env.*.local
+
+# 密钥与凭据
+*.pem
+*.key
+*.p12
+
+# 构建产物
+frontend/dist/
+frontend/unpackage/
+admin-web/dist/
+backend/**/target/
+travel_self_agent/**/__pycache__/
+
+# 运行时产物
+*.log
+logs/
+.deploy_marker
+
+# 工具/工作区数据
+.workbuddy/
+
+# 系统文件
+.DS_Store
+Thumbs.db

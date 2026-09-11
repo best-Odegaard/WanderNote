@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>行笺 - 行程详情</title>
+<script src="https://modao.cc/agent-py/static/source/js/tailwindcss.js"></script>
+<script src="https://modao.cc/agent-py/static/source/js/iconify-icon.min.js"></script>
+<style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f0f4f3; }
+        .soft-shadow { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="flex justify-center items-center min-h-screen">
+<!-- Mobile Container -->
+<div class="w-[375px] h-[812px] bg-[#F9FDFB] relative overflow-hidden shadow-2xl rounded-[40px] border-[8px] border-white flex flex-col">
+<!-- Header -->
+<header class="px-5 pt-12 pb-4 flex items-center justify-between bg-white border-b border-[#E8F5F2]">
+<div class="flex items-center">
+<a class="text-[#5A7B74] text-2xl mr-3" href="home.html">
+<iconify-icon icon="ri:arrow-left-s-line"></iconify-icon>
+</a>
+<h1 class="text-lg font-bold text-[#5A7B74]">肇庆1日游</h1>
+</div>
+<div class="flex gap-4">
+<button class="text-[#A8E6CF] text-sm">分享</button>
+<button class="text-[#A8E6CF] text-sm">编辑</button>
+</div>
+</header>
+<!-- Overview Stats -->
+<div class="px-5 py-4 bg-white">
+<div class="flex items-center gap-3">
+<span class="text-[10px] text-[#A8E6CF] bg-[#A8E6CF]/10 px-2 py-0.5 rounded-full">1天 · 3景点 · 1.6km步行</span>
+</div>
+</div>
+<!-- Date Tabs -->
+<div class="px-5 py-3 bg-white flex gap-3 overflow-x-auto hide-scrollbar border-b border-[#E8F5F2]">
+<button class="px-5 py-2 bg-[#A8E6CF] text-white rounded-full text-xs whitespace-nowrap">05/01 周三</button>
+<button class="px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs whitespace-nowrap">05/02 周四</button>
+<button class="px-5 py-2 bg-[#E8F5F2] text-[#5A7B74] rounded-full text-xs whitespace-nowrap">05/03 周五</button>
+</div>
+<!-- Itinerary List -->
+<main class="flex-1 overflow-y-auto p-5 space-y-6 hide-scrollbar">
+<!-- Card 1 -->
+<div class="relative pl-8">
+<!-- Timeline Dot -->
+<div class="absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-[#A8E6CF] bg-white z-10"></div>
+<!-- Timeline Line -->
+<div class="absolute left-[7px] top-5 w-[2px] h-full bg-[#E8F5F2]"></div>
+<div class="bg-white rounded-2xl p-4 soft-shadow border border-[#A8E6CF]/10">
+<div class="flex justify-between items-start mb-2">
+<span class="text-sm font-bold text-[#5A7B74]">09:00</span>
+<div class="flex gap-2">
+<button class="text-[#A8E6CF]"><iconify-icon icon="ri:arrow-up-line"></iconify-icon></button>
+<button class="text-[#A8E6CF]"><iconify-icon icon="ri:arrow-down-line"></iconify-icon></button>
+<button class="text-red-300"><iconify-icon icon="ri:delete-bin-line"></iconify-icon></button>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="w-20 h-20 bg-[#E8F5F2] rounded-xl flex items-center justify-center shrink-0">
+<iconify-icon class="text-3xl text-[#A8E6CF]" icon="ri:mountain-line"></iconify-icon>
+</div>
+<div class="flex-1">
+<h3 class="text-sm font-bold text-[#5A7B74]">🏔️ 七星岩</h3>
+<div class="flex gap-1 mt-1">
+<span class="text-[9px] bg-[#D1F2EB] text-[#5A7B74] px-1.5 py-0.5 rounded">自然风光</span>
+<span class="text-[9px] bg-[#FFD6E0] text-[#5A7B74] px-1.5 py-0.5 rounded">必去</span>
+</div>
+<p class="text-[10px] text-[#5A7B74]/60 mt-2">开放时间：08:00-18:00</p>
+<p class="text-[10px] text-[#A8E6CF] font-bold">门票：¥78</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="relative pl-8">
+<!-- Timeline Dot -->
+<div class="absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-[#A8E6CF] bg-white z-10"></div>
+<!-- Timeline Line -->
+<div class="absolute left-[7px] top-5 w-[2px] h-full bg-[#E8F5F2]"></div>
+<div class="bg-white rounded-2xl p-4 soft-shadow border border-[#A8E6CF]/10">
+<div class="flex justify-between items-start mb-2">
+<span class="text-sm font-bold text-[#5A7B74]">12:00</span>
+<div class="flex gap-2">
+<button class="text-[#A8E6CF]"><iconify-icon icon="ri:arrow-up-line"></iconify-icon></button>
+<button class="text-[#A8E6CF]"><iconify-icon icon="ri:arrow-down-line"></iconify-icon></button>
+<button class="text-red-300"><iconify-icon icon="ri:delete-bin-line"></iconify-icon></button>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="w-20 h-20 bg-[#E8F5F2] rounded-xl flex items-center justify-center shrink-0">
+<iconify-icon class="text-3xl text-[#A8E6CF]" icon="ri:restaurant-line"></iconify-icon>
+</div>
+<div class="flex-1">
+<h3 class="text-sm font-bold text-[#5A7B74]">🍜 岩前村</h3>
+<div class="flex gap-1 mt-1">
+<span class="text-[9px] bg-[#D1F2EB] text-[#5A7B74] px-1.5 py-0.5 rounded">美食</span>
+<span class="text-[9px] bg-[#D1F2EB] text-[#5A7B74] px-1.5 py-0.5 rounded">休闲</span>
+</div>
+<p class="text-[10px] text-[#5A7B74]/60 mt-2">开放时间：全天</p>
+<p class="text-[10px] text-[#A8E6CF] font-bold">门票：免费</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="relative pl-8">
+<!-- Timeline Dot -->
+<div class="absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-[#A8E6CF] bg-white z-10"></div>
+<div class="bg-white rounded-2xl p-4 soft-shadow border border-[#A8E6CF]/10">
+<div class="flex justify-between items-start mb-2">
+<span class="text-sm font-bold text-[#5A7B74]">15:00</span>
+<div class="flex gap-2">
+<button class="text-[#A8E6CF]"><iconify-icon icon="ri:arrow-up-line"></iconify-icon></button>
+<button class="text-[#A8E6CF]"><iconify-icon icon="ri:arrow-down-line"></iconify-icon></button>
+<button class="text-red-300"><iconify-icon icon="ri:delete-bin-line"></iconify-icon></button>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="w-20 h-20 bg-[#E8F5F2] rounded-xl flex items-center justify-center shrink-0">
+<iconify-icon class="text-3xl text-[#A8E6CF]" icon="ri:water-flash-line"></iconify-icon>
+</div>
+<div class="flex-1">
+<h3 class="text-sm font-bold text-[#5A7B74]">🌊 星湖湿地公园</h3>
+<div class="flex gap-1 mt-1">
+<span class="text-[9px] bg-[#D1F2EB] text-[#5A7B74] px-1.5 py-0.5 rounded">自然风光</span>
+</div>
+<p class="text-[10px] text-[#5A7B74]/60 mt-2">开放时间：08:30-17:30</p>
+<p class="text-[10px] text-[#A8E6CF] font-bold">门票：¥55</p>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full py-4 border-2 border-dashed border-[#A8E6CF]/30 rounded-2xl text-[#A8E6CF] text-sm flex items-center justify-center gap-2">
+<iconify-icon icon="ri:add-circle-line"></iconify-icon>
+                添加景点
+            </button>
+</main>
+<!-- Bottom Buttons -->
+<footer class="p-5 flex gap-4 bg-white border-t border-[#E8F5F2]">
+<button class="flex-1 h-12 border border-[#A8E6CF] text-[#A8E6CF] rounded-full text-sm font-medium">生成地图路线</button>
+<a class="flex-[2] h-12 bg-gradient-to-r from-[#A8E6CF] to-[#B5EAD7] text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg shadow-[#A8E6CF]/30" href="home.html">
+                保存行程
+            </a>
+</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,4 @@
+chat_prompt_path: agent/prompt/chat_prompt.txt
+plan_prompt_path: agent/prompt/plan_prompt.txt
+plan_frame_prompt_path: agent/prompt/plan_prompt_frame.txt
+plan_detail_prompt_path: agent/prompt/plan_prompt_detail.txt

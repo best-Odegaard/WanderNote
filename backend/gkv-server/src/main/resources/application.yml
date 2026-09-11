@@ -1,0 +1,73 @@
+server:
+  port: 8080
+
+spring:
+  profiles:
+    active: dev
+  main:
+    allow-circular-references: true
+  servlet:
+    multipart:
+      # 图片上传大小限制（手机拍照原图常见 3~15MB）
+      max-file-size: 20MB
+      max-request-size: 50MB
+  datasource:
+    druid:
+      driver-class-name: ${sky.datasource.driver-class-name}
+      url: jdbc:mysql://${sky.datasource.host}:${sky.datasource.port}/${sky.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+      username: ${sky.datasource.username}
+      password: ${sky.datasource.password}
+  redis:
+    host: ${sky.redis.host}
+    port: ${sky.redis.port}
+    password: ${sky.redis.password}
+    database: ${sky.redis.database}
+
+mybatis:
+  #mapper配置文件
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.gkv.entity
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.gkv.entity
+  configuration:
+    #开启驼峰命名
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com:
+      gkv:
+        mapper: debug
+        service: info
+        controller: info
+
+# Python AI Agent 服务地址（本地开发走内网回环；生产按部署说明改公网地址）
+agent:
+  chat-url: http://127.0.0.1:8002/api/chat
+  plan-url: http://127.0.0.1:8002/api/plan
+
+sky:
+  jwt:
+    # 设置jwt签名加密时使用的秘钥
+    admin-secret-key: itcast
+    # 设置jwt过期时间
+    admin-ttl: 720000000
+    # 设置前端传递过来的令牌名称
+    admin-token-name: token
+    # 设置jwt签名加密时使用的密钥
+    user-secret-key: itheima
+    # 设置过期时间
+    user-ttl: 720000000
+    # 设置前端传递过来的名称
+    user-token-name: Authentication
+
+  #配置阿里云对象存储配置  为了减少在此配置文件修改，用引用的方法来配置信息
+  alioss:
+    endpoint: ${sky.alioss.endpoint}
+    access-key-id: ${sky.alioss.access-key-id}
+    access-key-secret: ${sky.alioss-key-secret}
+    bucket-name: ${sky.alioss.bucket-name}
+
+
+

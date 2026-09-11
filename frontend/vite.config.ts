@@ -1,0 +1,24 @@
+import { defineConfig } from 'vite'
+import uni from '@dcloudio/vite-plugin-uni'
+
+export default defineConfig({
+  plugins: [uni()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/ai': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/travel': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
+  }
+})

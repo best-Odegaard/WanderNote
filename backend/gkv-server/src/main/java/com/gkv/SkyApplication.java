@@ -1,0 +1,22 @@
+package com.gkv;
+
+import lombok.extern.slf4j.Slf4j;
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+@SpringBootApplication  // 开启自动配置功能
+@EnableTransactionManagement //开启注解方式的事务管理
+@MapperScan("com.gkv.mapper") // 确保路径正确
+@EnableScheduling  //开启定时任务调度
+@Slf4j  //
+@EnableCaching   //开启缓存注解功能
+public class SkyApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(SkyApplication.class, args);
+        log.info("server started");
+    }
+}

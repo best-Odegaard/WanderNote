@@ -1,0 +1,184 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/home/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "首页"
+      }
+    },
+    {
+      "path": "pages/trip/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "行程"
+      }
+    },
+    {
+      "path": "pages/coming/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "探索"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/plan/wizard",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "智能规划"
+      }
+    },
+    {
+      "path": "pages/plan/import",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "智能导入"
+      }
+    },
+    {
+      "path": "pages/ai/chat",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "AI行程助手"
+      }
+    },
+    {
+      "path": "pages/community/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "社区"
+      }
+    },
+    {
+      "path": "pages/scenic/list",
+      "style": {
+        "navigationBarTitleText": "景点列表"
+      }
+    },
+    {
+      "path": "pages/scenic/detail",
+      "style": {
+        "navigationBarTitleText": "景点详情"
+      }
+    },
+    {
+      "path": "pages/activity/list",
+      "style": {
+        "navigationBarTitleText": "活动列表"
+      }
+    },
+    {
+      "path": "pages/activity/detail",
+      "style": {
+        "navigationBarTitleText": "活动详情"
+      }
+    },
+    {
+      "path": "pages/community/detail",
+      "style": {
+        "navigationBarTitleText": "游记详情"
+      }
+    },
+    {
+      "path": "pages/community/publish",
+      "style": {
+        "navigationBarTitleText": "发布游记"
+      }
+    },
+    {
+      "path": "pages/trip/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "行程详情"
+      }
+    },
+    {
+      "path": "pages/trip/edit",
+      "style": {
+        "navigationBarTitleText": "编辑行程"
+      }
+    },
+    {
+      "path": "pages/profile/edit",
+      "style": {
+        "navigationBarTitleText": "编辑资料"
+      }
+    },
+    {
+      "path": "pages/profile/setting",
+      "style": {
+        "navigationBarTitleText": "设置"
+      }
+    },
+    {
+      "path": "pages/profile/journals",
+      "style": {
+        "navigationBarTitleText": "我的游记"
+      }
+    },
+    {
+      "path": "pages/profile/feedback",
+      "style": {
+        "navigationBarTitleText": "意见反馈"
+      }
+    },
+    {
+      "path": "pages/auth/login",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/auth/register",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "注册"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "WanderNote",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#999999",
+    "selectedColor": "#000000",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/trip/index",
+        "text": "行程"
+      },
+      {
+        "pagePath": "pages/coming/index",
+        "text": "探索"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
+    ]
+  }
+}
