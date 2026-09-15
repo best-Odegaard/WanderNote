@@ -6,6 +6,10 @@ export interface UserQuery {
   pageSize: number
   keyword?: string
   status?: number
+  /** 画像标签筛选（受控标签名，精确匹配） */
+  profileTag?: string
+  /** 画像标记筛选（模糊匹配） */
+  profileMark?: string
 }
 
 /** 用户分页列表 */

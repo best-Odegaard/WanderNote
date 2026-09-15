@@ -96,6 +96,7 @@ const allMenus: MenuItem[] = [
     perm: 'home:manage',
     children: [
       { path: '/banner', title: 'Banner管理', perm: 'home:manage' },
+      { path: '/featured', title: '精选行程', perm: 'home:manage' },
       { path: '/city', title: '城市管理', perm: 'home:manage' }
     ]
   },

@@ -1,0 +1,56 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    
+    repositories {
+        // 阿里云镜像优先：本机到 repo1.maven.org 不通，dl.google.com 直连也慢
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.1'
+        classpath 'com.google.gms:google-services:4.4.0'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+apply from: "variables.gradle"
+
+allprojects {
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        google()
+        mavenCentral()
+    }
+}
+
+// 本机工程路径含中文（D:\geek\AI文旅\...），AGP 的 lintVital 会直接崩：
+// "Internal error: Unexpected lint invalid arguments"。release 打包不需要跑 lint，
+// 这里对所有模块统一关掉，避免 assembleRelease 被 lint 卡住。
+subprojects {
+    plugins.withId('com.android.application') {
+        android {
+            lint {
+                checkReleaseBuilds = false
+                abortOnError = false
+            }
+        }
+    }
+    plugins.withId('com.android.library') {
+        android {
+            lint {
+                checkReleaseBuilds = false
+                abortOnError = false
+            }
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

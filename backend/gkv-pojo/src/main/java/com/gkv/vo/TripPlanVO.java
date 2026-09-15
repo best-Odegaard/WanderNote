@@ -14,6 +14,10 @@ public class TripPlanVO {
     private String title;
     private String fromCity;
     private String toCity;
+    /** 出发日期（YYYY-MM-DD），前端行程卡片按它判定待出行/进行中/已结束 */
+    private String startDate;
+    /** 结束日期（YYYY-MM-DD） */
+    private String endDate;
     private Integer days;
     private Integer people;
     private BigDecimal budget;
@@ -23,6 +27,11 @@ public class TripPlanVO {
     private Object dayPlans;
     private String cover;
     private String sourceUrl;
+    /**
+     * 解析链接时自动抓到的网页正文，只在「解析生成行程草稿」接口返回，其他接口为 null。
+     * 管理端拿它填进「行程原文」，让人看到这次生成到底用了什么内容。
+     */
+    private String sourceText;
     private Integer sourceType;
     private Integer visibility;
     private Integer status;

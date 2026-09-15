@@ -238,13 +238,24 @@ backend/gkv-server/src/main/resources/application-dev.yml
 *.pem
 *.key
 *.p12
+*.jks
+*.keystore
+keystore.properties
 
 # 构建产物
+node_modules/
 frontend/dist/
 frontend/unpackage/
 admin-web/dist/
+frontend/dist.tgz
+admin-web/dist.tgz
 backend/**/target/
 travel_self_agent/**/__pycache__/
+
+# Android APK 打包产物
+*.apk
+*.aab
+/APK/
 
 # 运行时产物
 *.log

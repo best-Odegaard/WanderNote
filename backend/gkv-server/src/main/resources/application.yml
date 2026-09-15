@@ -47,6 +47,20 @@ agent:
   chat-url: http://127.0.0.1:8002/api/chat
   plan-url: http://127.0.0.1:8002/api/plan
 
+# 用户画像摘要模型（独立 provider，与对话/规划用的模型完全分开）
+#
+# 走 OpenAI 兼容的 /chat/completions，任何兼容厂商只改这三个配置项，不用动代码。
+# url 要填到 /chat/completions 为止（不是 base_url）。
+#
+# 降级行为：三项任一为空 → 摘要重写直接跳过并打 warn 日志，
+#          对话、生成行程、标签权重累加全部照常，只是没有 AI 文字摘要。
+# 生产建议用环境变量注入，避免把 key 提交进仓库。
+profile:
+  summary:
+    url: ${PROFILE_SUMMARY_URL:}
+    api-key: ${PROFILE_SUMMARY_API_KEY:}
+    model: ${PROFILE_SUMMARY_MODEL:}
+
 sky:
   jwt:
     # 设置jwt签名加密时使用的秘钥

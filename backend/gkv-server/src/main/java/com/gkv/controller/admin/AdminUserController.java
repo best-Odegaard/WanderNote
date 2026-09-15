@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * 管理端-用户管理
  */
@@ -31,11 +33,23 @@ public class AdminUserController {
 
     @GetMapping
     @RequirePerm(PermConstant.USER_VIEW)
-    @ApiOperation("用户分页列表（关键词/状态筛选）")
+    @ApiOperation("用户分页列表（关键词/状态/画像标签/画像标记筛选）")
     public Result<PageResult<AdminUserVO>> page(AdminUserPageDTO dto) {
-        log.info("查询用户列表：keyword={}, status={}, page={}",
-                dto.getKeyword(), dto.getStatus(), dto.getPageNum());
+        log.info("查询用户列表：keyword={}, status={}, profileTag={}, profileMark={}, page={}",
+                dto.getKeyword(), dto.getStatus(), dto.getProfileTag(), dto.getProfileMark(), dto.getPageNum());
         return Result.success(adminUserService.page(dto));
+    }
+
+    /**
+     * 导出（路径是字面量，比 /admin/user/{id} 的模板更具体，Spring 会优先匹配到这个方法）
+     */
+    @GetMapping("/export")
+    @RequirePerm(PermConstant.USER_VIEW)
+    @ApiOperation("按当前筛选条件导出（不分页，有上限；前端转 CSV）")
+    public Result<List<AdminUserVO>> export(AdminUserPageDTO dto) {
+        log.info("导出用户列表：keyword={}, status={}, profileTag={}, profileMark={}",
+                dto.getKeyword(), dto.getStatus(), dto.getProfileTag(), dto.getProfileMark());
+        return Result.success(adminUserService.export(dto));
     }
 
     @GetMapping("/{id}")

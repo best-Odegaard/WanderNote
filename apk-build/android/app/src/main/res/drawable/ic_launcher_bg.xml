@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  自适应图标的背景层：与 App 图标自身的背景渐变同向同色系。
+  前景层（ic_launcher_foreground）是一张满幅位图，圆角处透明，透出来的就是这个渐变，
+  所以启动器遮罩裁掉圆角后看不到任何白边或接缝。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:endColor="#7B3BBE"
+        android:startColor="#0C1A47"
+        android:type="linear" />
+</shape>

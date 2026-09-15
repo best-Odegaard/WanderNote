@@ -1,0 +1,19 @@
+{
+  "name": "wandernote-apk-build",
+  "version": "1.0.0",
+  "private": true,
+  "description": "本地打包 WanderNote APK 的 Capacitor 封装工程：把 frontend 的 uni-app H5 构建产物包成原生 Android 应用",
+  "scripts": {
+    "sync": "node scripts/copy-www.mjs && cap sync android",
+    "apk:debug": "node scripts/copy-www.mjs && cap sync android && cd android && gradle assembleDebug",
+    "apk:release": "node scripts/copy-www.mjs && cap sync android && cd android && gradle assembleRelease",
+    "android:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.2",
+    "@capacitor/core": "6.2.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.2.2"
+  }
+}

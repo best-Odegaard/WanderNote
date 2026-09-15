@@ -21,10 +21,10 @@
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll-body" :style="{ paddingTop: headerHeight + 'px' }" @scrolltolower="onScrollToLower">
+    <scroll-view scroll-y class="scroll-body" :style="{ paddingTop: headerHeight + 'px' }">
       <swiper class="banner-swiper" circular autoplay :interval="4000" @change="onBannerChange">
         <swiper-item v-for="item in banners" :key="item.id">
-          <view class="banner-card" @tap="showBannerIntro(item)">
+          <view class="banner-card" @tap="onBannerTap(item)">
             <!-- 新增背景图片 -->
             <image class="banner-bg-img" :src="item.imageUrl" mode="aspectFill"></image>
             <!-- 渐变遮罩 -->
@@ -32,7 +32,7 @@
             <view class="banner-text">
               <text class="banner-title">{{ item.title }}</text>
               <text class="banner-sub">{{ item.subtitle }}</text>
-              <view class="banner-btn" @tap.stop="showBannerIntro(item)">立即探索</view>
+              <view class="banner-btn" @tap.stop="onBannerTap(item)">{{ item.featuredId ? '查看行程' : '立即探索' }}</view>
             </view>
             <text class="banner-deco">{{ item.emoji }}</text>
           </view>
@@ -42,45 +42,34 @@
         <view v-for="(_, i) in banners" :key="i" class="dot" :class="{ active: bannerIndex === i }" />
       </view>
 
+      <!-- 我的行程：只取最近 3 条，卡片样式见 MyPlanCard -->
       <view class="section">
-        <text class="section-title">推荐城市</text>
-        <scroll-view scroll-x class="city-scroll" :show-scrollbar="false">
-          <view class="city-list">
-            <view
-              v-for="city in cityPills"
-              :key="city"
-              class="city-pill"
-              :class="{ active: selectedCity === city }"
-              @tap="onCityTap(city)"
-            >
-              <text class="city-emoji">{{ cityEmoji(city) }}</text>
-              <text class="city-name">{{ city }}</text>
-            </view>
-          </view>
-        </scroll-view>
-      </view>
-
-      <!-- 社区发现板块（原探索内容并入首页） -->
-      <view id="community-section" class="section">
         <view class="section-head">
-          <text class="section-title">社区发现</text>
-          <view class="section-link" @tap="goPublish">
-            <AppIcon name="edit" :size="26" color="#58a883" />
-            <text>发布</text>
+          <text class="section-title">我的行程</text>
+          <view v-if="trips.length > 0" class="section-link" @tap="goTripList">
+            <text>查看全部</text>
+            <AppIcon name="chevron-right" :size="26" color="#58a883" />
           </view>
         </view>
-        <view class="waterfall">
-          <view class="column">
-            <CommunityCard v-for="item in leftColumn" :key="item.id" :item="item" />
-          </view>
-          <view class="column">
-            <CommunityCard v-for="item in rightColumn" :key="item.id" :item="item" />
-          </view>
+
+        <LoadingView v-if="tripsLoading" />
+        <EmptyState
+          v-else-if="trips.length === 0"
+          icon="calendar"
+          title="还没有行程"
+          description="聊聊你想去哪，让 AI 帮你排一份"
+          button-text="创建行程"
+          @action="goCreateTrip"
+        />
+        <view v-else class="trip-list">
+          <MyPlanCard
+            v-for="(trip, i) in trips"
+            :key="String(trip.id)"
+            :plan="trip"
+            :index="i"
+            @tap="viewTrip(trip)"
+          />
         </view>
-        <LoadingView v-if="communityLoading && communityPosts.length === 0" />
-        <EmptyState v-if="!communityLoading && communityPosts.length === 0" title="暂无发现" button-text="发布第一条" @action="goPublish" />
-        <view v-if="communityLoading && communityPosts.length > 0" class="load-more">加载中...</view>
-        <view v-if="communityNoMore && communityPosts.length > 0" class="load-more">— 没有更多了 —</view>
       </view>
 
       <view style="height: 160rpx" />
@@ -116,20 +105,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
 import AppTabBar from '@/components/AppTabBar/AppTabBar.vue'
-import CommunityCard from '@/components/CommunityCard/CommunityCard.vue'
+import MyPlanCard from '@/components/MyPlanCard/MyPlanCard.vue'
 import LoadingView from '@/components/LoadingView/LoadingView.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import { useTabBarPage } from '@/hooks/useTabBarPage'
-import { getHomeIndex } from '@/api/home'
 import { withFallback } from '@/utils/mock'
-import { getCommunityList } from '@/api/community'
+import { getMyTrips, type TripPlan } from '@/api/trip'
+import { getFeaturedList, type FeaturedTripItem } from '@/api/featured'
+import { toMyPlanItem, type MyPlanItem } from '@/utils/tripCard'
 import { useLogin } from '@/hooks/useLogin'
-import { CITY_EMOJI } from '@/utils/constant'
-import type { HomeData, BannerItem, CityItem } from '@/api/home'
-import type { CommunityPost } from '@/api/community'
+import type { BannerItem } from '@/api/home'
 
 const { checkLogin } = useLogin()
 
@@ -137,12 +124,35 @@ const systemInfo = uni.getSystemInfoSync()
 const statusBarHeight = systemInfo.statusBarHeight || 20
 const headerHeight = statusBarHeight + 56
 
-// ── 首页数据（从接口获取）──
-const banners = ref<BannerItem[]>([])
-const cities = ref<CityItem[]>([])
+// ── 首页数据 ──
+/** 轮播项：在通用 Banner 上扩展一个精选行程标记 */
+interface HomeBannerItem extends BannerItem {
+  /** 有值时说明这条是「精选行程」，点击进入行程预览而不是弹景点简介 */
+  featuredId?: number
+}
+
+/** 后台配置的精选行程（一整个城市的完整行程） */
+const featuredTrips = ref<FeaturedTripItem[]>([])
+
+/**
+ * 轮播数据：优先展示后台配置的精选行程；
+ * 一条都没配（或接口挂了）时回退到本页写死的 7 个景点，保证首页不空。
+ */
+const banners = computed<HomeBannerItem[]>(() => {
+  if (featuredTrips.value.length > 0) {
+    return featuredTrips.value.map((f) => ({
+      id: f.id,
+      title: f.title,
+      subtitle: f.subtitle || `${f.city || ''}${f.days ? ` · ${f.days}天` : ''}`,
+      emoji: '🧭',
+      imageUrl: f.cover || '',
+      featuredId: f.id
+    }))
+  }
+  return HOME_BANNERS
+})
 
 const bannerIndex = ref(0)
-const selectedCity = ref('')
 
 // ── 轮播图景点介绍（写死在本页，弹窗展示）──
 interface BannerIntro extends BannerItem {
@@ -262,6 +272,15 @@ const HOME_BANNERS: BannerItem[] = Object.values(BANNER_INTROS).map((b) => ({
 
 const bannerIntro = ref<BannerIntro | null>(null)
 
+/** 点轮播：精选行程进详情页预览，写死的景点仍走本地弹窗 */
+function onBannerTap(item: HomeBannerItem) {
+  if (item.featuredId != null) {
+    uni.navigateTo({ url: `/pages/trip/detail?featuredId=${item.featuredId}` })
+    return
+  }
+  showBannerIntro(item)
+}
+
 function showBannerIntro(item: BannerItem) {
   bannerIntro.value = BANNER_INTROS[item.title] || {
     ...item,
@@ -278,138 +297,53 @@ function closeBannerIntro() {
   bannerIntro.value = null
 }
 
-// ── 社区发现数据（原探索页逻辑并入）──
-const communityPosts = ref<CommunityPost[]>([])
-const communityLoading = ref(false)
-const communityRefreshing = ref(false)
-const communityPage = ref(1)
-const communityNoMore = ref(false)
+// ── 我的行程：首页只展示最近 3 条 ──
+const TRIP_PREVIEW_COUNT = 3
 
-const leftColumn = computed(() => communityPosts.value.filter((_, i) => i % 2 === 0))
-const rightColumn = computed(() => communityPosts.value.filter((_, i) => i % 2 === 1))
+const allTrips = ref<MyPlanItem[]>([])
+const tripsLoading = ref(false)
 
-/** 城市 pills 列表（接口数据 + "更多…"） */
-const cityPills = computed(() => {
-  const names = cities.value.map((c) => c.name)
-  if (names.length > 0) names.push('更多…')
-  return names
-})
+const trips = computed(() => allTrips.value.slice(0, TRIP_PREVIEW_COUNT))
 
-/** 城市标签 emoji（未配置时用默认 🏙️） */
-function cityEmoji(city: string) {
-  return CITY_EMOJI[city] || '🏙️'
+/** 加载后台配置的精选行程（供轮播展示）；失败回落空数组 → 轮播回退到本页写死的景点 */
+async function loadFeatured() {
+  const list = await withFallback(() => getFeaturedList(), [] as FeaturedTripItem[])
+  featuredTrips.value = list
 }
 
-useTabBarPage(0)
-
-onMounted(() => {
-  loadHomeData()
-  loadCommunityPosts(true)
-})
-
-// 从详情页点赞/收藏返回后，静默刷新社区发现，保证列表计数与详情一致
-onShow(() => {
-  if (communityPosts.value.length > 0) {
-    refreshCommunitySilent()
-  }
-})
-
-async function loadHomeData() {
-  // 接口失败时回落空首页数据（展示空板块），不使用任何 mock 数据
-  const data = await withFallback<HomeData>(() => getHomeIndex(), {
-    banners: [],
-    cities: [],
-    hotAttractions: [],
-    hotActivities: [],
-    hotPosts: [],
-    latestTrip: null
-  })
-  // 轮播图按需求写死在本页（7 个景点，含真实图片），不随接口 banner 数据变化
-  banners.value = HOME_BANNERS
-  cities.value = data.cities || []
-
-  if (cities.value.length > 0 && !selectedCity.value) {
-    selectedCity.value = cities.value[0].name
-  }
-}
-
-// ── 社区发现（原探索板块）──
-async function loadCommunityPosts(reset = false) {
-  if (communityLoading.value) return
-  if (reset) {
-    communityPage.value = 1
-    communityNoMore.value = false
-  }
-  communityLoading.value = true
-
-  const res = await withFallback(
-    () => getCommunityList({ pageNum: communityPage.value, pageSize: 10 }),
-    // 接口失败回落空列表（展示空态），不使用任何 mock 数据
-    { records: [], total: 0 }
-  )
-
-  if (reset) {
-    communityPosts.value = res.records
-  } else {
-    communityPosts.value.push(...res.records)
-  }
-
-  if (res.records.length < 10) communityNoMore.value = true
-  communityLoading.value = false
-}
-
-function onScrollToLower() {
-  if (communityNoMore.value || communityLoading.value) return
-  communityPage.value++
-  loadCommunityPosts()
-}
-
-/** 静默刷新社区发现（不显示加载动画，仅更新数据） */
-async function refreshCommunitySilent() {
-  if (communityRefreshing.value || communityLoading.value) return
-  communityRefreshing.value = true
+async function loadTrips() {
+  if (tripsLoading.value) return
+  tripsLoading.value = true
   try {
-    const res = await withFallback(
-      () => getCommunityList({ pageNum: 1, pageSize: 10 }),
-      // 接口失败回落空列表（展示空态），不使用任何 mock 数据
-      { records: [], total: 0 }
-    )
-    communityPosts.value = res.records
-    communityPage.value = 1
-    communityNoMore.value = res.records.length < 10
+    // 接口失败回落空列表（展示空态），不使用任何 mock 数据
+    const list = await withFallback(() => getMyTrips(), [] as TripPlan[])
+    allTrips.value = list.map((trip, i) => toMyPlanItem(trip, i))
   } finally {
-    communityRefreshing.value = false
+    tripsLoading.value = false
   }
 }
 
-function goPublish() {
-  if (!checkLogin()) return
-  uni.navigateTo({ url: '/pages/community/publish' })
+function viewTrip(trip: MyPlanItem) {
+  uni.navigateTo({ url: `/pages/trip/detail?id=${trip.id}` })
 }
 
-/** 滚动到首页社区发现板块 */
-function scrollToCommunity() {
-  uni.createSelectorQuery()
-    .select('#community-section')
-    .boundingClientRect((rect) => {
-      if (rect && typeof rect.top === 'number') {
-        uni.pageScrollTo({ scrollTop: rect.top - headerHeight + 20, duration: 300 })
-      }
-    })
-    .exec()
+function goTripList() {
+  uni.switchTab({ url: '/pages/trip/index' })
 }
+
+function goCreateTrip() {
+  if (!checkLogin()) return
+  uni.navigateTo({ url: '/pages/plan/wizard' })
+}
+
+// Tab 页每次显示都重新拉取，从创建/编辑行程返回后列表能及时更新
+useTabBarPage(0, () => {
+  loadFeatured()
+  loadTrips()
+})
 
 function onBannerChange(e: { detail: { current: number } }) {
   bannerIndex.value = e.detail.current
-}
-
-function onCityTap(city: string) {
-  if (city === '更多…') {
-    scrollToCommunity()
-    return
-  }
-  selectedCity.value = city
-  uni.navigateTo({ url: `/pages/plan/wizard?city=${encodeURIComponent(city)}` })
 }
 
 function onSearch() {
@@ -660,69 +594,6 @@ function onNotify() {
   gap: 6rpx;
 }
 
-/* 社区发现瀑布流 */
-.waterfall {
-  display: flex;
-  gap: 16rpx;
-}
-
-.column {
-  flex: 1;
-  min-width: 0;
-}
-
-.load-more {
-  text-align: center;
-  padding: 24rpx;
-  font-size: 24rpx;
-  color: var(--text-placeholder);
-}
-
-.city-scroll {
-  white-space: nowrap;
-  width: 100%;
-  padding: 12rpx 0;
-}
-
-.city-list {
-  display: inline-flex;
-  gap: 26rpx;
-}
-
-.city-pill {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 14rpx 30rpx;
-  border-radius: 9999rpx;
-  background: var(--bg-card);
-  border: 2rpx solid rgba(72, 187, 136, 0.35);
-  color: var(--tag-text);
-  font-size: 26rpx;
-  font-weight: 600;
-  box-shadow: 0 2rpx 10rpx rgba(88, 168, 131, 0.08);
-  transition: all 0.25s ease;
-  .city-emoji {
-    font-size: 28rpx;
-    line-height: 1;
-  }
-  .city-name {
-    line-height: 1.2;
-  }
-  &.active {
-    background: linear-gradient(135deg, #48bb88, #2f9d6f);
-    border-color: transparent;
-    color: #fff;
-    font-weight: 700;
-    box-shadow: 0 4rpx 16rpx rgba(72, 187, 136, 0.35);
-    transform: translateY(-2rpx);
-  }
-  &:active {
-    transform: scale(0.95);
-  }
-}
-
 /* 轮播图景点介绍弹窗 */
 .popup-root {
   position: fixed;
@@ -846,7 +717,7 @@ function onNotify() {
   background: rgba(168, 230, 207, 0.35);
   border-radius: 20rpx;
   font-size: 24rpx;
-  color: #5a7b74;
+  color: var(--text-body);
   line-height: 1.6;
 }
 </style>

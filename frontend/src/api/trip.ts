@@ -283,8 +283,9 @@ export function chatWithAi(data: ChatRequestParams): Promise<AiChatResponse> {
       }, 1200)
     })
   }
+  // 对话链路已收回登录态（后端要按 user_id 沉淀画像），不能再用 skipAuth：
+  // 不加 token 会被后端 401，用户只会看到"请先登录"
   return http.post<AiChatResponse>('/travel/chat', data, {
-    skipAuth: true,
     timeout: 120000 // AI 对话较慢（多轮历史大时更慢），放宽到 2 分钟
   })
 }
@@ -307,10 +308,10 @@ export function generateTravelPlan(
   return realGenerateTravelPlan(data, options)
 }
 
-/** 提交生成任务 — POST /travel/generatePlan */
+/** 提交生成任务 — POST /travel/generatePlan（需登录：生成结果要关联用户画像） */
 export function submitGeneratePlan(data: ChatRequestParams): Promise<PlanSubmitResult> {
   if (USE_MOCK) return mock.mockSubmitPlan(data)
-  return http.post<PlanSubmitResult>('/travel/generatePlan', data, { skipAuth: true, timeout: 30000 })
+  return http.post<PlanSubmitResult>('/travel/generatePlan', data, { timeout: 30000 })
 }
 
 /** 查询任务状态 — GET /travel/plan/status/:taskId */
@@ -406,12 +407,15 @@ async function mockGenerateTravelPlan(
   return { plan: st.plan!, fromCache: false, elapsedSec: st.elapsedSec }
 }
 
-/** 查询长对话会话历史（/travel/chat 链路，chat_history 表）— GET /travel/history?sessionId= */
+/**
+ * 查询长对话会话历史（/travel/chat 链路，chat_history 表）— GET /travel/history?sessionId=
+ * 需登录：后端会校验会话归属，不是本人的会话直接返回空
+ */
 export function getTravelHistory(sessionId: string): Promise<ChatMessageVO[]> {
   if (USE_MOCK) {
     return Promise.resolve([...(mockChatHistories.get(sessionId) || [])])
   }
-  return http.get<ChatMessageVO[]>('/travel/history', { sessionId }, { skipAuth: true })
+  return http.get<ChatMessageVO[]>('/travel/history', { sessionId })
 }
 
 /**

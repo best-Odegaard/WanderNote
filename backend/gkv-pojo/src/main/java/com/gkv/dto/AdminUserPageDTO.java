@@ -17,4 +17,10 @@ public class AdminUserPageDTO extends PageQuery {
 
     @ApiModelProperty("状态：0禁用 1启用")
     private Integer status;
+
+    @ApiModelProperty("画像标签筛选（受控标签名，精确匹配）")
+    private String profileTag;
+
+    @ApiModelProperty("画像标记筛选（模糊匹配）")
+    private String profileMark;
 }

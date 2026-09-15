@@ -1,132 +1,179 @@
 <template>
-  <view class="plan-card" :class="{ ended: plan.status === 'ended' }" @tap="$emit('tap')">
-    <view v-if="plan.status === 'ended'" class="status-tag">
-      <AppIcon name="box" :size="22" color="var(--text-secondary)" />
-      <text>已结束</text>
+  <view class="plan-card" :style="{ background: bgColor }" @tap="$emit('tap')">
+    <!-- 状态徽章：待出行 / 进行中 / 已结束 -->
+    <view class="status-badge">
+      <AppIcon :name="statusMeta.icon" :size="22" :color="statusMeta.color" />
+      <text class="status-text" :style="{ color: statusMeta.color }">{{ statusMeta.label }}</text>
     </view>
-    <view class="plan-left">
-      <text class="plan-title font-hand">{{ plan.title }}</text>
+
+    <view class="plan-body">
+      <text class="plan-title">{{ plan.title }}</text>
+
       <view class="plan-meta">
         <view class="meta-line">
-          <text>{{ plan.days }}天{{ plan.nights }}晚</text>
+          <text>{{ metaFirstLine }}</text>
         </view>
         <view class="meta-line">
           <text>{{ plan.placeCount }}个地点</text>
         </view>
       </view>
-      <view class="collab">
+
+      <view class="plan-owner">
         <image v-if="plan.avatar" class="avatar" :src="plan.avatar" mode="aspectFill" />
-        <view class="add-btn">+</view>
+        <view v-else class="avatar avatar-placeholder">
+          <AppIcon name="user" :size="26" color="var(--text-tertiary)" />
+        </view>
       </view>
     </view>
-    <image class="plan-thumb" :src="plan.cover" mode="aspectFill" />
+
+    <!-- 右侧缩略图：斜放并向右溢出，多余部分被卡片裁掉；无图时用同尺寸占位保持版式一致 -->
+    <image v-if="plan.cover" class="plan-thumb" :src="plan.cover" mode="aspectFill" />
+    <view v-else class="plan-thumb plan-thumb-empty">
+      <AppIcon name="map-pin" :size="44" color="var(--text-tertiary)" />
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-export interface MyPlanItem {
-  id: number | string
-  title: string
-  days: number
-  nights: number
-  placeCount: number
-  cover: string
-  avatar?: string
-  status?: 'active' | 'ended'
+import { computed } from 'vue'
+import AppIcon from '@/components/AppIcon/AppIcon.vue'
+import { tripCardBg, type MyPlanItem, type TripCardStatus } from '@/utils/tripCard'
+
+interface Props {
+  plan: MyPlanItem
+  /** 列表内序号，用于底色按序循环 */
+  index?: number
 }
 
-defineProps<{ plan: MyPlanItem }>()
+const props = withDefaults(defineProps<Props>(), { index: 0 })
+
 defineEmits<{ tap: [] }>()
+
+const bgColor = computed(() => tripCardBg(props.index))
+
+/** 状态 → 徽章图标 / 文案 / 颜色 */
+const STATUS_META: Record<TripCardStatus, { icon: string; label: string; color: string }> = {
+  pending: { icon: 'calendar', label: '待出行', color: 'var(--trip-pending)' },
+  ongoing: { icon: 'clock', label: '进行中', color: 'var(--trip-ongoing)' },
+  ended: { icon: 'box', label: '已结束', color: 'var(--trip-ended)' }
+}
+
+const statusMeta = computed(() => STATUS_META[props.plan.status] ?? STATUS_META.pending)
+
+/** 首行信息：有日期区间时与天数并排，如「11.26至11.29 4天3晚」；1 天行程不写「0晚」 */
+const metaFirstLine = computed(() => {
+  const { days, nights, dateRange } = props.plan
+  const duration = nights > 0 ? `${days}天${nights}晚` : `${days}天`
+  return dateRange ? `${dateRange} ${duration}` : duration
+})
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
+
 .plan-card {
   position: relative;
-  display: flex;
-  align-items: stretch;
-  background: var(--bg-mint-soft);
+  // 裁掉向右溢出的缩略图，同时保证圆角
+  overflow: hidden;
   border-radius: 32rpx;
-  padding: 32rpx 28rpx;
+  padding: 28rpx 32rpx 26rpx;
   margin-bottom: 24rpx;
-  min-height: 200rpx;
-  overflow: visible;
+  min-height: 220rpx;
 
   &:active {
-    transform: scale(0.99);
+    opacity: 0.92;
   }
 }
 
-.status-tag {
-  position: absolute;
-  top: 20rpx;
-  left: 24rpx;
-  font-size: 22rpx;
-  color: var(--text-secondary);
-  z-index: 2;
+.status-badge {
   display: inline-flex;
   align-items: center;
   gap: 6rpx;
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  background: var(--trip-badge-bg);
+  margin-bottom: 14rpx;
 }
 
-.plan-left {
-  flex: 1;
-  min-width: 0;
-  padding-right: 120rpx;
+.status-text {
+  font-size: 20rpx;
+  font-weight: 500;
+}
+
+.plan-body {
+  position: relative;
+  z-index: 2;
+  // 给右侧缩略图留出空间：可见宽 210-52=158rpx，再留一点间隙
+  padding-right: 172rpx;
 }
 
 .plan-title {
-  font-size: 36rpx;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  // 标题用黑体（原来跟着 .font-hand 走楷体，偏手写风、手机上辨识度低）
+  font-family: 'PingFang SC', 'Heiti SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  font-size: 34rpx;
+  line-height: 1.3;
   color: var(--text-main);
-  line-height: 1.35;
-  display: block;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .plan-meta {
-  margin-top: 20rpx;
+  margin-top: 16rpx;
   padding-left: 16rpx;
-  border-left: 4rpx solid var(--border);
+  border-left: 4rpx solid var(--trip-bar);
 }
 
 .meta-line {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: var(--text-secondary);
   line-height: 1.6;
 }
 
-.collab {
+.plan-owner {
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  margin-top: 24rpx;
+  margin-top: 18rpx;
 }
 
 .avatar {
-  width: 48rpx;
-  height: 48rpx;
+  width: 52rpx;
+  height: 52rpx;
   border-radius: 50%;
-  border: 2rpx solid #fff;
+  border: 2rpx solid rgba(255, 255, 255, 0.85);
 }
 
-.add-btn {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 50%;
-  background: var(--bg-card);
-  border: 2rpx dashed var(--text-tertiary);
-  text-align: center;
-  line-height: 44rpx;
-  font-size: 28rpx;
-  color: var(--text-secondary);
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--trip-badge-bg);
+  border-color: transparent;
 }
 
+/* 缩略图：向右溢出 52rpx（= 210 的 1/4），即露出四分之三，另外四分之一被卡片右缘裁掉。
+   左缘落在 528rpx 处，卡片中线是 343rpx（卡宽 686rpx），不会越过中线。 */
 .plan-thumb {
   position: absolute;
-  right: 24rpx;
+  z-index: 1;
+  right: -52rpx;
   top: 50%;
+  width: 210rpx;
+  height: 210rpx;
+  border-radius: 26rpx;
   transform: translateY(-50%) rotate(6deg);
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 20rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.16);
+}
+
+/* 无封面时的占位：尺寸与位置跟缩略图一致，保证有无图卡片版式统一 */
+.plan-thumb-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--trip-badge-bg);
+  box-shadow: none;
 }
 </style>

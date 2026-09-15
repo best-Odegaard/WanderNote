@@ -15,4 +15,9 @@ public class BaseInfoDTO {
         private String budget;
         /** 外部带入的行程上下文（如游记/景点），透传给智能体作为首轮提示词 */
         private String context_note;
+        /**
+         * 用户历史画像回灌文本。只由后端服务端注入，前端不传。
+         * 服务端每次都用自己查库构建的值覆盖，客户端传什么都不作数。
+         */
+        private String profile_note;
 }

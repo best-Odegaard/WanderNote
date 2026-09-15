@@ -147,13 +147,13 @@ function onCollect() {
   background: linear-gradient(135deg, #a8e6cf, #b5ead7);
 
   .menu-title {
-    color: #5a7b74;
+    color: var(--text-body);
   }
 
   .menu-icon {
-    color: #5a7b74;
+    color: var(--text-body);
     background: rgba(255, 255, 255, 0.55);
-    border-color: rgba(90, 123, 116, 0.2);
+    border-color: rgba(27, 94, 74, 0.2);
   }
 }
 

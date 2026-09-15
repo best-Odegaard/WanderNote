@@ -14,12 +14,23 @@
   --bg-bubble: #D1F2EB;        // AI 气泡底
   --bg-card-blue: #E6F4FF;     // 浅蓝卡片（我的行程）——保留兼容，新卡统一用 --bg-mint-soft
   --bg-mint-soft: #E8F7F0;     // 薄荷绿浅卡（我的行程等强调卡片）
+  // 我的行程卡片：四种浅色底，按顺序循环（蓝 → 橘 → 黄绿 → 青）
+  --trip-bg-1: #E8F1FA;
+  --trip-bg-2: #FCEFE3;
+  --trip-bg-3: #EDF3DC;
+  --trip-bg-4: #E4F5F2;
+  --trip-badge-bg: rgba(255, 255, 255, 0.72);   // 「待出行」等状态徽章底
+  --trip-bar: rgba(120, 138, 133, 0.35);       // 卡片信息区左侧竖线
+  // 行程状态色
+  --trip-pending: #E8894A;     // 待出行（暖橘）
+  --trip-ongoing: #22A06B;     // 进行中（绿）
+  --trip-ended: #9AAFA9;       // 已结束（灰）
   // 文字
   --text-main: #333333;        // 主文字（标题、正文）
-  --text-body: #5A7B74;        // 正文/说明文字（薄荷灰绿）
-  --text-secondary: rgba(90, 123, 116, 0.75);   // 次级文字
-  --text-tertiary: rgba(90, 123, 116, 0.5);     // 弱化文字（角标、占位辅助）
-  --text-placeholder: rgba(90, 123, 116, 0.45); // 输入占位符
+  --text-body: #1B5E4A;        // 正文/说明文字（深绿）
+  --text-secondary: #246B55;   // 次级文字（深绿，比正文略浅）
+  --text-tertiary: #3F8368;    // 弱化文字（角标、占位辅助）
+  --text-placeholder: #6FA089; // 输入占位符
   // 边框 / 分隔线
   --border: #E8F5F2;
   // 功能色
@@ -45,6 +56,17 @@
   --bg-bubble: #1E293B;
   --bg-card-blue: #1E293B;
   --bg-mint-soft: #162D24;     // 深色下薄荷绿浅卡降级为深绿
+  // 我的行程卡片：深色下同色系压暗，保持四种底的色相区分
+  --trip-bg-1: #17233A;
+  --trip-bg-2: #33261B;
+  --trip-bg-3: #232C18;
+  --trip-bg-4: #17302C;
+  --trip-badge-bg: rgba(255, 255, 255, 0.10);
+  --trip-bar: rgba(255, 255, 255, 0.22);
+
+  --trip-pending: #F0A868;
+  --trip-ongoing: #4ADE80;
+  --trip-ended: #64748B;
 
   --text-main: #F1F5F9;
   --text-body: #CBD5E1;

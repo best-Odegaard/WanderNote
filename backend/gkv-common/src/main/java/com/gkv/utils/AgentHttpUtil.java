@@ -104,9 +104,15 @@ public class AgentHttpUtil {
     }
 
     /**
-     * 阶段一：生成行程框架（轻量快速，先给用户看骨架预览）
+     * 【已废弃，勿再使用】阶段一：生成行程框架
      * agent /api/plan?mode=frame 返回 {"frame": {...}}
+     *
+     * 智能体升级后 /api/plan 已经没有 mode 参数（未知查询参数会被静默忽略），
+     * 调用它实际会执行整条规划管线、返回 {plan_data: ...}（没有 frame 字段），
+     * 与 {@link #callPlanDetail} 搭配使用等于把同一条管线跑两遍，时间和模型额度都翻倍。
+     * 生成行程请统一用 {@link #callPlan(ChatRequestDTO)}。
      */
+    @Deprecated
     public TripPlanFrameDTO callPlanFrame(ChatRequestDTO req) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
@@ -122,9 +128,12 @@ public class AgentHttpUtil {
     }
 
     /**
-     * 阶段二：基于已确认框架生成完整行程详情
+     * 【已废弃，勿再使用】阶段二：基于已确认框架生成完整行程详情
      * agent /api/plan?mode=detail 返回 {"plan_data": {...}}
+     *
+     * 原因同 {@link #callPlanFrame}：mode 参数已失效，这次调用会再跑一整遍管线。
      */
+    @Deprecated
     public PlanResponseDTO callPlanDetail(ChatRequestDTO req, TripPlanFrameDTO frame) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
@@ -193,6 +202,11 @@ public class AgentHttpUtil {
             baseInfoObj.put("people_num", baseInfo.getPeople_num());
             baseInfoObj.put("budget", baseInfo.getBudget());
             baseInfoObj.put("context_note", baseInfo.getContext_note() != null ? baseInfo.getContext_note() : "");
+            // 用户历史画像回灌文本。由服务端在「提交任务的请求线程内」构建并覆盖写入，
+            // 前端传什么都不作数（上层取值时会先覆盖 baseInfo.profile_note）。
+            // 注意：智能体侧的入参模型必须显式声明这个字段 —— pydantic 默认会静默丢弃
+            // 未声明的额外字段，否则前端看着传了，prompt 里其实什么都没有。
+            baseInfoObj.put("profile_note", baseInfo.getProfile_note() != null ? baseInfo.getProfile_note() : "");
         }
         wrapper.put("base_info", baseInfoObj);
         wrapper.put("user_input", userInput != null ? userInput : "");

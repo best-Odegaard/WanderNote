@@ -411,7 +411,7 @@ async function handlePublish() {
 .custom-tag {
   background: rgba(168, 230, 207, 0.35);
   border-color: rgba(72, 187, 136, 0.4);
-  color: #5a7b74;
+  color: var(--text-body);
 }
 
 .tag-remove {

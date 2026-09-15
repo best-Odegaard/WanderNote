@@ -53,6 +53,63 @@ export interface UserItem {
   points: number
   status: number
   createTime: string
+
+  /* ---------- AI 画像（无画像的用户 profileTags 为空数组） ---------- */
+  /** 受控偏好标签及权重（权重倒序，列表最多前 3 个） */
+  profileTags?: ProfileTag[]
+  /** AI 画像摘要 */
+  profileSummary?: string
+  /** 累计对话轮数 */
+  profileChatRounds?: number
+  /** 画像更新时间 */
+  profileUpdateTime?: string
+  /** 画像最后更新来源：rule 规则沉淀 / model AI摘要 / manual 人工修正 */
+  profileSource?: string
+  /** 运营备注 */
+  profileRemark?: string
+  /** 运营标记 */
+  profileMark?: string
+}
+
+/** 画像偏好标签（受控标签 + 命中次数权重） */
+export interface ProfileTag {
+  tag: string
+  weight: number
+}
+
+/**
+ * 画像详情（管理端抽屉）
+ *
+ * 无画像时后端返回的是「带用户基础信息的空结构」，所以除 userId/username 外的字段都可能为空，
+ * 靠 hasProfile 区分"没沉淀过画像"和"沉淀了但内容为空"。
+ */
+export interface UserProfileDetail {
+  userId: number
+  username: string
+  nickname: string
+  phone: string
+  preferenceTags: ProfileTag[]
+  freeTags: string[]
+  constraintsText: string
+  /** 预算档位：经济/适中/高档 */
+  budgetLevel: string
+  /** 出行节奏：悠闲/常规/暴走 */
+  pace: string
+  /** 同行人：独自/情侣/朋友/家庭 */
+  companions: string
+  preferDays: number | null
+  summaryText: string
+  summaryTime: string
+  /** 累计对话轮数 */
+  chatRounds: number
+  /** 最后更新来源：rule/model/manual */
+  lastUpdateSource: string
+  /** 画像回灌开关：0 关 1 开（用户端自己控制，管理端只读） */
+  injectEnabled: number
+  remark: string
+  profileMark: string
+  updateTime: string
+  hasProfile: boolean
 }
 
 /** 游记列表项 */

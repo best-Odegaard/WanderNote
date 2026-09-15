@@ -52,4 +52,17 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             return false;
         }
     }
+
+    /**
+     * 请求结束后清理线程上下文。
+     *
+     * 之前只有管理端拦截器做了清理，用户端没有 —— Tomcat 会复用工作线程，
+     * 任何「不经过本拦截器」的请求（匿名白名单里的 /home/**、/travel/plan/status/** 等）
+     * 落到一个刚跑过登录用户请求的线程上时，BaseContext 里还留着上一个请求的 userId，
+     * AutoFillAspect / HomeController 读到的就是别人的身份，属于会串数据的隐患。
+     */
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        BaseContext.removeCurrentId();
+    }
 }

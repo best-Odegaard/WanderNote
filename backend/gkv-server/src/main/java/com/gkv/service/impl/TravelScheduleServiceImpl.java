@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gkv.dto.*;
 import com.gkv.entity.TravelSchedule;
 import com.gkv.utils.AgentHttpUtil;
+import com.gkv.utils.TripDateUtil;
 import com.gkv.vo.TravelResultVO;
 import org.springframework.beans.BeanUtils;
 import com.gkv.mapper.TravelScheduleMapper;
@@ -27,10 +28,11 @@ public class TravelScheduleServiceImpl extends ServiceImpl<TravelScheduleMapper,
         // 手动设置字段（因为字段名是下划线风格，与Python Agent的BaseInfo对应）
         agentReq.setDeparture_city(ScheduleDTO.getStartCity());
         agentReq.setDestination_city(ScheduleDTO.getDestination());
-        // TravelScheduleDTO 中没有 startDate 和 endDate，这里暂时设置为 null
-        // Python Agent会根据days自动计算日期范围
-        agentReq.setStart_day(null);
-        agentReq.setEnd_date(null);
+        // 智能体侧 start_day / end_date 是必填项（会校验日期从出发日连续递增、共 days 天）。
+        // 表单里没有出发日期，按「今天出发」推算，否则参数缺失会被直接判 422。
+        String startDay = TripDateUtil.todayStartDay();
+        agentReq.setStart_day(startDay);
+        agentReq.setEnd_date(TripDateUtil.endDateOf(startDay, ScheduleDTO.getTravelDays()));
         agentReq.setDays(ScheduleDTO.getTravelDays());
         agentReq.setHobby(ScheduleDTO.getTravelPreference());
         agentReq.setPeople_num(ScheduleDTO.getPeopleNum() != null ? String.valueOf(ScheduleDTO.getPeopleNum()) : null);

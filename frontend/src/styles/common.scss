@@ -9,6 +9,38 @@ page {
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
 }
 
+/*
+ * 隐藏滚动条
+ * App / 小程序 端原生渲染本就没有滚动条；H5 端 scroll-view 由浏览器渲染，
+ * 会画出原生滚动条，而 uni-app 的 show-scrollbar 属性对 H5 不生效，只能用 CSS 去掉。
+ * 全部滚动容器（含页面本身）统一隐藏，保持整站视觉一致。
+ */
+::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+/* Firefox / 支持标准属性的浏览器 */
+* {
+  scrollbar-width: none;
+}
+
+/* uni-app H5 的 scroll-view 内部滚动容器 */
+.uni-scroll-view,
+.uni-scroll-view-content {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+  }
+}
+
+
 /* 竞品风格手写标题 */
 .font-hand {
   font-family: 'STKaiti', 'KaiTi', 'PingFang SC', serif;

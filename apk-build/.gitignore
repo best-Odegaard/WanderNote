@@ -1,0 +1,27 @@
+# 这个目录是本地打包 APK 的封装工程，以下都是生成物或本机配置，不入库
+node_modules/
+
+# H5 构建产物同步过来的副本（真正的源在 frontend/dist/build/h5）
+www/
+
+# Capacitor / Gradle 生成物
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/capacitor-cordova-android-plugins/
+android/app/src/main/res/mipmap-*/
+android/app/src/main/res/drawable-*/splash_logo.png
+android/app/capacitor.build.gradle
+android/capacitor.settings.gradle
+
+# 本地产物
+output/
+*.apk
+*.aab
+*.keystore
+*.jks
+keystore.properties
+_icon-preview.png

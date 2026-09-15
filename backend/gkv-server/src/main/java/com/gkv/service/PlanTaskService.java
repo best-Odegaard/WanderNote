@@ -47,6 +47,9 @@ public class PlanTaskService {
     @Resource
     private TravelPlanCacheService travelPlanCacheService;
 
+    @Resource
+    private UserProfileService userProfileService;
+
     private final Map<String, PlanTask> tasks = new ConcurrentHashMap<>();
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
 
@@ -71,6 +74,11 @@ public class PlanTaskService {
         if (req.getSession_id() == null || req.getSession_id().isEmpty()) {
             req.setSession_id(UUID.randomUUID().toString().replace("-", ""));
         }
+
+        // 画像回灌必须在「提交任务的请求线程内」完成：
+        // 生成跑在后台线程池里，那里 BaseContext 是空的，取不到登录用户，回灌会静默失效。
+        injectProfileNote(req);
+
         String cacheKey = buildCacheKey(req);
 
         // 1. 优先命中缓存：同一行程秒开
@@ -96,23 +104,38 @@ public class PlanTaskService {
         return vo;
     }
 
-    /** 后台任务：检索 → 框架 → 详情 → 缓存 */
+    /** 注入用户历史画像到 base_info.profile_note（失败按无画像继续，不能挡住生成） */
+    private void injectProfileNote(ChatRequestDTO req) {
+        com.gkv.dto.BaseInfoDTO base = req.getBase_info();
+        if (base == null) {
+            return;
+        }
+        try {
+            Long userId = com.gkv.context.BaseContext.getCurrentId();
+            String note = userProfileService.buildInjectNote(userId);
+            base.setProfile_note(note);
+            if (note != null) {
+                log.info("[PlanTask] 已为用户{}注入画像回灌文本，长度={}", userId, note.length());
+            }
+        } catch (Exception e) {
+            log.warn("[PlanTask] 构建画像回灌文本失败，按无画像继续: {}", e.getMessage());
+            base.setProfile_note(null);
+        }
+    }
+
+    /** 后台任务：一次调用生成完整行程 → 写缓存 */
     private void run(PlanTask task, String cacheKey) {
         try {
             ChatRequestDTO req = task.getReq();
 
-            // 阶段一：行程框架（快，先给骨架）
             if (task.isCanceled()) return;
-            task.setStage(STAGE_GENERATING_FRAME);
-            task.setMessage("AI 正在生成行程框架…");
-            TripPlanFrameDTO frame = agentHttpUtil.callPlanFrame(req);
-            if (task.isCanceled()) return;
-            task.setFrame(frame);
-
-            // 阶段二：完整详情
             task.setStage(STAGE_GENERATING_DETAIL);
-            task.setMessage("AI 正在细化每日行程…");
-            PlanResponseDTO plan = agentHttpUtil.callPlanDetail(req, frame);
+            task.setMessage("AI 正在生成完整行程…");
+
+            // 一次调用成型。智能体侧的 /api/plan 已经没有 mode 参数（未知参数会被静默忽略），
+            // 原来的「框架 + 详情」两段式会让同一条规划管线白跑两遍：时间和模型额度都翻倍，
+            // 而返回体里根本没有 frame 字段，所谓"骨架预览"本来就是空的。
+            PlanResponseDTO plan = agentHttpUtil.callPlan(req);
             if (task.isCanceled()) return;
             task.setPlan(plan);
             // 先写缓存再置 DONE：避免前端看到 DONE 后立即重提时落入缓存未写入的极小窗口
@@ -170,7 +193,11 @@ public class PlanTaskService {
                 base == null ? "" : base.getDestination_city(),
                 base == null ? 0 : (base.getDays() == null ? 0 : base.getDays()),
                 base == null ? null : base.getHobby(),
-                base == null ? null : base.getBudget());
+                base == null ? null : base.getBudget(),
+                // 画像指纹：加了回灌之后，同样的城市+天数+偏好+预算在不同画像下应该产出不同结果。
+                // 指纹不进 key 的话，第二次生成会直接命中上一个用户的缓存，回灌静默失效 ——
+                // 这是最隐蔽的坑：功能"看起来做好了"但经常不生效。开关关闭/无画像时为空，key 保持原样。
+                base == null ? null : com.gkv.utils.ProfileTagUtil.fingerprint(base.getProfile_note()));
     }
 
     @PreDestroy

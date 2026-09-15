@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 品牌色，取自 App 图标背景渐变 -->
+    <color name="brand_navy">#0C1A47</color>
+    <color name="brand_purple">#7436B5</color>
+
+    <!-- 启动页背景 -->
+    <color name="splash_background">#0C1A47</color>
+</resources>

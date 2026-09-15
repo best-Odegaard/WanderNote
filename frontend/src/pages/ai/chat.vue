@@ -133,6 +133,17 @@
     </view>
 
     <view class="footer safe-bottom">
+      <!--
+        用户端对 AI 画像唯一的可见入口。
+        文案从用户视角出发（"记住的偏好"），不出现"画像"这种内部词。
+        开关只关"回灌"：关掉后后台仍会继续沉淀，只是不再把历史偏好喂给 AI。
+      -->
+      <view class="memory-row">
+        <text class="memory-text">使用 AI 记住的偏好</text>
+        <view class="memory-toggle" :class="{ active: profileEnabled }" @tap="toggleProfileSwitch">
+          <view class="memory-toggle-dot" />
+        </view>
+      </view>
       <view class="input-row">
         <view class="input-wrap">
           <input
@@ -182,6 +193,8 @@ import {
   type TripPlanFrame
 } from '@/api/trip'
 import { abortCurrentRequest } from '@/utils/request'
+import { isLoggedIn, redirectToLogin } from '@/utils/auth'
+import { getProfileSwitch, setProfileSwitch } from '@/api/profile'
 import { renderMarkdown } from '@/utils/markdown'
 import {
   clearActiveChatSession,
@@ -244,6 +257,8 @@ let genMapSeqToken = 0
 const genDrawnDayKey = ref('')
 // 对话历史（回传给后端做多轮记忆）
 const chatHistory = ref<ChatMessageVO[]>([])
+// 「使用 AI 记住的偏好」开关：默认开启；读取失败也保持开启，不打断对话
+const profileEnabled = ref(true)
 
 const messages = ref<ChatMessage[]>([getIntroMessage()])
 
@@ -278,6 +293,14 @@ async function restoreSession() {
 }
 
 onLoad(async (options?: Record<string, string>) => {
+  // 对话链路已收回登录态：后端要按 user_id 沉淀画像，未登录直接去登录页（带 redirect 回跳）。
+  // 对话页是 tabBar 之外的非 tab 页，登录成功后 redirectTo 会回到这里。
+  if (!isLoggedIn()) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    setTimeout(() => redirectToLogin(), 400)
+    return
+  }
+  loadProfileSwitch()
   selectedTripId.value = options?.tripId ? String(options.tripId) : ''
   if (selectedTripId.value) {
     try {
@@ -449,6 +472,7 @@ async function sendMessage() {
     uni.showToast({ title: 'AI 正在生成中，请稍候', icon: 'none' })
     return
   }
+  if (!ensureLogin()) return
   const text = inputText.value.trim()
   if (!text) return
   messages.value.push({ role: 'user', content: text })
@@ -457,6 +481,47 @@ async function sendMessage() {
 
   // 真实多轮调用：带上本轮 user_input，后端会把历史上下文一并提交给智能体
   await callAiChat(text)
+}
+
+/** 登录拦截：对话/生成链路需要登录，未登录先去登录页（带 redirect 回跳） */
+function ensureLogin(): boolean {
+  if (isLoggedIn()) return true
+  uni.showToast({ title: '请先登录', icon: 'none' })
+  setTimeout(() => redirectToLogin(), 400)
+  return false
+}
+
+/** 读取「使用 AI 记住的偏好」开关：失败保持默认开启，不打断对话 */
+async function loadProfileSwitch() {
+  if (!isLoggedIn()) return
+  try {
+    const res = await getProfileSwitch()
+    if (res && typeof res.enabled === 'boolean') {
+      profileEnabled.value = res.enabled
+    }
+  } catch (e) {
+    console.warn('读取偏好记忆开关失败，保持默认开启:', e)
+  }
+}
+
+/** 切换偏好记忆开关：先乐观更新 UI，失败回滚 */
+async function toggleProfileSwitch() {
+  if (!ensureLogin()) return
+  const next = !profileEnabled.value
+  profileEnabled.value = next
+  try {
+    const res = await setProfileSwitch(next)
+    if (res && typeof res.enabled === 'boolean') {
+      profileEnabled.value = res.enabled
+    }
+    uni.showToast({
+      title: next ? '已开启，AI 会延续你的偏好' : '已关闭，AI 会重新询问你的偏好',
+      icon: 'none'
+    })
+  } catch (e) {
+    profileEnabled.value = !next
+    console.warn('保存偏好记忆开关失败，已回滚:', e)
+  }
 }
 
 function goBack() {
@@ -473,6 +538,7 @@ function onDraft() {
  * 同一行程命中缓存时直接秒开。
  */
 async function goItinerary() {
+  if (!ensureLogin()) return
   if (!sessionId.value) {
     uni.showToast({ title: '请先发送消息与AI对话', icon: 'none' })
     return
@@ -1042,6 +1108,51 @@ watch(genFrame, (frame) => {
   width: 100%;
   font-size: 26rpx;
   border-radius: 999rpx;
+}
+
+/* 「使用 AI 记住的偏好」开关：靠右、缩放到与文字同高，不抢输入框的注意力 */
+.memory-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.memory-text {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+
+.memory-toggle {
+  width: 56rpx;
+  height: 32rpx;
+  border-radius: 999rpx;
+  background: var(--bg-muted);
+  border: 1rpx solid var(--border);
+  position: relative;
+  transition: background 0.2s ease;
+
+  &.active {
+    background: $mint-primary;
+    border-color: $mint-primary;
+
+    .memory-toggle-dot {
+      transform: translateX(26rpx);
+    }
+  }
+}
+
+.memory-toggle-dot {
+  position: absolute;
+  top: 2rpx;
+  left: 2rpx;
+  width: 26rpx;
+  height: 26rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease;
 }
 
 /* 底部 */

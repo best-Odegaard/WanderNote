@@ -139,6 +139,12 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {//继承了
     @Override
     protected void addInterceptors(InterceptorRegistry registry) {
         // 用户端拦截器：排除管理端路径，避免管理端 token（无 Authentication 头）被误拦截
+        //
+        // 匿名白名单从「整段 /travel/**」改成精确列出仍可匿名的接口：
+        //   对话链路需要登录后才能沉淀画像（chat_history.user_id 要从登录上下文取），
+        //   所以把 /travel/chat、/travel/generatePlan、/travel/history 收回登录态，
+        //   只保留「状态轮询」「取消任务」「旧表单式生成」匿名，
+        //   把本次的行为变更影响面压到最小（这三条前端本来就在用户进入对话页之前调用）。
         registry.addInterceptor(jwtTokenUserInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
@@ -146,7 +152,11 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {//继承了
                         "/user/register",
                         "/home/**",
                         "/ai/**",
-                        "/travel/**",
+                        // 旧表单式生成（/travel/aiPlan）保持匿名：它不走对话链路，不沉淀画像
+                        "/travel/aiPlan",
+                        // 行程生成任务的状态轮询与取消：前端在后台轮询，用户刷新/退出时也不能 401
+                        "/travel/plan/status/**",
+                        "/travel/plan/cancel/**",
                         "/admin/**",
                         "/doc.html",
                         "/webjars/**",
@@ -192,15 +202,16 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {//继承了
 
     /**
      * 注册 RestTemplate Bean，供 AgentHttpUtil 调用 AI 智能体服务。
-     * 配置连接与读取超时：AI 生成行程耗时较长（实测 60s+），读取超时设 150s，
-     * 避免公网链路慢时长连接被无限挂起。
+     * 生成行程是一次调用跑完整条规划管线（researcher→planner→inspector，逐景点核门票），
+     * 实测一个多日行程要 3~8 分钟；智能体是单进程同步服务，忙的时候更久。
+     * 上层 nginx / 管理端超时是 1500s，这里给到 900s，留出余量又不至于挂太久。
      */
     @Bean
     public RestTemplate restTemplate() {
         org.springframework.http.client.SimpleClientHttpRequestFactory factory =
                 new org.springframework.http.client.SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(10_000);   // 连接超时 10s
-        factory.setReadTimeout(150_000);     // 读取超时 150s（覆盖 Agent plan 60s+）
+        factory.setReadTimeout(900_000);     // 读取超时 900s（单次 Agent 生成）
         return new RestTemplate(factory);
     }
 }

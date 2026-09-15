@@ -1,6 +1,8 @@
 -- 行程计划表（TripPlan 实体对应表）
 -- 服务器数据库：geek012
 -- 用于 AI 生成行程入库 + "我的行程"列表/详情
+-- 注意：本文件是「最新结构快照」。已有库升级请执行 V1.9__alter_trip_plan_add_dates.sql，
+--       不要重复建表（线上库还有 chat_session_id，是建表后单独补的）。
 create table if not exists geek012.trip_plan
 (
     id             bigint auto_increment comment '主键' primary key,
@@ -8,6 +10,8 @@ create table if not exists geek012.trip_plan
     title          varchar(255)                       null comment '行程标题',
     from_city      varchar(100)                       null comment '出发城市',
     to_city        varchar(100)                       null comment '目的地城市',
+    start_date     varchar(20)                        null comment '出发日期(YYYY-MM-DD)',
+    end_date       varchar(20)                        null comment '结束日期(YYYY-MM-DD)',
     days           int                                null comment '行程天数',
     people         int                                null comment '出行人数',
     budget         decimal(10, 2)                     null comment '预算',

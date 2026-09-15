@@ -58,6 +58,12 @@ const router = createRouter({
           meta: { title: 'Banner管理', perm: 'home:manage' }
         },
         {
+          path: 'featured',
+          name: 'featured',
+          component: () => import('@/views/featured/index.vue'),
+          meta: { title: '精选行程', perm: 'home:manage' }
+        },
+        {
           path: 'city',
           name: 'city',
           component: () => import('@/views/city/index.vue'),

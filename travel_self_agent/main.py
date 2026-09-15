@@ -21,6 +21,11 @@ class BaseInfo(BaseModel):
     hobby:list[str]=Field(description="旅游偏好标签，如 ['自然风光', '美食探店']")
     people_num:str=Field(description="出行人数，例如 '两人'' 或 '一家三口'")
     budget:str=Field(description="预算范围，例如 '2000' 或 '人均1000'")
+    # 用户历史画像回灌文本（由 Java 后端服务端注入，前端不传）。
+    # 必须在这里显式声明：pydantic 默认 extra='ignore'，未声明的字段会被静默丢弃，
+    # 那样上游看着传了 profile_note，实际 prompt 里什么都没有。
+    # 它随 model_dump() 一起进 base_info 的 JSON，被 {base_info} 插值进各 prompt。
+    profile_note:str=Field(default="",description="用户历史画像（后端注入，可直接参考，不要重复追问已知信息）")
 
 class ChatMessage(BaseModel):
     role:str

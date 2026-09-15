@@ -1,0 +1,16 @@
+{
+  "session_id": "health_probe_20260912c",
+  "base_info": {
+    "departure_city": "",
+    "destination_city": "婺源",
+    "start_day": "2026-09-12",
+    "end_date": "2026-09-14",
+    "days": 3,
+    "hobby": [],
+    "people_num": "",
+    "budget": "",
+    "context_note": ""
+  },
+  "user_input": "",
+  "chat_history": []
+}

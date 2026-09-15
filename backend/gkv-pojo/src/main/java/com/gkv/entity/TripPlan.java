@@ -19,6 +19,10 @@ public class TripPlan {
     private String title;
     private String fromCity;
     private String toCity;
+    /** 出发日期（YYYY-MM-DD） */
+    private String startDate;
+    /** 结束日期（YYYY-MM-DD） */
+    private String endDate;
     private Integer days;
     private Integer people;
     private BigDecimal budget;

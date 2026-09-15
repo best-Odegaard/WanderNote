@@ -1,0 +1,12 @@
+{
+  "appId": "com.wandernote.app",
+  "appName": "WanderNote",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": false
+  }
+}

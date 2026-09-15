@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 public class ChatHistory {
     @TableId(type = IdType.AUTO)
     private Long id;
+    /** 用户ID：存量历史消息为 NULL（不做归属回溯），画像读取侧忽略 NULL 行 */
+    private Long userId;
     private String sessionId;
     private String role;
     private String content;

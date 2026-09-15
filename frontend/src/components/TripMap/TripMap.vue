@@ -147,6 +147,96 @@ let qqMarkers: any[] = []
 let qqPolylines: any[] = []
 
 // #ifdef H5
+/**
+ * 数字圆点徽标：canvas 生成图片作为 marker 图标，标注行程顺序。
+ * 腾讯地图 GL 的内置大头针无法渲染文字，图片是唯一稳妥的做法。
+ * 2x 尺寸绘制（显示 26px），保证高分屏清晰。按 颜色#序号 缓存。
+ */
+const badgeCache = new Map<string, string>()
+function numberBadgeSrc(color: string, num: number): string {
+  const key = `${color}#${num}`
+  const cached = badgeCache.get(key)
+  if (cached) return cached
+
+  const S = 52
+  const canvas = document.createElement('canvas')
+  canvas.width = S
+  canvas.height = S
+  const ctx = canvas.getContext('2d')
+  ctx.beginPath()
+  ctx.arc(S / 2, S / 2, S / 2 - 4, 0, Math.PI * 2)
+  ctx.fillStyle = color
+  ctx.fill()
+  ctx.lineWidth = 4
+  ctx.strokeStyle = '#ffffff'
+  ctx.stroke()
+  ctx.fillStyle = '#ffffff'
+  ctx.font = 'bold 26px -apple-system, "PingFang SC", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(String(num), S / 2, S / 2 + 2)
+
+  const url = canvas.toDataURL('image/png')
+  badgeCache.set(key, url)
+  return url
+}
+
+interface NamePlate {
+  src: string
+  /** 显示尺寸（px） */
+  w: number
+  h: number
+}
+
+/**
+ * 名称牌：白底 + 组色描边圆角牌，标注地点名。
+ * 牌顶部画了一段透明间隙，让牌悬在数字圆点正下方而不重叠。按 颜色#名称 缓存。
+ */
+const plateCache = new Map<string, NamePlate>()
+function namePlate(name: string, color: string): NamePlate {
+  const key = `${color}#${name}`
+  const cached = plateCache.get(key)
+  if (cached) return cached
+
+  const text = name.length > 12 ? `${name.slice(0, 11)}…` : name
+  const GAP = 28 // 牌顶透明间隙（2x，显示 14px）
+  const H = 40 // 牌高（2x，显示 20px）
+  const FS = 22 // 字号（2x，显示 11px）
+  const font = `500 ${FS}px "PingFang SC", "Microsoft YaHei", sans-serif`
+
+  const measure = document.createElement('canvas').getContext('2d')
+  measure.font = font
+  const W = Math.ceil(measure.measureText(text).width) + 32
+
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = GAP + H
+  const ctx = canvas.getContext('2d')
+  const r = 8
+  ctx.beginPath()
+  ctx.moveTo(r, GAP)
+  ctx.arcTo(W - 1, GAP, W - 1, GAP + H - 1, r)
+  ctx.arcTo(W - 1, GAP + H - 1, 1, GAP + H - 1, r)
+  ctx.arcTo(1, GAP + H - 1, 1, GAP, r)
+  ctx.arcTo(1, GAP, W - 1, GAP, r)
+  ctx.closePath()
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
+  ctx.fill()
+  ctx.lineWidth = 3
+  ctx.strokeStyle = color
+  ctx.stroke()
+
+  ctx.font = font
+  ctx.fillStyle = '#2f3b3a'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, W / 2, GAP + H / 2 + 1)
+
+  const plate: NamePlate = { src: canvas.toDataURL('image/png'), w: W / 2, h: (GAP + H) / 2 }
+  plateCache.set(key, plate)
+  return plate
+}
+
 /** 初始化 H5 地图实例 */
 async function initH5Map() {
   try {
@@ -192,35 +282,46 @@ function redrawH5() {
       bounds.extend(ll)
       pointCount++
 
+      // 数字圆点：标注行程顺序（组内序号；总览时即当天内的先后）
+      const num = si + 1
       const marker = new TMap.MultiMarker({
         map: qqMap,
         styles: {
-          // 不传 src：使用 GL 内置大头针图标（fillColor 按组着色）；
-          // 远程图片 marker_default.png 无 CORS 头会被浏览器拦截
           default: new TMap.MarkerStyle({
-            width: 30,
-            height: 30,
-            anchor: { x: 15, y: 30 },
-            strokeWidth: 2,
-            strokeColor: '#ffffff',
-            fillColor: color
+            width: 26,
+            height: 26,
+            anchor: { x: 13, y: 13 },
+            src: numberBadgeSrc(color, num)
           })
         },
         geometries: [
           {
             id: `g${gi}_s${si}`,
             position: ll,
-            properties: {
-              spot: s,
-              groupIndex: gi,
-              spotIndex: si,
-              title: `${group.label || ''}${si + 1}`
-            }
+            properties: { spot: s, groupIndex: gi, spotIndex: si }
           }
         ]
       })
       marker.on('click', () => emit('spotTap', s, gi, si))
       qqMarkers.push(marker)
+
+      // 名称牌：标注地点名，悬在数字圆点正下方
+      if (s.name) {
+        const plate = namePlate(s.name, color)
+        const plateMarker = new TMap.MultiMarker({
+          map: qqMap,
+          styles: {
+            default: new TMap.MarkerStyle({
+              width: plate.w,
+              height: plate.h,
+              anchor: { x: plate.w / 2, y: 0 },
+              src: plate.src
+            })
+          },
+          geometries: [{ id: `lbl_g${gi}_s${si}`, position: ll }]
+        })
+        qqMarkers.push(plateMarker)
+      }
     })
 
     // 每组一条折线（>=2 点才画线）：优先使用驾车规划的真实路径，缺省直线连接
@@ -296,8 +397,9 @@ function redrawNative() {
         latitude: s.lat,
         longitude: s.lng,
         title: `${group.label || ''}${si + 1} ${s.name || ''}`,
+        // 原生 <map> 的 label 只支持一段文字，这里把「顺序序号 + 地点名」合成一段
         label: {
-          content: `${si + 1}`,
+          content: s.name ? `${si + 1} ${s.name}` : `${si + 1}`,
           color: '#ffffff',
           bgColor: color,
           borderRadius: 12,
@@ -501,10 +603,9 @@ onBeforeUnmount(() => {
   :deep(.rotate-circle) {
     display: none !important;
   }
-  /* 右上角缩放按钮（+/-）缩小一点 */
+  /* 右上角缩放按钮（+/-）：隐藏（缩放交给双指捏合 / 滚轮手势） */
   :deep(.tmap-zoom-control) {
-    transform: scale(0.78);
-    transform-origin: top right;
+    display: none !important;
   }
 }
 

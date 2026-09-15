@@ -80,3 +80,26 @@ export async function download(url: string, filename: string): Promise<void> {
   link.click()
   URL.revokeObjectURL(link.href)
 }
+
+/**
+ * 导出 CSV（内容由前端拼，服务端只出数据）
+ *
+ * 两个必须做的事，少一个运营就会以为功能坏了：
+ *   1. 带 BOM（\uFEFF）：不带的话 Excel 会按本地编码猜，中文列名和数据全是乱码。
+ *   2. 每个字段用双引号包裹，内部的双引号转义成两个双引号：
+ *      画像摘要、运营备注里出现逗号/换行/引号时不会把列串行。
+ */
+export function downloadCsv(
+  filename: string,
+  rows: Array<Array<string | number | null | undefined>>
+): void {
+  const body = rows
+    .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\r\n')
+  const blob = new Blob(['\uFEFF' + body], { type: 'text/csv;charset=utf-8' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(link.href)
+}

@@ -7,12 +7,27 @@ import type { TripPlan, TripDayPlan } from '@/api/trip'
 import type { UserInfo, LoginParams, LoginResult, RegisterParams } from '@/api/user'
 import type { HomeData } from '@/api/home'
 
-/** 肇庆示例行程（与 UI 预设一致） */
+/**
+ * 相对今天偏移若干天的日期（YYYY-MM-DD）。
+ * 示例行程的出发/结束日期用相对偏移而不是写死日期，
+ * 否则演示数据过一阵子就会全部落到过去，卡片徽章全变成「已结束」。
+ */
+function dateOffset(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
+
+/** 肇庆示例行程（与 UI 预设一致）：出发日在未来 → 卡片显示「待出行」 */
 export const mockZhaoqingTrip: TripPlan = {
   id: 'mock-zq-1',
   title: '肇庆1日游',
   fromCity: '广州',
   toCity: '肇庆',
+  startDate: dateOffset(45),
+  endDate: dateOffset(45),
   days: 1,
   budget: 4000,
   people: 2,
@@ -37,6 +52,8 @@ export const mockTrip: TripPlan = {
   title: '杭州3日精品之旅',
   fromCity: '深圳',
   toCity: '杭州',
+  startDate: dateOffset(-30),
+  endDate: dateOffset(-28),
   days: 3,
   budget: 3000,
   people: 2,
