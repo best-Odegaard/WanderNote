@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -42,9 +43,10 @@ public class FeaturedTripController {
     }
 
     @PostMapping("/{id}/copy")
-    @ApiOperation("添加到我的行程（复制一份独立副本）")
-    public Result<TripPlanVO> copy(@PathVariable Long id) {
-        log.info("添加精选行程到我的行程：featuredId={}", id);
-        return Result.success(featuredTripService.copyToMine(id));
+    @ApiOperation("添加到我的行程（复制一份独立副本，可指定出发日期）")
+    public Result<TripPlanVO> copy(@PathVariable Long id,
+                                   @RequestParam(required = false) String startDate) {
+        log.info("添加精选行程到我的行程：featuredId={}，startDate={}", id, startDate);
+        return Result.success(featuredTripService.copyToMine(id, startDate));
     }
 }

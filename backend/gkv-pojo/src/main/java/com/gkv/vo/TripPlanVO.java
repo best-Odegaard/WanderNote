@@ -39,4 +39,7 @@ public class TripPlanVO {
     private Integer likeCount;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+    /** 来源精选行程id（复制来源） */
+    private Long sourceFeaturedId;
 }

@@ -16,6 +16,11 @@ public interface FeaturedTripService {
     /** 精选行程详情（含完整行程，供详情页渲染） */
     FeaturedTripVO getDetail(Long id);
 
-    /** 把精选行程复制一份到当前登录用户名下（独立副本，之后互不影响） */
-    TripPlanVO copyToMine(Long id);
+    /**
+     * 把精选行程复制一份到当前登录用户名下（独立副本，之后互不影响）。
+     *
+     * @param id        精选行程 id
+     * @param startDate 用户选定的出发日期 yyyy-MM-dd；为空按今天出发（兼容未传该参数的老版本 App）
+     */
+    TripPlanVO copyToMine(Long id, String startDate);
 }

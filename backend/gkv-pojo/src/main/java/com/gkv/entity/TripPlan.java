@@ -38,6 +38,9 @@ public class TripPlan {
     private Integer shareCount;
     private Integer likeCount;
 
+    /** 来源精选行程id（复制来源） */
+    private Long sourceFeaturedId;
+
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

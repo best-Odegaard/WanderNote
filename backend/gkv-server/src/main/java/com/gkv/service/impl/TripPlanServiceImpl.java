@@ -712,6 +712,7 @@ public class TripPlanServiceImpl implements TripPlanService {
         entity.setStatus(vo.getStatus());
         entity.setShareCount(vo.getShareCount());
         entity.setLikeCount(vo.getLikeCount());
+        entity.setSourceFeaturedId(vo.getSourceFeaturedId());
         entity.setCreateTime(vo.getCreateTime());
         entity.setUpdateTime(vo.getUpdateTime());
         return entity;

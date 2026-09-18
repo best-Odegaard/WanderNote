@@ -1,6 +1,8 @@
 package com.gkv.service.impl;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gkv.dto.FeaturedParseDTO;
 import com.gkv.dto.FeaturedTripSaveDTO;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -29,6 +32,12 @@ public class AdminFeaturedTripServiceImpl implements AdminFeaturedTripService {
 
     @Autowired
     private TripPlanService tripPlanService;
+
+    /** 智能体在核实不到景点坐标时会写入这个占位标记。它只对内部排查有意义，不该出现在地址/描述里 */
+    private static final String COORD_PLACEHOLDER = "（坐标数据待核实）";
+
+    /** description 是「📍地址 | 🕒开放时间 | 💰门票」拼好的整串，这段前缀就是地址段 */
+    private static final String DESC_ADDR_PREFIX = "📍";
 
     @Override
     public List<FeaturedTrip> list() {
@@ -115,11 +124,84 @@ public class AdminFeaturedTripServiceImpl implements AdminFeaturedTripService {
         draft.setDays(trip.getDays());
         draft.setSourceUrl(dto.getSourceUrl());
         draft.setSourceText(sourceText);
-        draft.setTripJson(JSON.toJSONString(trip));
+        String cleanTripJson = cleanTripJson(JSON.toJSONString(trip));
+        draft.setTripJson(cleanTripJson);
         draft.setSortOrder(0);
         draft.setStatus(1);
         log.info("解析生成精选行程草稿：city={}，title={}，抓取正文字数={}",
                 draft.getCity(), draft.getTitle(), sourceText == null ? 0 : sourceText.length());
         return draft;
+    }
+
+    /**
+     * 清理行程 JSON 里智能体留下的占位标记。
+     * 只做字符串替换是不够的，两个字段的语义不同：
+     *   - location 是单个地址，清完为空就说明"这个景点没有可用地址"，应该把字段去掉，
+     *     而不是留一个空字符串 —— 前端 geocode 用的是 `s.location || s.title`，
+     *     空值能顺着回退到景点名去定位，留空串虽然也能兜底，但语义含糊、早晚踩坑。
+     *   - description 是分段的整串，只替换会把「📍 | 🕒…」这种悬空的地址段留在里面，
+     *     所以按 | 拆段，地址段清空后整段丢掉。
+     */
+    private String cleanTripJson(String tripJson) {
+        try {
+            JSONObject trip = JSON.parseObject(tripJson);
+            JSONArray dayPlans = trip.getJSONArray("dayPlans");
+            if (dayPlans == null) {
+                return trip.toJSONString();
+            }
+            for (int i = 0; i < dayPlans.size(); i++) {
+                JSONObject day = dayPlans.getJSONObject(i);
+                if (day == null) {
+                    continue;
+                }
+                JSONArray schedules = day.getJSONArray("schedules");
+                if (schedules == null) {
+                    continue;
+                }
+                for (int j = 0; j < schedules.size(); j++) {
+                    Object item = schedules.get(j);
+                    // 逐个判断类型：智能体万一返回了非对象的元素，也只跳过这一条，
+                    // 不让整份行程放弃清洗（外面那层 catch 是最后的兜底）
+                    if (item instanceof JSONObject) {
+                        cleanSpot((JSONObject) item);
+                    }
+                }
+            }
+            return trip.toJSONString();
+        } catch (Exception e) {
+            log.warn("行程内容清洗失败，按原文返回：{}", e.getMessage());
+            return tripJson;
+        }
+    }
+
+    /** 清洗单个景点的 location 与 description */
+    private void cleanSpot(JSONObject spot) {
+        String location = spot.getString("location");
+        if (location != null) {
+            String cleaned = location.replace(COORD_PLACEHOLDER, "").trim();
+            if (cleaned.isEmpty()) {
+                spot.remove("location");
+            } else {
+                spot.put("location", cleaned);
+            }
+        }
+
+        String description = spot.getString("description");
+        if (description != null) {
+            List<String> kept = new ArrayList<>();
+            for (String segment : description.split("\\|")) {
+                String text = segment.replace(COORD_PLACEHOLDER, "").trim();
+                // 地址段清空后只剩一个 📍，这一段整体丢掉，避免留下悬空的图标与分隔符
+                if (text.isEmpty() || DESC_ADDR_PREFIX.equals(text)) {
+                    continue;
+                }
+                kept.add(text);
+            }
+            if (kept.isEmpty()) {
+                spot.remove("description");
+            } else {
+                spot.put("description", String.join(" | ", kept));
+            }
+        }
     }
 }

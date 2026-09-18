@@ -4,16 +4,20 @@ import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gkv.context.BaseContext;
 import com.gkv.entity.FeaturedTrip;
+import com.gkv.entity.TripPlan;
 import com.gkv.exception.BaseException;
 import com.gkv.mapper.FeaturedTripMapper;
+import com.gkv.mapper.TripPlanMapper;
 import com.gkv.service.FeaturedTripService;
 import com.gkv.service.TripPlanService;
+import com.gkv.utils.TripDateUtil;
 import com.gkv.vo.FeaturedTripVO;
 import com.gkv.vo.TripPlanVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +37,9 @@ public class FeaturedTripServiceImpl implements FeaturedTripService {
 
     @Autowired
     private TripPlanService tripPlanService;
+
+    @Autowired
+    private TripPlanMapper tripPlanMapper;
 
     @Override
     public List<FeaturedTripVO> listActive() {
@@ -61,7 +68,7 @@ public class FeaturedTripServiceImpl implements FeaturedTripService {
     }
 
     @Override
-    public TripPlanVO copyToMine(Long id) {
+    public TripPlanVO copyToMine(Long id, String startDate) {
         Long userId = BaseContext.getCurrentId();
         if (userId == null) {
             throw new BaseException("请先登录后添加行程");
@@ -69,6 +76,14 @@ public class FeaturedTripServiceImpl implements FeaturedTripService {
         FeaturedTrip item = featuredTripMapper.selectById(id);
         if (item == null || !Integer.valueOf(STATUS_ON).equals(item.getStatus())) {
             throw new BaseException("该精选行程不存在或已下架");
+        }
+
+        // 判断是否已添加过该精选行程，避免连续快速点击产生多条重复行程
+        Long copied = tripPlanMapper.selectCount(new LambdaQueryWrapper<TripPlan>()
+                .eq(TripPlan::getUserId, userId)
+                .eq(TripPlan::getSourceFeaturedId, id));
+        if (copied != null && copied > 0) {
+            throw new BaseException("您已添加过该精选行程，可在【我的行程】中查看");
         }
 
         // 把内嵌的行程 JSON 还原成一份 TripPlanVO，再走现有 save() 落库：
@@ -87,16 +102,42 @@ public class FeaturedTripServiceImpl implements FeaturedTripService {
         vo.setId(null);
         vo.setChatSessionId(null);
         vo.setUserId(null);
+        vo.setSourceFeaturedId(id); // 记录来源，既是去重依据，也方便以后追溯
         if (vo.getTitle() == null || vo.getTitle().isEmpty()) {
             vo.setTitle(item.getTitle());
         }
         if (vo.getCover() == null || vo.getCover().isEmpty()) {
             vo.setCover(item.getCover());
         }
+        // 出行日期由用户此刻确定：精选行程里只有"几天"的模板内容，本身不带具体日期
+        String start = resolveStartDate(startDate);
+        vo.setStartDate(start);
+        vo.setEndDate(TripDateUtil.endDateOf(start, vo.getDays()));
+        // 副本不继承精选行程的建库时间，否则「我的行程」里显示的是别人的创建时间
+        vo.setCreateTime(null);
+        vo.setUpdateTime(null);
 
         TripPlanVO saved = tripPlanService.save(vo);
-        log.info("用户{}把精选行程{}添加到我的行程，新行程 id={}", userId, id, saved.getId());
+        log.info("用户{}把精选行程{}添加到我的行程，出发日{}，新行程 id={}", userId, id, start, saved.getId());
         return saved;
+    }
+
+    /**
+     * 出发日期：为空时默认今天出发（与 TripDateUtil 对智能体的既有约定一致）；
+     * 非空时必须是 yyyy-MM-dd，格式不对说明调用方传错了，直接报错而不是静默兜底。
+     * 这里只校验格式、不拦「过去的日期」——老版本 App、补录等场景不该因此失败，
+     * App 侧的日历已经把今天之前的日期置灰了。
+     */
+    private String resolveStartDate(String startDate) {
+        if (startDate == null || startDate.trim().isEmpty()) {
+            return TripDateUtil.todayStartDay();
+        }
+        String value = startDate.trim();
+        try {
+            return LocalDate.parse(value).toString();
+        } catch (Exception e) {
+            throw new BaseException("出发日期格式不正确，应为 yyyy-MM-dd");
+        }
     }
 
     /** 实体 → VO；withTrip 为 true 时解析并返回完整行程 */
