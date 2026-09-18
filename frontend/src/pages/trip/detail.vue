@@ -86,7 +86,7 @@
               class="day-tab"
               :class="{ active: viewMode === 'day' && activeDayIndex === i }"
               @tap="onSelectDay(i)"
-            >{{ formatDayTab(day.day, i) }}</view>
+            >{{ formatDayTab(i) }}</view>
             <!-- 一天以上时提供"总览"：查看完整路线规划 -->
             <view
               v-if="trip.dayPlans.length > 1"
@@ -151,7 +151,7 @@
         <!-- 精选行程：只提供「对话修改」与「添加到我的行程」两个动作 -->
         <view v-if="isFeaturedPreview" class="sheet-footer safe-bottom">
           <button class="btn-mint-outline" @tap="onChatModify">对话修改</button>
-          <button class="btn-black footer-main" @tap="onAddToMine">添加到我的行程</button>
+          <button class="btn-black footer-main" @tap="openDateSheet">添加到我的行程</button>
         </view>
         <view v-else class="sheet-footer safe-bottom">
           <button class="btn-mint-outline" @tap="onMapRoute">地图导航</button>
@@ -159,6 +159,58 @@
         </view>
       </view>
     </template>
+  </view>
+
+  <!--
+    加入我的行程：先选出发日期。
+    精选行程只有「几天、每天去哪」的模板内容，不带具体日期，
+    所以出行时间必须在这里由用户确定，否则行程落库后没有日期、列表上会显示成占位日期。
+  -->
+  <view v-if="showDateSheet" class="date-mask" @tap="closeDateSheet">
+    <view class="date-panel safe-bottom" @tap.stop>
+      <view class="date-handle" />
+      <view class="date-head">
+        <text class="date-title">选个出发日期</text>
+        <text class="date-sub">{{ trip?.title || '精选行程' }} · {{ tripDays }}天</text>
+      </view>
+
+      <!-- 区间预览：选完就能看到「几号到几号」，避免加完才发现日期不对 -->
+      <view class="date-range-tip" :class="{ placeholder: !selectedDate }">
+        <text v-if="selectedDate">{{ rangeLabel }}</text>
+        <text v-else>请选择出发日期</text>
+      </view>
+
+      <scroll-view scroll-y class="date-scroll">
+        <view v-for="month in dateMonths" :key="month.key" class="month-block">
+          <text class="month-title">{{ month.title }}</text>
+          <view class="weekday-grid">
+            <text v-for="w in weekdays" :key="w" class="weekday">{{ w }}</text>
+          </view>
+          <view class="date-grid">
+            <view v-for="blank in month.firstDay" :key="'b-' + month.key + '-' + blank" />
+            <view
+              v-for="day in month.days"
+              :key="day.value"
+              class="date-cell"
+              :class="{
+                selected: day.value === selectedDate,
+                inRange: isInTripRange(day.value),
+                rangeEnd: isRangeEnd(day.value),
+                disabled: day.disabled
+              }"
+              @tap="pickDate(day.value)"
+            >
+              <text>{{ day.day }}</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="date-actions">
+        <button class="date-cancel" @tap="closeDateSheet">取消</button>
+        <button class="date-confirm" :disabled="!selectedDate" @tap="confirmAddToMine">确定</button>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -582,8 +634,20 @@ function scrollToEvent(index: number) {
   })
 }
 
-function formatDayTab(day: number, index: number) {
-  const d = new Date(2026, 4, day + index)
+/**
+ * 每日标签的日期文案。
+ * 出发日优先取行程真实的 startDate；本次改动之前的老行程没有 startDate，退回今天。
+ *
+ * 历史 bug：原实现是 `new Date(2026, 4, day + index)`，两处都不对 ——
+ * 月份参数 4 其实是 5 月（写死成 2026 年 5 月，与行程实际日期无关），
+ * 天数和索引又重复相加（第 1/2/3 天算出来是 5/1、5/3、5/5），所以月份既不对、日期还会跳天。
+ * 现在改成「出发日 + 索引逐日递增」，与列表卡片上的 startDate ~ endDate 一致。
+ */
+function formatDayTab(index: number) {
+  const base = trip.value?.startDate
+    ? new Date(`${trip.value.startDate}T00:00:00`)
+    : new Date()
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + index)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   const week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
@@ -704,13 +768,117 @@ async function onSave() {
 // ===== 精选行程预览（只读）的两个动作 =====
 
 /** 添加到我的行程：后端把内嵌行程复制成一份归属当前用户的独立副本 */
-async function onAddToMine() {
+/* ---------------- 加入我的行程：出发日期选择 ---------------- */
+
+/** 日期面板是否展开 */
+const showDateSheet = ref(false)
+/** 用户选定的出发日期（yyyy-MM-dd），默认今天 */
+const selectedDate = ref('')
+const weekdays = ['日', '一', '二', '三', '四', '五', '六']
+
+/** 行程天数：优先用行程自身的天数，缺失时按实际排期天数兜底 */
+const tripDays = computed(() => {
+  const d = trip.value?.days
+  if (d && d > 0) return d
+  return trip.value?.dayPlans?.length || 1
+})
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function dateValueOf(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+
+function todayValue() {
+  return dateValueOf(new Date())
+}
+
+/** 月份网格：从本月起连排 6 个月（与「规划向导」的日期选择器口径一致） */
+const dateMonths = computed(() => {
+  const today = todayValue()
+  const base = new Date()
+  base.setDate(1)
+  return Array.from({ length: 6 }, (_, i) => {
+    const cursor = new Date(base.getFullYear(), base.getMonth() + i, 1)
+    const year = cursor.getFullYear()
+    const month = cursor.getMonth()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    return {
+      key: `${year}-${month + 1}`,
+      title: `${year}年${month + 1}月`,
+      firstDay: cursor.getDay(),
+      days: Array.from({ length: daysInMonth }, (_, d) => {
+        const day = d + 1
+        const value = dateValueOf(new Date(year, month, day))
+        return {
+          day,
+          value,
+          // 出行是"要去玩"的场景，过去的日期没有意义，置灰不可选
+          disabled: value < today
+        }
+      })
+    }
+  })
+})
+
+/** 返回日期 = 出发日 + 天数 - 1 */
+const endDate = computed(() => {
+  if (!selectedDate.value) return ''
+  const d = new Date(`${selectedDate.value}T00:00:00`)
+  d.setDate(d.getDate() + tripDays.value - 1)
+  return dateValueOf(d)
+})
+
+function dateLabelOf(value: string) {
+  const d = new Date(`${value}T00:00:00`)
+  return `${d.getMonth() + 1}月${d.getDate()}日（周${weekdays[d.getDay()]}）`
+}
+
+const rangeLabel = computed(() => {
+  if (!selectedDate.value || !endDate.value) return ''
+  if (selectedDate.value === endDate.value) {
+    return `${dateLabelOf(selectedDate.value)} · 共1天`
+  }
+  return `${dateLabelOf(selectedDate.value)} - ${dateLabelOf(endDate.value)} · 共${tripDays.value}天`
+})
+
+/** 出发日之后、返回日（含）之前的连续区间，用来画浅色滑带 */
+function isInTripRange(value: string) {
+  return !!selectedDate.value && value > selectedDate.value && value <= endDate.value
+}
+
+/** 返回日：单独描个圈，和出发日的实心圆区分开 */
+function isRangeEnd(value: string) {
+  return !!endDate.value && value === endDate.value && value !== selectedDate.value
+}
+
+function openDateSheet() {
   if (!checkLogin()) return
   if (!featuredTripId.value) return
+  // 每次都重置成今天，避免上一次的选择残留
+  selectedDate.value = todayValue()
+  showDateSheet.value = true
+}
+
+function closeDateSheet() {
+  showDateSheet.value = false
+}
+
+function pickDate(value: string) {
+  selectedDate.value = value
+}
+
+async function confirmAddToMine() {
+  if (!checkLogin()) return
+  if (!featuredTripId.value || !selectedDate.value) return
+  const range = rangeLabel.value
+  showDateSheet.value = false
   try {
-    await copyFeaturedToMine(featuredTripId.value)
-    uni.showToast({ title: '已添加到我的行程', icon: 'success' })
-    setTimeout(() => uni.switchTab({ url: '/pages/trip/index' }), 800)
+    await copyFeaturedToMine(featuredTripId.value, selectedDate.value)
+    uni.showToast({ title: `已添加：${range}`, icon: 'none', duration: 2200 })
+    setTimeout(() => uni.switchTab({ url: '/pages/trip/index' }), 1200)
   } catch (e) {
     // 失败提示由请求层统一弹出，这里只留日志
     console.warn('[trip/detail] 添加到我的行程失败:', e)
@@ -1202,5 +1370,176 @@ function onChatModify() {
   height: 88rpx;
   line-height: 88rpx;
   font-size: 28rpx;
+}
+
+/* ---------------- 加入我的行程：出发日期选择 ---------------- */
+
+.date-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.58);
+  display: flex;
+  align-items: flex-end;
+}
+
+.date-panel {
+  width: 100%;
+  max-height: 86vh;
+  background: var(--bg-card);
+  border-radius: 36rpx 36rpx 0 0;
+  padding: 18rpx 40rpx 32rpx;
+  box-sizing: border-box;
+}
+
+.date-handle {
+  width: 64rpx;
+  height: 8rpx;
+  border-radius: 999rpx;
+  background: var(--bg-input);
+  margin: 0 auto 36rpx;
+}
+
+.date-head {
+  margin-bottom: 22rpx;
+}
+
+.date-title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.date-sub {
+  display: block;
+  margin-top: 10rpx;
+  color: var(--text-tertiary);
+  font-size: 24rpx;
+}
+
+.date-range-tip {
+  background: var(--bg-mint-soft);
+  border-radius: 20rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 26rpx;
+  color: $mint-text;
+  font-size: 28rpx;
+
+  &.placeholder {
+    color: var(--text-placeholder);
+  }
+}
+
+.date-scroll {
+  height: 50vh;
+}
+
+.month-block {
+  padding-bottom: 44rpx;
+}
+
+.month-title {
+  display: block;
+  font-size: 34rpx;
+  color: var(--text-body);
+  margin-bottom: 30rpx;
+}
+
+.weekday-grid,
+.date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekday {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 22rpx;
+  margin-bottom: 24rpx;
+}
+
+.date-cell {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34rpx;
+  color: var(--text-main);
+  position: relative;
+  z-index: 1;
+
+  text {
+    width: 64rpx;
+    height: 64rpx;
+    line-height: 60rpx;
+    text-align: center;
+    border-radius: 50%;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+  }
+
+  // 出行区间：出发日之后到返回日的连续浅薄荷滑带
+  &.inRange::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 8rpx;
+    bottom: 8rpx;
+    background: rgba(168, 230, 207, 0.42);
+  }
+
+  // 出发日：品牌薄荷实心圆 + 深绿字，区间里最醒目
+  &.selected text {
+    background: $mint-primary;
+    color: $mint-text;
+    font-weight: 600;
+  }
+
+  // 返回日：空心圈标出结束位置
+  &.rangeEnd text {
+    border: 3rpx solid $mint-primary;
+  }
+
+  &.disabled {
+    opacity: 0.4;
+  }
+}
+
+.date-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 18rpx;
+}
+
+.date-cancel,
+.date-confirm {
+  flex: 1;
+  height: 92rpx;
+  line-height: 92rpx;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  margin: 0;
+
+  &::after {
+    border: none;
+  }
+}
+
+.date-cancel {
+  background: var(--bg-input);
+  color: var(--text-body);
+}
+
+.date-confirm {
+  background: #000;
+  color: #fff;
+
+  &[disabled] {
+    background: var(--bg-input);
+    color: var(--text-tertiary);
+  }
 }
 </style>

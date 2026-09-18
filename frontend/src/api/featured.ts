@@ -32,9 +32,16 @@ export function getFeaturedDetail(id: number | string) {
   return http.get<FeaturedTripDetail>(`/featured/${id}`)
 }
 
-/** 添加到我的行程（复制一份独立副本）— POST /featured/:id/copy */
-export function copyFeaturedToMine(id: number | string) {
-  return http.post<TripPlan>(`/featured/${id}/copy`, undefined, {
+/**
+ * 添加到我的行程（复制一份独立副本）— POST /featured/:id/copy?startDate=yyyy-MM-dd
+ *
+ * startDate：用户选定的出发日期。精选行程是「几天怎么玩」的模板，本身不带具体日期，
+ * 出发日必须由用户此刻指定，后端再按天数推算返回日。
+ * 不传时后端按「今天出发」兜底（兼容未升级的旧版本）。
+ */
+export function copyFeaturedToMine(id: number | string, startDate?: string) {
+  const query = startDate ? `?startDate=${encodeURIComponent(startDate)}` : ''
+  return http.post<TripPlan>(`/featured/${id}/copy${query}`, undefined, {
     showLoading: true,
     loadingText: '正在添加...'
   })

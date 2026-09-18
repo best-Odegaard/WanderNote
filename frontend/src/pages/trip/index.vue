@@ -25,7 +25,7 @@
             <AppIcon name="chevron-right" :size="32" color="var(--text-body)" class="trip-arrow" />
           </view>
           <text class="trip-meta">{{ trip.toCity }} · {{ trip.days }}天 · {{ trip.people }}人</text>
-          <text class="trip-date">{{ trip.createdAt || '2026-05-01' }}</text>
+          <text class="trip-date">{{ tripDateText(trip) }}</text>
           <view v-if="trip.chatSessionId" class="trip-chat-btn" @tap.stop="openTripChat(trip)">
             <text>进入行程对话</text>
           </view>
@@ -82,6 +82,22 @@ function viewTrip(trip: TripPlan) {
 function openTripChat(trip: TripPlan) {
   if (!trip.chatSessionId) return
   uni.navigateTo({ url: `/pages/ai/chat?tripId=${encodeURIComponent(String(trip.id))}` })
+}
+
+/**
+ * 卡片上的日期文案。
+ * 优先显示真实的出行日期区间；早于本次改动的老行程没有出行日期，退回显示创建时间。
+ * 注意：后端 VO 给的字段是 createTime，历史上这里读的是 createdAt，永远取不到值，
+ * 于是全都被兜底成写死的 '2026-05-01' —— 那是个假日期，已去掉。
+ */
+function tripDateText(t: TripPlan) {
+  if (t.startDate && t.endDate) {
+    return t.startDate === t.endDate ? t.startDate : `${t.startDate} ~ ${t.endDate}`
+  }
+  if (t.startDate) return t.startDate
+  const created = t.createTime || t.createdAt
+  if (!created) return '未设置出行日期'
+  return `创建于 ${String(created).slice(0, 10)}`
 }
 
 function goSurvey() {
