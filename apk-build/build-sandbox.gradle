@@ -1,0 +1,13 @@
+// 沙箱内的构建目录重定向脚本。
+// 背景：本机受限沙箱里，"会话开始前就存在的文件"不可删改，导致 Gradle 无法清理
+// android/app/build 下的旧产物（增量状态变脏 → compressReleaseAssets 报错）。
+// 把所有模块的 buildDirectory 指到全新的 build2/，绕开这批不可写文件。
+//
+// 用法：
+//   cd apk-build/android
+//   gradle assembleRelease --console=plain -I ../build-sandbox.gradle
+gradle.projectsLoaded {
+    gradle.rootProject.allprojects { p ->
+        p.layout.buildDirectory.set(new File(p.projectDir, 'build2'))
+    }
+}

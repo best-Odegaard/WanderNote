@@ -8,6 +8,9 @@ www/
 android/.gradle/
 android/build/
 android/app/build/
+# build-sandbox.gradle 会把构建目录重定向到 build2/（受限沙箱下 build/ 里的旧文件删不掉）
+android/app/build2/
+android/build2/
 android/local.properties
 android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.config.json
