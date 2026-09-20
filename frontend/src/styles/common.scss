@@ -243,6 +243,40 @@ page {
   }
 }
 
+/*
+ * 主按钮别名：.btn-primary 此前**从未定义**，却有 5 个页面在用
+ * （登录 / 注册 / 发布游记 / 行程编辑 / 资料编辑），实际渲染成浏览器默认灰按钮。
+ * 这里按品牌主按钮补上，一处修复全部。
+ * 用显式声明而非 @extend，避免跨组件/小程序编译时的选择器问题。
+ */
+.btn-primary {
+  background: var(--brand-grad);
+  color: var(--on-brand);
+  border: none;
+  border-radius: $radius-pill;
+  font-size: 30rpx;
+  font-weight: 600;
+  height: $btn-height;
+  line-height: $btn-height;
+  text-align: center;
+  box-shadow: var(--brand-glow);
+  letter-spacing: 0.5rpx;
+  transition: transform $dur-fast $ease-out, box-shadow $dur-base $ease-out;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    transform: scale(0.97);
+    box-shadow: var(--shadow-sm);
+  }
+
+  &[disabled] {
+    opacity: 0.5;
+  }
+}
+
 /* 次要按钮：白底 + 品牌描边（文字用 --brand-ink 保证对比度） */
 .btn-mint-outline {
   background: var(--bg-card);

@@ -34,7 +34,6 @@
               <text class="banner-sub">{{ item.subtitle }}</text>
               <view class="banner-btn" @tap.stop="onBannerTap(item)">{{ item.featuredId ? '查看行程' : '立即探索' }}</view>
             </view>
-            <text class="banner-deco">{{ item.emoji }}</text>
           </view>
         </swiper-item>
       </swiper>
@@ -144,7 +143,7 @@ const banners = computed<HomeBannerItem[]>(() => {
       id: f.id,
       title: f.title,
       subtitle: f.subtitle || `${f.city || ''}${f.days ? ` · ${f.days}天` : ''}`,
-      emoji: '🧭',
+      // 不设 emoji：精选行程卡不再画右下角装饰（原来写死 🧭，看着像水印）
       imageUrl: f.cover || '',
       featuredId: f.id
     }))
@@ -565,15 +564,6 @@ function onNotify() {
   &:active {
     transform: scale(0.95);
   }
-}
-
-.banner-deco {
-  position: absolute;
-  right: 32rpx;
-  bottom: 16rpx;
-  font-size: 130rpx;
-  opacity: 0.26;
-  z-index: 3;
 }
 
 .banner-dots {

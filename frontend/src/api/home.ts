@@ -9,7 +9,11 @@ export interface BannerItem {
   id: number
   title: string
   subtitle: string
-  emoji: string
+  /**
+   * 可选：早期用于在轮播右下角画一个装饰 emoji。
+   * 现已移除该渲染（精选行程位会写死 🧭，看起来像水印），字段保留可选以兼容旧数据。
+   */
+  emoji?: string
   imageUrl?: string
   linkUrl?: string
 }
