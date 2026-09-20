@@ -24,8 +24,10 @@
       <view class="icon-btn" @tap="goBack">
         <AppIcon name="chevron-left" :size="40" color="var(--text-main)" />
       </view>
-      <view class="icon-btn-group">
-        <view class="icon-btn" @tap="onShare">
+      <!-- data-preview 用于把「预览态」显式暴露到 DOM，便于自动化断言 -->
+      <view class="icon-btn-group" :data-preview="isFeaturedPreview ? '1' : '0'">
+        <!-- 分享只对归属自己的行程开放；精选行程是他人的只读内容，不给分享入口 -->
+        <view v-if="!isFeaturedPreview" class="icon-btn" @tap="onShare">
           <AppIcon name="share" :size="34" color="var(--text-main)" />
         </view>
         <view class="icon-btn" @tap="onEdit">
@@ -156,6 +158,12 @@
         <view v-else class="sheet-footer safe-bottom">
           <button class="btn-mint-outline" @tap="onMapRoute">地图导航</button>
           <button class="btn-black footer-main" @tap="onSave">保存行程</button>
+        </view>
+        <!-- 删除行程：破坏性操作，独立成行放在主操作下方，避免误触。
+             精选行程是只读预览，不提供删除。 -->
+        <view v-if="!isFeaturedPreview" class="danger-row" @tap="onDeleteTrip">
+          <AppIcon name="delete" :size="30" color="var(--danger)" />
+          <text class="danger-text">删除行程</text>
         </view>
       </view>
     </template>
@@ -765,6 +773,29 @@ async function onSave() {
   setTimeout(() => uni.switchTab({ url: '/pages/trip/index' }), 600)
 }
 
+/** 删除行程：不可恢复，必须二次确认；成功后回行程列表 */
+function onDeleteTrip() {
+  const id = trip.value?.id
+  if (id == null) return
+  uni.showModal({
+    title: '删除行程',
+    content: `确定删除「${trip.value?.title || '该行程'}」？删除后不可恢复。`,
+    confirmText: '删除',
+    confirmColor: '#E64340',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await tripStore.deleteTrip(id)
+        uni.showToast({ title: '已删除', icon: 'success' })
+        setTimeout(() => uni.switchTab({ url: '/pages/trip/index' }), 600)
+      } catch (e) {
+        console.warn('[trip/detail] 删除行程失败:', e)
+        uni.showToast({ title: '删除失败，请重试', icon: 'none' })
+      }
+    }
+  })
+}
+
 // ===== 精选行程预览（只读）的两个动作 =====
 
 /** 添加到我的行程：后端把内嵌行程复制成一份归属当前用户的独立副本 */
@@ -1012,7 +1043,7 @@ function onChatModify() {
 }
 
 .map-redraw-text {
-  font-size: var(--fs-meta);
+  font-size: 24rpx;
   color: var(--text-secondary);
 }
 
@@ -1039,12 +1070,12 @@ function onChatModify() {
 }
 
 .empty-text {
-  font-size: var(--fs-body);
+  font-size: 30rpx;
   color: var(--text-body);
 }
 
 .empty-sub {
-  font-size: var(--fs-meta);
+  font-size: 24rpx;
   color: var(--text-tertiary);
 }
 
@@ -1064,7 +1095,7 @@ function onChatModify() {
 }
 
 .stats-tag {
-  font-size: var(--fs-meta);
+  font-size: 22rpx;
   color: $mint-primary;
 }
 
@@ -1074,7 +1105,7 @@ function onChatModify() {
 }
 
 .stats-extra-item {
-  font-size: var(--fs-meta);
+  font-size: 22rpx;
   color: var(--text-secondary);
 }
 
@@ -1089,7 +1120,7 @@ function onChatModify() {
   background: var(--bg-input);
   color: var(--text-body);
   border-radius: 999rpx;
-  font-size: var(--fs-meta);
+  font-size: 24rpx;
 
   &.active {
     background: $mint-primary;
@@ -1118,7 +1149,7 @@ function onChatModify() {
 }
 
 .legend-text {
-  font-size: var(--fs-meta);
+  font-size: 22rpx;
   color: var(--text-secondary);
 }
 
@@ -1162,7 +1193,7 @@ function onChatModify() {
 }
 
 .grip-hint {
-  font-size: var(--fs-caption);
+  font-size: 20rpx;
   color: var(--text-tertiary);
 }
 
@@ -1181,7 +1212,7 @@ function onChatModify() {
 
 .featured-chip {
   flex-shrink: 0;
-  font-size: var(--fs-caption);
+  font-size: 20rpx;
   color: #ffffff;
   background: #58a883;
   border-radius: 8rpx;
@@ -1189,7 +1220,7 @@ function onChatModify() {
 }
 
 .featured-tip-text {
-  font-size: var(--fs-meta);
+  font-size: 22rpx;
   color: var(--text-tertiary);
 }
 
@@ -1199,7 +1230,7 @@ function onChatModify() {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  font-size: var(--fs-subhead);
+  font-size: 36rpx;
   font-weight: 700;
   line-height: 1.3;
   color: var(--text-main);
@@ -1261,7 +1292,7 @@ function onChatModify() {
 }
 
 .time {
-  font-size: var(--fs-body);
+  font-size: 28rpx;
   font-weight: 700;
   color: var(--text-main);
 }
@@ -1303,7 +1334,7 @@ function onChatModify() {
 
 .loc,
 .rating {
-  font-size: var(--fs-meta);
+  font-size: 22rpx;
   color: var(--text-secondary);
 }
 
@@ -1315,7 +1346,7 @@ function onChatModify() {
 }
 
 .tag {
-  font-size: var(--fs-caption);
+  font-size: 18rpx;
   padding: 4rpx 12rpx;
   background: $mint-tag-pink;
   color: var(--text-secondary);
@@ -1325,7 +1356,7 @@ function onChatModify() {
 .schedule-desc,
 .schedule-price,
 .food-rec {
-  font-size: var(--fs-meta);
+  font-size: 22rpx;
   color: var(--text-secondary);
   display: block;
   margin-top: 6rpx;
@@ -1344,7 +1375,7 @@ function onChatModify() {
 }
 
 .op {
-  font-size: var(--fs-meta);
+  font-size: 24rpx;
   color: $mint-primary;
 
   &.del {
@@ -1358,7 +1389,7 @@ function onChatModify() {
   padding: 32rpx;
   text-align: center;
   color: $mint-primary;
-  font-size: var(--fs-body);
+  font-size: 28rpx;
 }
 
 .sheet-footer .btn-mint-outline {
@@ -1369,7 +1400,29 @@ function onChatModify() {
   flex: 2;
   height: 88rpx;
   line-height: 88rpx;
-  font-size: var(--fs-body);
+  font-size: 28rpx;
+}
+
+/* 删除行程：低调的破坏性入口，压在底部主操作之下 */
+.danger-row {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  padding: 22rpx 32rpx;
+  background: var(--bg-page);
+  transition: background $dur-fast $ease-out;
+
+  &:active {
+    background: var(--error-bg);
+  }
+}
+
+.danger-text {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: var(--danger);
 }
 
 /* ---------------- 加入我的行程：出发日期选择 ---------------- */
@@ -1378,26 +1431,45 @@ function onChatModify() {
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: rgba(0, 0, 0, 0.58);
+  // 与首页弹窗同一套遮罩：浅青黑 + 模糊，比原来的纯黑柔和
+  background: rgba(4, 32, 26, 0.48);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: flex-end;
 }
 
 .date-panel {
   width: 100%;
-  max-height: 86vh;
-  background: var(--bg-card);
-  border-radius: 36rpx 36rpx 0 0;
-  padding: 18rpx 40rpx 32rpx;
+  max-height: 88vh;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1rpx solid var(--glass-border);
+  border-radius: $card-radius-lg $card-radius-lg 0 0;
+  padding: 20rpx 40rpx 32rpx;
   box-sizing: border-box;
+  animation: datePanelUp 0.32s $ease-out;
+  box-shadow: 0 -12rpx 48rpx rgba(4, 32, 26, 0.28);
+}
+
+@keyframes datePanelUp {
+  from {
+    opacity: 0;
+    transform: translateY(80rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .date-handle {
   width: 64rpx;
   height: 8rpx;
-  border-radius: 999rpx;
-  background: var(--bg-input);
-  margin: 0 auto 36rpx;
+  border-radius: $radius-pill;
+  background: var(--text-tertiary);
+  margin: 0 auto 32rpx;
 }
 
 .date-head {
@@ -1406,28 +1478,32 @@ function onChatModify() {
 
 .date-title {
   display: block;
-  font-size: var(--fs-heading);
-  font-weight: 600;
+  font-size: 40rpx;
+  font-weight: 800;
   color: var(--text-main);
+  letter-spacing: -0.5rpx;
 }
 
 .date-sub {
   display: block;
   margin-top: 10rpx;
   color: var(--text-tertiary);
-  font-size: var(--fs-meta);
+  font-size: 24rpx;
 }
 
 .date-range-tip {
-  background: var(--bg-mint-soft);
-  border-radius: 20rpx;
+  background: var(--brand-soft);
+  border-left: 6rpx solid var(--brand);
+  border-radius: $radius-md;
   padding: 20rpx 24rpx;
   margin-bottom: 26rpx;
-  color: $mint-text;
-  font-size: var(--fs-body);
+  color: var(--brand-ink);
+  font-size: 28rpx;
+  font-weight: 500;
 
   &.placeholder {
     color: var(--text-placeholder);
+    font-weight: 400;
   }
 }
 
@@ -1441,8 +1517,9 @@ function onChatModify() {
 
 .month-title {
   display: block;
-  font-size: var(--fs-subhead);
-  color: var(--text-body);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-main);
   margin-bottom: 30rpx;
 }
 
@@ -1455,7 +1532,7 @@ function onChatModify() {
 .weekday {
   text-align: center;
   color: var(--text-tertiary);
-  font-size: var(--fs-meta);
+  font-size: 22rpx;
   margin-bottom: 24rpx;
 }
 
@@ -1464,7 +1541,7 @@ function onChatModify() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--fs-subhead);
+  font-size: 34rpx;
   color: var(--text-main);
   position: relative;
   z-index: 1;
@@ -1478,6 +1555,7 @@ function onChatModify() {
     box-sizing: border-box;
     position: relative;
     z-index: 2;
+    transition: background $dur-fast $ease-out, color $dur-fast $ease-out;
   }
 
   // 出行区间：出发日之后到返回日的连续浅薄荷滑带
@@ -1488,19 +1566,20 @@ function onChatModify() {
     right: 0;
     top: 8rpx;
     bottom: 8rpx;
-    background: rgba(168, 230, 207, 0.42);
+    background: var(--brand-grad-soft);
   }
 
-  // 出发日：品牌薄荷实心圆 + 深绿字，区间里最醒目
+  // 出发日：品牌渐变实心圆 + 品牌文字色（深色下自动转为深字）
   &.selected text {
-    background: $mint-primary;
-    color: $mint-text;
-    font-weight: 600;
+    background: var(--brand-grad);
+    color: var(--on-brand);
+    font-weight: 700;
+    box-shadow: var(--brand-glow);
   }
 
-  // 返回日：空心圈标出结束位置
+  // 返回日：品牌描边空心圈标出结束位置
   &.rangeEnd text {
-    border: 3rpx solid $mint-primary;
+    border: 3rpx solid var(--brand);
   }
 
   &.disabled {
@@ -1519,27 +1598,36 @@ function onChatModify() {
   flex: 1;
   height: 92rpx;
   line-height: 92rpx;
-  border-radius: 999rpx;
-  font-size: var(--fs-body);
+  border-radius: $radius-pill;
+  font-size: 30rpx;
+  font-weight: 600;
   margin: 0;
+  transition: transform $dur-fast $ease-out;
 
   &::after {
     border: none;
   }
+
+  &:active {
+    transform: scale(0.97);
+  }
 }
 
 .date-cancel {
-  background: var(--bg-input);
+  background: var(--bg-card);
   color: var(--text-body);
+  border: 2rpx solid var(--border-strong);
 }
 
 .date-confirm {
-  background: #000;
-  color: #fff;
+  background: var(--brand-grad);
+  color: var(--on-brand);
+  box-shadow: var(--brand-glow);
 
   &[disabled] {
     background: var(--bg-input);
     color: var(--text-tertiary);
+    box-shadow: none;
   }
 }
 </style>
