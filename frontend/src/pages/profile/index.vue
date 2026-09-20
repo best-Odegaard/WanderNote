@@ -5,7 +5,9 @@
     <scroll-view scroll-y class="scroll-content" :style="{ paddingTop: navHeight + 'px' }">
       <!-- 用户信息 -->
       <view class="user-card" @tap="handleUserTap">
-        <image class="avatar" :src="userInfo?.avatar || defaultAvatar" mode="aspectFill" />
+        <view class="avatar-ring">
+          <image class="avatar" :src="userInfo?.avatar || defaultAvatar" mode="aspectFill" />
+        </view>
         <view class="user-info">
           <text class="nickname">{{ userInfo?.nickname || '点击登录' }}</text>
           <text class="bio">{{ userInfo?.bio || '探索世界，记录美好' }}</text>
@@ -16,7 +18,7 @@
       </view>
 
       <!-- 数据统计 -->
-      <view class="stats card">
+      <view class="stats glass">
         <view class="stat-item" @tap="goTripTab">
           <text class="stat-num">{{ tripCount }}</text>
           <text class="stat-label">行程</text>
@@ -36,9 +38,11 @@
       </view>
 
       <!-- 功能菜单 -->
-      <view class="menu card">
+      <view class="menu card-lg">
         <view v-for="item in menuItems" :key="item.label" class="menu-item" @tap="goPage(item.path)">
-          <AppIcon :name="item.icon" :size="34" :color="item.color" class="menu-icon" />
+          <view class="menu-icon" :style="{ background: item.bg }">
+            <AppIcon :name="item.icon" :size="32" :color="item.color" />
+          </view>
           <text class="menu-label">{{ item.label }}</text>
           <AppIcon name="chevron-right" :size="28" color="var(--text-tertiary)" class="menu-arrow" />
         </view>
@@ -82,13 +86,13 @@ const journalCount = ref(0)
 const isLogin = computed(() => isLoggedIn())
 
 const menuItems = [
-  { icon: 'star', color: '#f5b942', label: '我的收藏', path: '/pages/profile/journals?type=collect' },
-  { icon: 'edit', color: '#58a883', label: '我的游记', path: '/pages/profile/journals?type=mine' },
-  { icon: 'map', color: '#4a9ef5', label: '我的行程', path: '/pages/trip/index' },
-  { icon: 'eye', color: '#9b7bd8', label: '浏览历史', path: '' },
-  { icon: 'message', color: '#4a9ef5', label: '意见反馈', path: '/pages/profile/feedback' },
-  { icon: 'info', color: '#f59e0b', label: '关于我们', path: '' },
-  { icon: 'settings', color: '#94a3b8', label: '设置中心', path: '/pages/profile/setting' }
+  { icon: 'star', color: '#F5B942', bg: 'rgba(245, 185, 66, 0.14)', label: '我的收藏', path: '/pages/profile/journals?type=collect' },
+  { icon: 'edit', color: '#0E9A85', bg: 'rgba(14, 154, 133, 0.12)', label: '我的游记', path: '/pages/profile/journals?type=mine' },
+  { icon: 'map', color: '#2F80ED', bg: 'rgba(47, 128, 237, 0.12)', label: '我的行程', path: '/pages/trip/index' },
+  { icon: 'eye', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)', label: '浏览历史', path: '' },
+  { icon: 'message', color: '#F0708C', bg: 'rgba(240, 112, 140, 0.12)', label: '意见反馈', path: '/pages/profile/feedback' },
+  { icon: 'info', color: '#E8894A', bg: 'rgba(232, 137, 74, 0.12)', label: '关于我们', path: '' },
+  { icon: 'settings', color: '#7A93A8', bg: 'rgba(122, 147, 168, 0.14)', label: '设置中心', path: '/pages/profile/setting' }
 ]
 
 useTabBarPage(3)
@@ -182,16 +186,27 @@ function handleLogout() {
 .user-card {
   display: flex;
   align-items: center;
-  padding: 40rpx 0;
-  gap: 24rpx;
+  padding: 36rpx 8rpx 40rpx;
+  gap: 26rpx;
+}
+
+.avatar-ring {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  padding: 5rpx;
+  background: var(--brand-grad);
+  box-shadow: var(--brand-glow);
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .avatar {
-  width: 120rpx;
-  height: 120rpx;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  border: 4rpx solid var(--bg-card);
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+  display: block;
+  background: var(--bg-card);
 }
 
 .user-info {
@@ -199,16 +214,17 @@ function handleLogout() {
 }
 
 .nickname {
-  font-size: 36rpx;
-  font-weight: 600;
+  font-size: 40rpx;
+  font-weight: 800;
   color: var(--text-main);
   display: block;
+  letter-spacing: -0.5rpx;
 }
 
 .bio {
   font-size: 26rpx;
   color: var(--text-secondary);
-  margin-top: 8rpx;
+  margin-top: 10rpx;
   display: block;
 }
 
@@ -216,60 +232,99 @@ function handleLogout() {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: var(--bg-input);
+  transition: transform $dur-fast $ease-out;
+
+  &:active {
+    transform: scale(0.9);
+  }
 }
 
 .stats {
   display: flex;
-  margin-bottom: 24rpx;
+  margin-bottom: 26rpx;
+  padding: 12rpx 0;
 }
 
 .stat-item {
   flex: 1;
   text-align: center;
-  padding: 16rpx 0;
+  padding: 18rpx 0;
+  position: relative;
+  transition: transform $dur-fast $ease-out;
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  // 竖分隔线：比横线更清爽，且不占垂直空间
+  & + .stat-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rpx;
+    height: 44rpx;
+    background: var(--border-strong);
+  }
 }
 
 .stat-num {
-  font-size: 36rpx;
-  font-weight: 600;
+  font-size: 40rpx;
+  font-weight: 800;
   color: var(--text-main);
   display: block;
+  letter-spacing: -0.5rpx;
+  line-height: 1.2;
 }
 
 .stat-label {
   font-size: 24rpx;
   color: var(--text-secondary);
-  margin-top: 4rpx;
+  margin-top: 6rpx;
   display: block;
 }
 
 .menu {
   margin-bottom: 32rpx;
+  padding: 8rpx 28rpx;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 28rpx 0;
+  padding: 26rpx 0;
   border-bottom: 1rpx solid var(--border);
+  transition: transform $dur-fast $ease-out;
 
   &:last-child { border-bottom: none; }
+
+  &:active {
+    transform: scale(0.985);
+  }
 }
 
 .menu-icon {
-  margin-right: 20rpx;
+  margin-right: 22rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 14rpx;
-  background: var(--bg-input);
+  width: 64rpx;
+  height: 64rpx;
+  // 大圆角方形图标底（squircle 观感），按菜单项各自的色系着色
+  border-radius: 20rpx;
+  flex-shrink: 0;
 }
 
 .menu-label {
   flex: 1;
   font-size: 30rpx;
+  font-weight: 500;
   color: var(--text-main);
 }
 
@@ -280,13 +335,20 @@ function handleLogout() {
 
 .logout-btn {
   background: var(--bg-card);
-  color: $error-color;
+  color: var(--danger);
   font-size: 30rpx;
-  border-radius: $card-radius;
-  height: 88rpx;
-  line-height: 88rpx;
-  border: none;
+  font-weight: 500;
+  border-radius: $radius-pill;
+  height: 92rpx;
+  line-height: 92rpx;
+  border: 1rpx solid var(--border);
+  box-shadow: var(--shadow-xs);
+  transition: transform $dur-fast $ease-out;
 
   &::after { border: none; }
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 </style>

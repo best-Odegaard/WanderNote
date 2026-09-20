@@ -111,7 +111,7 @@ function addToTrip() {
 }
 
 .empty-text {
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   color: var(--text-body);
 }
 
@@ -130,7 +130,7 @@ function addToTrip() {
 }
 
 .name {
-  font-size: 40rpx;
+  font-size: var(--fs-heading);
   font-weight: 600;
   color: var(--text-body);
   display: block;
@@ -143,12 +143,12 @@ function addToTrip() {
   margin-top: 16rpx;
 }
 
-.rating { color: $warning-color; font-size: 28rpx; }
-.city { color: var(--text-secondary); font-size: 26rpx; }
-.price { color: $error-color; font-size: 28rpx; font-weight: 500; }
+.rating { color: $warning-color; font-size: var(--fs-body); }
+.city { color: var(--text-secondary); font-size: var(--fs-body); }
+.price { color: $error-color; font-size: var(--fs-body); font-weight: 500; }
 
 .open-time, .address {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   margin-top: 12rpx;
   display: block;
@@ -159,7 +159,7 @@ function addToTrip() {
 }
 
 .section-title {
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   font-weight: 600;
   color: var(--text-body);
   margin-bottom: 12rpx;
@@ -167,7 +167,7 @@ function addToTrip() {
 }
 
 .desc {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   line-height: 1.8;
 }
@@ -188,7 +188,7 @@ function addToTrip() {
   flex: 1;
   height: 80rpx;
   line-height: 80rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   border-radius: 40rpx;
   background: var(--bg-input);
   color: var(--text-body);

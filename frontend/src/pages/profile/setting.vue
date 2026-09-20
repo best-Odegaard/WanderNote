@@ -70,7 +70,7 @@ function clearCache() {
   align-items: center;
   padding: 28rpx 0;
   border-bottom: 1rpx solid var(--border);
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   color: var(--text-body);
 
   &:last-child { border-bottom: none; }
@@ -78,7 +78,7 @@ function clearCache() {
 
 .arrow, .value {
   color: var(--text-secondary);
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 }
 
 .about {
@@ -86,14 +86,14 @@ function clearCache() {
 }
 
 .about-title {
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   font-weight: 600;
   display: block;
   margin-bottom: 12rpx;
 }
 
 .about-desc {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   line-height: 1.8;
 }

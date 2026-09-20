@@ -59,12 +59,12 @@ function getPercent(value: number): number {
 }
 
 .label {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
 }
 
 .total {
-  font-size: 36rpx;
+  font-size: var(--fs-subhead);
   font-weight: 600;
   color: $primary-color;
 }
@@ -82,12 +82,12 @@ function getPercent(value: number): number {
 }
 
 .bar-label {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-body);
 }
 
 .bar-value {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 

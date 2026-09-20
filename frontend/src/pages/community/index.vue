@@ -138,7 +138,7 @@ onShow(() => {
 }
 
 .publish-btn {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: $primary-color;
 }
 
@@ -156,7 +156,7 @@ onShow(() => {
 .load-more {
   text-align: center;
   padding: 24rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-placeholder);
 }
 

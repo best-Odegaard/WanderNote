@@ -209,7 +209,7 @@ function submitRequirements() {
 }
 
 .nav-title {
-  font-size: 34rpx;
+  font-size: var(--fs-subhead);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -252,7 +252,7 @@ function submitRequirements() {
     border-radius: 50%;
     background: var(--bg-input);
     color: var(--text-tertiary);
-    font-size: 24rpx;
+    font-size: var(--fs-meta);
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -260,7 +260,7 @@ function submitRequirements() {
   }
 
   .step-label {
-    font-size: 22rpx;
+    font-size: var(--fs-meta);
     color: var(--text-tertiary);
   }
 
@@ -280,7 +280,7 @@ function submitRequirements() {
 .ai-hint {
   display: block;
   text-align: center;
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
   margin-bottom: 40rpx;
 }
@@ -290,7 +290,7 @@ function submitRequirements() {
 }
 
 .question-text {
-  font-size: 30rpx;
+  font-size: var(--fs-title);
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.5;
@@ -308,7 +308,7 @@ function submitRequirements() {
   padding: 28rpx 32rpx;
   background: var(--bg-muted);
   border-radius: 16rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-main);
   line-height: 1.4;
   border: 2rpx solid transparent;
@@ -330,13 +330,13 @@ function submitRequirements() {
   padding: 20rpx;
   background: var(--bg-card);
   border-radius: 16rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   border: 1rpx solid var(--border);
 }
 
 .plus {
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   color: #4a9ef5;
 }
 
@@ -355,12 +355,12 @@ function submitRequirements() {
   background: var(--bg-card);
   border: 1rpx solid #4a9ef5;
   border-radius: 999rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--primary-strong);
 }
 
 .remove {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-tertiary);
   padding-left: 4rpx;
 }
@@ -381,7 +381,7 @@ function submitRequirements() {
   background: #4a9ef5;
   color: #fff;
   border-radius: 48rpx;
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   font-weight: 600;
   border: none;
 

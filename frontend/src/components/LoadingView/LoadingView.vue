@@ -37,7 +37,7 @@ withDefaults(defineProps<Props>(), {
 
 .loading-text {
   margin-top: 24rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
 }
 

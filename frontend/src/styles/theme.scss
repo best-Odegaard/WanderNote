@@ -2,60 +2,126 @@
  * 主题令牌（CSS 自定义属性）
  * 浅色为默认值；深色通过根元素 data-theme="dark" 覆盖（见 src/utils/theme.ts）
  * 组件样式统一引用 var(--token)，避免硬编码色值，实现运行时主题切换
+ *
+ * ⚠️ 兼容性约定：原有 token 名**一律不得删除或改名**（大量页面/组件已在引用）。
+ *    本文件只做两件事：① 调整取值；② 追加新 token（玻璃拟态、渐变、阴影、点缀色）。
  */
+
+/**
+ * 字号令牌：六级阶梯，等距 4rpx（= 2px）
+ * 与主题无关，深浅色共用，因此单独在 :root 定义一次。
+ * 换算基准 750rpx = 屏幕宽，28rpx ≈ 14px，即手机端正文字号的舒适值。
+ * 图标与 emoji 不参与本阶梯，按图形尺寸单独管理。
+ */
+:root {
+  --fs-caption: 20rpx;   // 角标、徽章、标签胶囊（10px）
+  --fs-meta: 24rpx;      // 次要信息：城市 / 评分 / 时间 / 价格（12px）
+  --fs-body: 28rpx;      // 正文、描述、表单、按钮（14px）
+  --fs-title: 32rpx;     // 卡片标题、区块标题（16px）
+  --fs-subhead: 36rpx;   // 导航栏标题、次级页面标题（18px）
+  --fs-heading: 40rpx;   // 页面主标题、弹层标题（20px）
+}
 
 :root,
 [data-theme='light'] {
-  // 背景
-  --bg-page: #F9FDFB;          // 页面背景（薄荷白）
-  --bg-card: #FFFFFF;          // 卡片 / 输入框 / 底栏表面
-  --bg-input: #E8F5F2;         // 输入类底色
-  --bg-muted: #F0F4F8;         // 次级表面（选项、灰底块）
-  --bg-bubble: #D1F2EB;        // AI 气泡底
-  --bg-card-blue: #E6F4FF;     // 浅蓝卡片（我的行程）——保留兼容，新卡统一用 --bg-mint-soft
-  --bg-mint-soft: #E8F7F0;     // 薄荷绿浅卡（我的行程等强调卡片）
+  // ── 背景 ──
+  --bg-page: #F4FDFA; // 页面背景（薄荷白，比旧值更清透）
+  --bg-card: #FFFFFF; // 卡片 / 输入框 / 底栏表面
+  --bg-input: #E8F5F2; // 输入类底色
+  --bg-muted: #F0F4F8; // 次级表面（选项、灰底块）
+  --bg-bubble: #D1F2EB; // AI 气泡底
+  --bg-card-blue: #E6F4FF; // 浅蓝卡片（我的行程）——保留兼容，新卡统一用 --bg-mint-soft
+  --bg-mint-soft: #E8F7F0; // 薄荷绿浅卡（我的行程等强调卡片）
   // 我的行程卡片：四种浅色底，按顺序循环（蓝 → 橘 → 黄绿 → 青）
   --trip-bg-1: #E8F1FA;
   --trip-bg-2: #FCEFE3;
   --trip-bg-3: #EDF3DC;
   --trip-bg-4: #E4F5F2;
-  --trip-badge-bg: rgba(255, 255, 255, 0.72);   // 「待出行」等状态徽章底
-  --trip-bar: rgba(120, 138, 133, 0.35);       // 卡片信息区左侧竖线
-  // 行程状态色
-  --trip-pending: #E8894A;     // 待出行（暖橘）
-  --trip-ongoing: #22A06B;     // 进行中（绿）
-  --trip-ended: #9AAFA9;       // 已结束（灰）
-  // 文字
-  --text-main: #333333;        // 主文字（标题、正文）
-  --text-body: #1B5E4A;        // 正文/说明文字（深绿）
-  --text-secondary: #246B55;   // 次级文字（深绿，比正文略浅）
-  --text-tertiary: #3F8368;    // 弱化文字（角标、占位辅助）
-  --text-placeholder: #6FA089; // 输入占位符
-  // 边框 / 分隔线
-  --border: #E8F5F2;
-  // 功能色
-  --danger: #e64340;           // 删除 / 错误
-  --error-bg: #fff5f5;         // 错误提示卡背景
-  --error-border: #f9a8a8;     // 错误提示卡边框
-  --glass-bg: rgba(255, 255, 255, 0.72);        // Tab 栏玻璃底
-  // 详情页标签渐变
-  --tag-a: #e8f8f1;
-  --tag-b: #d4f0e2;
-  --tag-text: #1f5c44;
-  // 问卷页（蓝色系）
-  --survey-top: #e8f4fc;
-  --primary-soft: #e8f3fe;
-  --primary-strong: #2b7cd9;
+  --trip-badge-bg: rgba(255, 255, 255, 0.72); // 「待出行」等状态徽章底
+  --trip-bar: rgba(120, 138, 133, 0.35); // 卡片信息区左侧竖线
+
+  // ── 玻璃拟态（B 方案核心）──
+  --glass-bg: rgba(255, 255, 255, 0.62); // 玻璃表面（半透明）
+  --glass-bg-strong: rgba(255, 255, 255, 0.82); // 需要更强可读性的玻璃（导航栏/弹层）
+  --glass-bg-weak: rgba(255, 255, 255, 0.38); // 极淡玻璃（叠在图上的标签）
+  --glass-border: rgba(255, 255, 255, 0.75); // 玻璃高光描边
+  --glass-blur: 20px; // 模糊半径（供 backdrop-filter 使用）
+  --glass-shadow: 0 8rpx 32rpx rgba(15, 118, 110, 0.10);
+
+  // ── 品牌色（运行时，便于组件直接引用）──
+  --brand: #2FD8B0; // 主品牌薄荷（用于**底/装饰**，不作文字色）
+  --brand-ink: #0E9A85; // 品牌文字色（浅底上对比度 ≥ 4.5:1，替代 $mint-primary 作文字用）
+  --brand-deep: #0F766E; // 深青绿（文字/图标）
+  --brand-soft: #E6FBF4; // 品牌浅底
+  --brand-grad: linear-gradient(135deg, #14C9A8 0%, #0E9F88 100%); // 品牌渐变（白字对比度 ≥ 3:1）
+  --brand-grad-soft: linear-gradient(135deg, rgba(52, 224, 184, 0.18) 0%, rgba(20, 184, 166, 0.10) 100%);
+  --brand-glow: 0 10rpx 30rpx rgba(47, 216, 176, 0.35); // 品牌发光（亮暗通用）
+  --on-brand: #FFFFFF; // 品牌渐变上的文字色
+
+  // ── 点缀色（年轻人向：暖橘 / 珊瑚 / 柠檬 / 天蓝 / 紫）──
+  --accent-peach: #FFB27A;
+  --accent-coral: #FF8FA3;
+  --accent-lemon: #FFD166;
+  --accent-sky: #7CC6FF;
+  --accent-lilac: #B39DDB;
+  --accent-warm-grad: linear-gradient(135deg, #FFB27A 0%, #FF8FA3 100%);
+  --accent-cool-grad: linear-gradient(135deg, #7CC6FF 0%, #B39DDB 100%);
+
+  // ── 渐变装饰 / 装饰光斑 ──
+  --sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 100%);
+  --aurora-1: rgba(52, 224, 184, 0.30); // 左上薄荷光斑
+  --aurora-2: rgba(124, 198, 255, 0.22); // 右上天蓝光斑
+  --aurora-3: rgba(255, 177, 122, 0.18); // 底部暖橘光斑
+
+  // ── 阴影层级（统一柔和青绿投影，替代发灰的 rgba(0,0,0,.06)）──
+  --shadow-xs: 0 2rpx 8rpx rgba(15, 118, 110, 0.06);
+  --shadow-sm: 0 6rpx 18rpx rgba(15, 118, 110, 0.08);
+  --shadow-md: 0 12rpx 32rpx rgba(15, 118, 110, 0.10);
+  --shadow-lg: 0 20rpx 48rpx rgba(15, 118, 110, 0.14);
+  --shadow-float: 0 16rpx 40rpx rgba(15, 118, 110, 0.18);
+
+  // ── 行程状态色 ──
+  --trip-pending: #E8894A; // 待出行（暖橘）
+  --trip-ongoing: #22A06B; // 进行中（绿）
+  --trip-ended: #9AAFA9; // 已结束（灰）
+
+  // ── 文字 ──
+  --text-main: #17332B; // 主文字（标题、正文）
+  --text-body: #1B5E4A; // 正文/说明文字（深绿）
+  --text-secondary: #3C7A66; // 次级文字（深绿，比正文略浅）
+  --text-tertiary: #5E9A85; // 弱化文字（角标、占位辅助）
+  --text-placeholder: #8AB5A5; // 输入占位符
+  --text-on-glass: #17332B; // 玻璃表面上的文字
+
+  // ── 边框 / 分隔线 ──
+  --border: #E3F3EE;
+  --border-strong: #CFE9E1;
+
+  // ── 功能色 ──
+  --danger: #E64340; // 删除 / 错误
+  --error-bg: #FFF5F5; // 错误提示卡背景
+  --error-border: #F9A8A8; // 错误提示卡边框
+
+  // ── 详情页标签渐变 ──
+  --tag-a: #E8F8F1;
+  --tag-b: #D4F0E2;
+  --tag-text: #1F5C44;
+
+  // ── 问卷页（蓝色系）──
+  --survey-top: #E8F4FC;
+  --primary-soft: #E8F3FE;
+  --primary-strong: #2B7CD9;
 }
 
 [data-theme='dark'] {
-  --bg-page: #0F172A;
-  --bg-card: #1E293B;
-  --bg-input: #334155;
-  --bg-muted: #243244;
-  --bg-bubble: #1E293B;
-  --bg-card-blue: #1E293B;
-  --bg-mint-soft: #162D24;     // 深色下薄荷绿浅卡降级为深绿
+  // ── 背景 ──
+  --bg-page: #0B1220; // 比旧值更深，让玻璃层更明显
+  --bg-card: #16233A;
+  --bg-input: #22334D;
+  --bg-muted: #1B2A42;
+  --bg-bubble: #16233A;
+  --bg-card-blue: #16233A;
+  --bg-mint-soft: #11291F; // 深色下薄荷绿浅卡降级为深绿
   // 我的行程卡片：深色下同色系压暗，保持四种底的色相区分
   --trip-bg-1: #17233A;
   --trip-bg-2: #33261B;
@@ -64,26 +130,73 @@
   --trip-badge-bg: rgba(255, 255, 255, 0.10);
   --trip-bar: rgba(255, 255, 255, 0.22);
 
+  // ── 玻璃拟态 ──
+  --glass-bg: rgba(22, 35, 58, 0.58);
+  --glass-bg-strong: rgba(15, 25, 42, 0.84);
+  --glass-bg-weak: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.36);
+
+  // ── 品牌色 ──
+  --brand: #3EE9C0;
+  --brand-ink: #7FE7CC; // 深色底上的品牌文字色（对比度 ≥ 4.5:1）
+  --brand-deep: #9BE7D2;
+  --brand-soft: #12352B;
+  --brand-grad: linear-gradient(135deg, #3EE9C0 0%, #14B8A6 100%);
+  --brand-grad-soft: linear-gradient(135deg, rgba(62, 233, 192, 0.18) 0%, rgba(20, 184, 166, 0.10) 100%);
+  --brand-glow: 0 10rpx 30rpx rgba(62, 233, 192, 0.28);
+  --on-brand: #04231C; // 亮薄荷上的文字用深色，保证对比度
+
+  // ── 点缀色 ──
+  --accent-peach: #FFC08F;
+  --accent-coral: #FFA1B3;
+  --accent-lemon: #FFDD85;
+  --accent-sky: #9AD4FF;
+  --accent-lilac: #C7B3E8;
+  --accent-warm-grad: linear-gradient(135deg, #FFC08F 0%, #FFA1B3 100%);
+  --accent-cool-grad: linear-gradient(135deg, #9AD4FF 0%, #C7B3E8 100%);
+
+  // ── 渐变装饰 / 装饰光斑 ──
+  --sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0) 100%);
+  --aurora-1: rgba(62, 233, 192, 0.22);
+  --aurora-2: rgba(122, 162, 255, 0.20);
+  --aurora-3: rgba(255, 161, 179, 0.14);
+
+  // ── 阴影层级 ──
+  --shadow-xs: 0 2rpx 8rpx rgba(0, 0, 0, 0.28);
+  --shadow-sm: 0 6rpx 18rpx rgba(0, 0, 0, 0.34);
+  --shadow-md: 0 12rpx 32rpx rgba(0, 0, 0, 0.40);
+  --shadow-lg: 0 20rpx 48rpx rgba(0, 0, 0, 0.46);
+  --shadow-float: 0 16rpx 40rpx rgba(0, 0, 0, 0.50);
+
+  // ── 行程状态色 ──
   --trip-pending: #F0A868;
   --trip-ongoing: #4ADE80;
   --trip-ended: #64748B;
 
-  --text-main: #F1F5F9;
-  --text-body: #CBD5E1;
-  --text-secondary: #94A3B8;
-  --text-tertiary: #64748B;
-  --text-placeholder: rgba(148, 163, 184, 0.5);
+  // ── 文字 ──
+  --text-main: #F1F7F5;
+  --text-body: #D6E6E1;
+  --text-secondary: #A8C2BB;
+  --text-tertiary: #7E9C94;
+  --text-placeholder: rgba(168, 194, 187, 0.5);
+  --text-on-glass: #F1F7F5;
 
-  --border: #334155;
+  // ── 边框 / 分隔线 ──
+  --border: #26374F;
+  --border-strong: #33475F;
+
+  // ── 功能色 ──
   --danger: #F87171;
   --error-bg: #2B1518;
   --error-border: #7F1D1D;
-  --glass-bg: rgba(30, 41, 59, 0.72);
 
+  // ── 详情页标签渐变 ──
   --tag-a: #1F3A31;
   --tag-b: #16302A;
   --tag-text: #9BDCC0;
-  // 问卷页（蓝色系）
+
+  // ── 问卷页（蓝色系）──
   --survey-top: #16233A;
   --primary-soft: #1E3A5F;
   --primary-strong: #93C5FD;

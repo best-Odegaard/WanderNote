@@ -44,14 +44,14 @@ function handleTap() {
 }
 
 .title {
-  font-size: 30rpx;
+  font-size: var(--fs-title);
   font-weight: 600;
   color: var(--text-body);
   display: block;
 }
 
 .route {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
   margin-top: 8rpx;
   display: block;
@@ -64,7 +64,7 @@ function handleTap() {
 }
 
 .tag {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   padding: 4rpx 16rpx;
   background: rgba($primary-color, 0.1);
   color: $primary-color;
@@ -84,7 +84,7 @@ function handleTap() {
 }
 
 .interest-tag {
-  font-size: 20rpx;
+  font-size: var(--fs-caption);
   padding: 4rpx 12rpx;
   background: var(--bg-page);
   color: var(--text-secondary);

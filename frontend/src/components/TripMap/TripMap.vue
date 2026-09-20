@@ -643,7 +643,7 @@ onBeforeUnmount(() => {
 }
 
 .map-ph-text {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 
@@ -658,7 +658,7 @@ onBeforeUnmount(() => {
 }
 
 .map-empty-text {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
 }
 </style>

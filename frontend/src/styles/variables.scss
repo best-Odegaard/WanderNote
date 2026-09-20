@@ -1,31 +1,89 @@
-// 行笺 UI 原型：薄荷绿主题（保留原有变量名以兼容组件）
-$mint-primary: #A8E6CF;
-$mint-secondary: #B5EAD7;
-$mint-light: #D1F2EB;
-$mint-input: #E8F5F2;
-$mint-text: #1B5E4A;
-$mint-page: #F9FDFB;
-$mint-tag-pink: #FFD6E0;
+// ============================================================
+// 行笺 / WanderNote · 设计令牌（SCSS 侧）
+//
+// 说明：
+// 1) 兼容性优先 —— $mint-* / $primary-color 等旧变量名全部保留，
+//    30+ 组件已在引用，重命名会大面积报错。这里只调整取值与新增令牌。
+// 2) 运行时主题（浅色/深色）走 CSS 变量，见 theme.scss；
+//    本文件只放编译期常量（圆角、间距、尺寸、渐变、动效、兼容色）。
+// 3) 组件样式一律引用 var(--token)，避免硬编码色值。
+// ============================================================
 
+// ── 品牌色阶（薄荷绿 / 青绿）──
+$brand-mint: #6fe3c4; // 主品牌薄荷（替代旧 #A8E6CF，更饱和、更年轻）
+$brand-mint-strong: #2fd8b0; // 强强调（按钮渐变起点）
+$brand-teal: #14b8a6; // 青绿（渐变终点）
+$brand-deep: #0f766e; // 深青绿（大字/图标）
+
+// 浅色底（保留旧名以兼容组件）
+$mint-primary: $brand-mint;
+$mint-secondary: #b5ead7;
+$mint-light: #d1f2eb;
+$mint-input: #e8f5f2;
+$mint-text: #1b5e4a;
+$mint-page: #f4fdfa;
+$mint-tag-pink: #ffd6e0;
+
+// 点缀色（年轻人向：暖橘 / 珊瑚粉 / 柠檬黄 / 天蓝 / 紫）
+$accent-coral: #ff8fa3;
+$accent-peach: #ffb27a;
+$accent-lemon: #ffd166;
+$accent-sky: #7cc6ff;
+$accent-lilac: #b39ddb;
+
+// ── 兼容旧变量 ──
 $primary-color: $mint-primary;
 $accent-blue: $mint-light;
-$accent-border: rgba(168, 230, 207, 0.3);
-$secondary-color: #14B8A6;
-$success-color: #22C55E;
-$warning-color: #F59E0B;
-$error-color: #EF4444;
+$accent-border: rgba(111, 227, 196, 0.3);
+$secondary-color: $brand-teal;
+$success-color: #22c55e;
+$warning-color: #f59e0b;
+$error-color: #ef4444;
 $bg-color: $mint-page;
 $page-bg: $mint-page;
 $text-color: $mint-text;
-$text-secondary: #246B55;
-$text-placeholder: #6FA089;
+$text-secondary: #246b55;
+$text-placeholder: #6fa089;
 $border-color: $mint-input;
-$card-radius: 24rpx;
-$card-radius-lg: 32rpx;
-$page-padding: 32rpx;
-$fab-size: 112rpx;
 
-// Tab栏配色
-$main-color: #86dfc4;
+// ── 圆角：大圆角体系（B 方案核心）──
+$radius-sm: 16rpx;
+$radius-md: 24rpx;
+$radius-lg: 32rpx;
+$radius-xl: 40rpx;
+$radius-2xl: 48rpx;
+$radius-pill: 999rpx;
+$card-radius: $radius-lg; // 24 → 32rpx
+$card-radius-lg: $radius-xl; // 32 → 40rpx
+
+// ── 间距 ──
+$space-xs: 8rpx;
+$space-sm: 16rpx;
+$space-md: 24rpx;
+$space-lg: 32rpx;
+$space-xl: 48rpx;
+$page-padding: 32rpx;
+
+// ── 尺寸 ──
+$fab-size: 112rpx;
+$btn-height: 96rpx;
+$header-height: 112rpx;
+
+// ── 渐变（编译期常量）──
+$grad-brand: linear-gradient(135deg, #34e0b8 0%, #14b8a6 100%);
+$grad-brand-soft: linear-gradient(135deg, rgba(52, 224, 184, 0.16) 0%, rgba(20, 184, 166, 0.1) 100%);
+$grad-warm: linear-gradient(135deg, #ffb27a 0%, #ff8fa3 100%);
+$grad-cool: linear-gradient(135deg, #7cc6ff 0%, #b39ddb 100%);
+$grad-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 100%);
+
+// ── 动效 ──
+$ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+$ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+$dur-fast: 0.15s;
+$dur-base: 0.24s;
+$dur-slow: 0.36s;
+
+// ── Tab 栏兼容色 ──
+$main-color: $brand-mint-strong;
 $tab-gray: #b8c2c0;
 $glass-bg: rgba(255, 255, 255, 0.72);

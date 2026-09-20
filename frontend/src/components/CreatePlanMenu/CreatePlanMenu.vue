@@ -4,7 +4,7 @@
     <view class="menu-panel" @tap.stop>
       <view class="menu-item menu-item-primary" @tap="onCreateNew">
         <view class="menu-text">
-          <text class="menu-title font-hand">智能规划行程</text>
+          <text class="menu-title">智能规划行程</text>
           <text class="menu-desc">填写目的地、天数与偏好，进入 AI 行程助手继续补充需求</text>
         </view>
         <view class="menu-icon">
@@ -13,7 +13,7 @@
       </view>
       <view class="menu-item" @tap="onSmartImport">
         <view class="menu-text">
-          <text class="menu-title font-hand">智能导入地点/行程</text>
+          <text class="menu-title">智能导入地点/行程</text>
           <text class="menu-desc">粘贴笔记链接、行程文本，或上传图片进行识别</text>
         </view>
         <view class="menu-icon">
@@ -22,7 +22,7 @@
       </view>
       <view class="menu-item" @tap="onCollect">
         <view class="menu-text">
-          <text class="menu-title font-hand">采集识别</text>
+          <text class="menu-title">采集识别</text>
           <text class="menu-desc">识别同时收藏你的生活</text>
         </view>
         <view class="menu-icon">
@@ -164,13 +164,14 @@ function onCollect() {
 }
 
 .menu-title {
-  font-size: 34rpx;
+  font-size: var(--fs-subhead);
+  font-weight: 600;
   display: block;
   color: var(--text-main);
 }
 
 .menu-desc {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
   margin-top: 10rpx;
   display: block;

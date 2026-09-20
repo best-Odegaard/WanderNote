@@ -9,7 +9,7 @@
     <scroll-view scroll-y class="body" :style="{ paddingTop: navHeight + 'px' }">
       <!-- 目的地 -->
       <view class="block">
-        <text class="block-title font-hand">你想去哪里？</text>
+        <text class="block-title">你想去哪里？</text>
         <view class="input-box" @tap="openCityPicker">
           <view v-if="destination" class="tags">
             <view class="city-tag">
@@ -34,7 +34,7 @@
 
       <!-- 天数 -->
       <view class="block">
-        <text class="block-title font-hand">你想去多久？</text>
+        <text class="block-title">你想去多久？</text>
         <view class="picker-row" @tap="openCalendar">
           <text class="picker-icon">📅</text>
           <view class="duration-info">
@@ -47,7 +47,7 @@
 
       <!-- 旅行偏好 -->
       <view class="block">
-        <text class="block-title font-hand">旅行偏好</text>
+        <text class="block-title">旅行偏好</text>
         <view class="pref-grid">
           <view
             v-for="pref in TRAVEL_PREFERENCES"
@@ -91,7 +91,7 @@
     <!-- 底部按钮 -->
     <view class="footer safe-bottom">
       <button class="btn-black" :class="{ ready: canGoNext }" @tap="goChat">
-        <text class="font-hand">智能规划</text>
+        <text>智能规划</text>
       </button>
     </view>
 
@@ -100,7 +100,7 @@
         <view class="calendar-handle" />
         <view class="calendar-head">
           <view>
-            <text class="calendar-title font-hand">你想去多久？</text>
+            <text class="calendar-title">你想去多久？</text>
             <text class="calendar-timezone">时区：Asia/Shanghai</text>
           </view>
           <view class="flex-toggle" :class="{ active: isFlexibleDays }" @tap="toggleFlexibleDays">
@@ -110,7 +110,7 @@
         </view>
         <scroll-view scroll-y class="calendar-scroll">
           <view v-for="month in calendarMonths" :key="month.key" class="month-block">
-            <text class="month-title font-hand">{{ month.title }}</text>
+            <text class="month-title">{{ month.title }}</text>
             <view class="weekday-grid">
               <text v-for="w in weekdays" :key="w" class="weekday">{{ w }}</text>
             </view>
@@ -133,7 +133,7 @@
           </view>
         </scroll-view>
         <button class="calendar-confirm" @tap="confirmCalendar">
-          <text class="font-hand">确定</text>
+          <text>确定</text>
         </button>
       </view>
     </view>
@@ -143,7 +143,7 @@
       <view class="city-panel safe-bottom" @tap.stop>
         <view class="city-handle" />
         <view class="city-head">
-          <text class="city-title font-hand">选择目的地城市</text>
+          <text class="city-title">选择目的地城市</text>
           <text class="city-close" @tap="closeCityPicker">✕</text>
         </view>
         <!-- 搜索框 -->
@@ -561,7 +561,7 @@ function goChat() {
 .nav-btn {
   background: #000;
   color: #fff;
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   padding: 14rpx 28rpx;
   border-radius: 999rpx;
 }
@@ -577,7 +577,8 @@ function goChat() {
 }
 
 .block-title {
-  font-size: 44rpx;
+  font-size: var(--fs-heading);
+  font-weight: 600;
   display: block;
   margin-bottom: 24rpx;
 }
@@ -603,12 +604,12 @@ function goChat() {
   background: var(--bg-muted);
   padding: 10rpx 20rpx;
   border-radius: 12rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 }
 
 .remove {
   color: var(--text-tertiary);
-  font-size: 32rpx;
+  font-size: var(--fs-title);
 }
 
 .input-row {
@@ -618,13 +619,13 @@ function goChat() {
 }
 
 .ai-icon {
-  font-size: 36rpx;
+  font-size: var(--fs-subhead);
   color: #7c3aed;
 }
 
 .input {
   flex: 1;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   height: 64rpx;
 }
 
@@ -641,12 +642,12 @@ function goChat() {
 }
 
 .picker-icon {
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   margin-right: 16rpx;
 }
 
 .picker-value {
-  font-size: 30rpx;
+  font-size: var(--fs-body);
 }
 
 .duration-info {
@@ -657,13 +658,13 @@ function goChat() {
 }
 
 .date-range {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 
 .picker-arrow {
   color: var(--text-tertiary);
-  font-size: 32rpx;
+  font-size: var(--fs-title);
 }
 
 .pref-grid {
@@ -677,7 +678,7 @@ function goChat() {
   border-radius: 20rpx;
   padding: 20rpx 12rpx;
   text-align: center;
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   border: 3rpx solid transparent;
   transition: border-color 0.15s;
 
@@ -709,13 +710,13 @@ function goChat() {
 }
 
 .extra-label {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
 }
 
 .extra-value,
 .extra-input {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   text-align: right;
 }
 
@@ -734,11 +735,7 @@ function goChat() {
 
 .btn-black {
   width: 100%;
-  font-size: 36rpx;
-
-  .font-hand {
-    font-size: 36rpx;
-  }
+  font-size: var(--fs-subhead);
 }
 
 // 未填写目的地：浅色灰绿，表示暂不能进入下一步
@@ -800,7 +797,8 @@ function goChat() {
 
 .calendar-title {
   display: block;
-  font-size: 46rpx;
+  font-size: var(--fs-heading);
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -808,7 +806,7 @@ function goChat() {
   display: block;
   margin-top: 30rpx;
   color: var(--text-tertiary);
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
 }
 
 .flex-toggle {
@@ -819,7 +817,7 @@ function goChat() {
   background: var(--bg-muted);
   border-radius: 999rpx;
   padding: 14rpx 22rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   flex-shrink: 0;
 
   &.active {
@@ -867,7 +865,8 @@ function goChat() {
 
 .month-title {
   display: block;
-  font-size: 38rpx;
+  font-size: var(--fs-subhead);
+  font-weight: 600;
   margin-bottom: 34rpx;
 }
 
@@ -880,7 +879,7 @@ function goChat() {
 .weekday {
   text-align: center;
   color: var(--text-tertiary);
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   margin-bottom: 24rpx;
 }
 
@@ -889,7 +888,7 @@ function goChat() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 34rpx;
+  font-size: var(--fs-subhead);
   position: relative;
   z-index: 1;
   transition: background 0.15s ease;
@@ -935,7 +934,7 @@ function goChat() {
   border-radius: 999rpx;
   background: #000;
   color: #fff;
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   margin: 18rpx auto 0;
   border: none;
 
@@ -946,7 +945,7 @@ function goChat() {
 
 /* ===== 城市选择面板 ===== */
 .pick-hint {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
   flex-shrink: 0;
 }
@@ -988,11 +987,12 @@ function goChat() {
 }
 
 .city-title {
-  font-size: 40rpx;
+  font-size: var(--fs-heading);
+  font-weight: 600;
 }
 
 .city-close {
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   color: var(--text-tertiary);
   padding: 8rpx;
 }
@@ -1008,17 +1008,17 @@ function goChat() {
 }
 
 .search-icon {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
 }
 
 .city-search-input {
   flex: 1;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-main);
 }
 
 .search-clear {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-tertiary);
   padding: 4rpx 8rpx;
 }
@@ -1037,19 +1037,19 @@ function goChat() {
 }
 
 .result-city {
-  font-size: 30rpx;
+  font-size: var(--fs-title);
   color: var(--text-main);
 }
 
 .result-prov {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
 }
 
 .city-empty {
   text-align: center;
   color: var(--text-tertiary);
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   padding: 48rpx 0;
 }
 
@@ -1059,7 +1059,7 @@ function goChat() {
 
 .hot-label {
   display: block;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   margin-bottom: 14rpx;
 }
@@ -1074,7 +1074,7 @@ function goChat() {
   background: var(--bg-muted);
   border-radius: 999rpx;
   padding: 12rpx 26rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-body);
 
   &.picked {
@@ -1098,7 +1098,7 @@ function goChat() {
 
 .prov-item {
   padding: 20rpx 16rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
 
   &.active {
@@ -1116,7 +1116,7 @@ function goChat() {
 
 .city-item {
   padding: 18rpx 12rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-main);
 
   &.picked {

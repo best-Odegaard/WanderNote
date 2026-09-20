@@ -217,7 +217,7 @@ async function handlePublish() {
 }
 
 .title-input {
-  font-size: 34rpx;
+  font-size: var(--fs-subhead);
   font-weight: 500;
   padding-bottom: 20rpx;
   border-bottom: 1rpx solid var(--border);
@@ -227,7 +227,7 @@ async function handlePublish() {
 .content-input {
   width: 100%;
   min-height: 300rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   line-height: 1.8;
 }
 
@@ -278,7 +278,7 @@ async function handlePublish() {
 
 .upload-pct {
   color: #fff;
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   font-weight: 500;
 }
 
@@ -293,7 +293,7 @@ async function handlePublish() {
   border-radius: 50%;
   text-align: center;
   line-height: 32rpx;
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   font-weight: 700;
 }
 
@@ -308,7 +308,7 @@ async function handlePublish() {
   border-radius: 50%;
   text-align: center;
   line-height: 36rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   z-index: 2;
 }
 
@@ -327,7 +327,7 @@ async function handlePublish() {
 .tags-section { margin: 24rpx 0; }
 
 .label {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--text-main);
   margin-bottom: 20rpx;
@@ -337,7 +337,7 @@ async function handlePublish() {
 .tag-group { margin-bottom: 28rpx; }
 
 .group-title {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
   margin-bottom: 14rpx;
   display: block;
@@ -354,7 +354,7 @@ async function handlePublish() {
   align-items: center;
   gap: 6rpx;
   padding: 12rpx 24rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   background: var(--bg-input);
   border: 2rpx solid var(--border);
@@ -386,7 +386,7 @@ async function handlePublish() {
   padding: 0 24rpx;
   background: var(--bg-input);
   border-radius: 999rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
 }
 
 .custom-add {
@@ -399,7 +399,7 @@ async function handlePublish() {
   background: var(--bg-card);
   border: 2rpx solid rgba(72, 187, 136, 0.5);
   color: #2f9d6f;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   font-weight: 600;
 
   &:active {
@@ -415,7 +415,7 @@ async function handlePublish() {
 }
 
 .tag-remove {
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   color: var(--text-tertiary);
   margin-left: 4rpx;
   line-height: 1;
@@ -427,7 +427,7 @@ async function handlePublish() {
   padding: 0 20rpx;
   background: var(--bg-input);
   border-radius: 12rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   margin-top: 16rpx;
 }
 

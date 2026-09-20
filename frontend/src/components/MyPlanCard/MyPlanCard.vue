@@ -96,7 +96,7 @@ const metaFirstLine = computed(() => {
 }
 
 .status-text {
-  font-size: 20rpx;
+  font-size: var(--fs-caption);
   font-weight: 500;
 }
 
@@ -112,13 +112,10 @@ const metaFirstLine = computed(() => {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  // 标题用黑体（原来跟着 .font-hand 走楷体，偏手写风、手机上辨识度低）
-  font-family: 'PingFang SC', 'Heiti SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
-  font-size: 34rpx;
+  font-size: var(--fs-subhead);
   line-height: 1.3;
   color: var(--text-main);
   font-weight: 700;
-  letter-spacing: 0;
 }
 
 .plan-meta {
@@ -128,7 +125,7 @@ const metaFirstLine = computed(() => {
 }
 
 .meta-line {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
   line-height: 1.6;
 }

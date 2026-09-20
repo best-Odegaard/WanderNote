@@ -1012,7 +1012,7 @@ function onChatModify() {
 }
 
 .map-redraw-text {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 
@@ -1039,12 +1039,12 @@ function onChatModify() {
 }
 
 .empty-text {
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   color: var(--text-body);
 }
 
 .empty-sub {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
 }
 
@@ -1064,7 +1064,7 @@ function onChatModify() {
 }
 
 .stats-tag {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: $mint-primary;
 }
 
@@ -1074,7 +1074,7 @@ function onChatModify() {
 }
 
 .stats-extra-item {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 
@@ -1089,7 +1089,7 @@ function onChatModify() {
   background: var(--bg-input);
   color: var(--text-body);
   border-radius: 999rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
 
   &.active {
     background: $mint-primary;
@@ -1118,7 +1118,7 @@ function onChatModify() {
 }
 
 .legend-text {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 
@@ -1162,7 +1162,7 @@ function onChatModify() {
 }
 
 .grip-hint {
-  font-size: 20rpx;
+  font-size: var(--fs-caption);
   color: var(--text-tertiary);
 }
 
@@ -1181,7 +1181,7 @@ function onChatModify() {
 
 .featured-chip {
   flex-shrink: 0;
-  font-size: 20rpx;
+  font-size: var(--fs-caption);
   color: #ffffff;
   background: #58a883;
   border-radius: 8rpx;
@@ -1189,7 +1189,7 @@ function onChatModify() {
 }
 
 .featured-tip-text {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
 }
 
@@ -1199,7 +1199,7 @@ function onChatModify() {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  font-size: 36rpx;
+  font-size: var(--fs-subhead);
   font-weight: 700;
   line-height: 1.3;
   color: var(--text-main);
@@ -1261,7 +1261,7 @@ function onChatModify() {
 }
 
 .time {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -1303,7 +1303,7 @@ function onChatModify() {
 
 .loc,
 .rating {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 
@@ -1315,7 +1315,7 @@ function onChatModify() {
 }
 
 .tag {
-  font-size: 18rpx;
+  font-size: var(--fs-caption);
   padding: 4rpx 12rpx;
   background: $mint-tag-pink;
   color: var(--text-secondary);
@@ -1325,7 +1325,7 @@ function onChatModify() {
 .schedule-desc,
 .schedule-price,
 .food-rec {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
   display: block;
   margin-top: 6rpx;
@@ -1344,7 +1344,7 @@ function onChatModify() {
 }
 
 .op {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: $mint-primary;
 
   &.del {
@@ -1358,7 +1358,7 @@ function onChatModify() {
   padding: 32rpx;
   text-align: center;
   color: $mint-primary;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 }
 
 .sheet-footer .btn-mint-outline {
@@ -1369,7 +1369,7 @@ function onChatModify() {
   flex: 2;
   height: 88rpx;
   line-height: 88rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 }
 
 /* ---------------- 加入我的行程：出发日期选择 ---------------- */
@@ -1406,7 +1406,7 @@ function onChatModify() {
 
 .date-title {
   display: block;
-  font-size: 40rpx;
+  font-size: var(--fs-heading);
   font-weight: 600;
   color: var(--text-main);
 }
@@ -1415,7 +1415,7 @@ function onChatModify() {
   display: block;
   margin-top: 10rpx;
   color: var(--text-tertiary);
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
 }
 
 .date-range-tip {
@@ -1424,7 +1424,7 @@ function onChatModify() {
   padding: 20rpx 24rpx;
   margin-bottom: 26rpx;
   color: $mint-text;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 
   &.placeholder {
     color: var(--text-placeholder);
@@ -1441,7 +1441,7 @@ function onChatModify() {
 
 .month-title {
   display: block;
-  font-size: 34rpx;
+  font-size: var(--fs-subhead);
   color: var(--text-body);
   margin-bottom: 30rpx;
 }
@@ -1455,7 +1455,7 @@ function onChatModify() {
 .weekday {
   text-align: center;
   color: var(--text-tertiary);
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   margin-bottom: 24rpx;
 }
 
@@ -1464,7 +1464,7 @@ function onChatModify() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 34rpx;
+  font-size: var(--fs-subhead);
   color: var(--text-main);
   position: relative;
   z-index: 1;
@@ -1520,7 +1520,7 @@ function onChatModify() {
   height: 92rpx;
   line-height: 92rpx;
   border-radius: 999rpx;
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   margin: 0;
 
   &::after {

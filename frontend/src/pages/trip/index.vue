@@ -111,6 +111,7 @@ function goSurvey() {
 .page {
   min-height: 100vh;
   background: var(--bg-page);
+  position: relative;
 }
 
 .header {
@@ -119,15 +120,20 @@ function goSurvey() {
   left: 0;
   right: 0;
   z-index: 100;
-  background: var(--bg-page);
+  // 玻璃顶栏：滚动时内容从下方透出，替代原来的实色挡板
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border-bottom: 1rpx solid var(--glass-border);
   padding: 0 32rpx 24rpx;
 }
 
 .title {
-  font-size: 44rpx;
-  font-weight: 700;
-  color: var(--text-body);
-  line-height: 88rpx;
+  font-size: 46rpx;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 92rpx;
+  letter-spacing: -0.6rpx;
 }
 
 .scroll-body {
@@ -138,9 +144,14 @@ function goSurvey() {
 
 .empty {
   margin-top: 80rpx;
-  padding: 80rpx 40rpx;
-  background: var(--bg-card);
+  padding: 88rpx 40rpx;
+  // 空态也用玻璃卡，和整体语言一致
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1rpx solid var(--glass-border);
   border-radius: $card-radius-lg;
+  box-shadow: var(--glass-shadow);
   text-align: center;
 
   .app-icon {
@@ -149,9 +160,9 @@ function goSurvey() {
 }
 
 .empty-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: var(--text-body);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-main);
   margin-top: 24rpx;
   display: block;
 }
@@ -168,11 +179,30 @@ function goSurvey() {
 }
 
 .trip-card {
+  position: relative;
   background: var(--bg-card);
   border-radius: $card-radius-lg;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-  border: 1rpx solid rgba(168, 230, 207, 0.15);
+  padding: 36rpx 32rpx 32rpx;
+  margin-bottom: 26rpx;
+  border: 1rpx solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: transform $dur-fast $ease-out, box-shadow $dur-base $ease-out;
+  // 左侧品牌渐变竖条：一眼区分「这是行程卡」
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 8rpx;
+    background: var(--brand-grad);
+  }
+
+  &:active {
+    transform: scale(0.98);
+    box-shadow: var(--shadow-xs);
+  }
 }
 
 .trip-head {
@@ -182,9 +212,10 @@ function goSurvey() {
 }
 
 .trip-title {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 700;
-  color: var(--text-body);
+  color: var(--text-main);
+  letter-spacing: -0.3rpx;
 }
 
 .trip-arrow {
@@ -200,18 +231,26 @@ function goSurvey() {
 
 .trip-date {
   font-size: 24rpx;
-  color: $mint-primary;
-  margin-top: 8rpx;
+  color: var(--brand-ink);
+  margin-top: 10rpx;
   display: block;
+  font-weight: 500;
 }
 
 .trip-chat-btn {
   display: inline-flex;
-  margin-top: 18rpx;
-  padding: 10rpx 20rpx;
-  border-radius: 999rpx;
-  background: rgba(20, 184, 166, 0.12);
-  color: $mint-primary;
+  align-items: center;
+  margin-top: 22rpx;
+  padding: 12rpx 26rpx;
+  border-radius: $radius-pill;
+  background: var(--brand-soft);
+  color: var(--brand-ink);
   font-size: 24rpx;
+  font-weight: 500;
+  transition: transform $dur-fast $ease-out;
+
+  &:active {
+    transform: scale(0.95);
+  }
 }
 </style>

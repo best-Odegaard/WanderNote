@@ -220,7 +220,7 @@ function previewImage(index: number) {
 }
 
 .empty-text {
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   color: var(--text-body);
 }
 
@@ -230,7 +230,7 @@ function previewImage(index: number) {
 .content { padding: 32rpx; padding-bottom: 140rpx; }
 
 .title {
-  font-size: 38rpx;
+  font-size: var(--fs-subhead);
   font-weight: 700;
   color: var(--text-main);
   display: block;
@@ -245,10 +245,10 @@ function previewImage(index: number) {
 }
 
 .avatar { width: 72rpx; height: 72rpx; border-radius: 50%; }
-.nickname { flex: 1; font-size: 30rpx; font-weight: 600; color: var(--text-main); }
+.nickname { flex: 1; font-size: var(--fs-body); font-weight: 600; color: var(--text-main); }
 
 .follow-btn {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: $primary-color;
   border: 2rpx solid $primary-color;
@@ -257,7 +257,7 @@ function previewImage(index: number) {
 }
 
 .delete-btn {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--danger);
   border: 2rpx solid var(--danger);
@@ -266,7 +266,7 @@ function previewImage(index: number) {
 }
 
 .body {
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   color: var(--text-main);
   line-height: 1.9;
 }
@@ -279,7 +279,7 @@ function previewImage(index: number) {
 }
 
 .tag {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--tag-text);
   background: linear-gradient(135deg, var(--tag-a), var(--tag-b));
@@ -299,11 +299,11 @@ function previewImage(index: number) {
 }
 
 .location-pin {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
 }
 
 .location-text {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -332,7 +332,7 @@ function previewImage(index: number) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   font-weight: 500;
   color: var(--text-main);
   gap: 4rpx;
@@ -349,7 +349,7 @@ function previewImage(index: number) {
 
 .create-trip-text {
   color: #fff;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   font-weight: 600;
 }
 </style>

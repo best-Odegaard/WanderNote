@@ -52,7 +52,7 @@ function handleTap() {
 }
 
 .name {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   font-weight: 500;
   color: var(--text-body);
   display: block;
@@ -69,17 +69,17 @@ function handleTap() {
   display: inline-flex;
   align-items: center;
   gap: 4rpx;
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: $warning-color;
 }
 
 .city {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 
 .price {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: $error-color;
   margin-top: 8rpx;
   display: block;

@@ -84,7 +84,7 @@ function goRegister() {
 }
 
 .title {
-  font-size: 44rpx;
+  font-size: var(--fs-heading);
   font-weight: 700;
   color: var(--text-body);
   margin-top: 16rpx;
@@ -92,7 +92,7 @@ function goRegister() {
 }
 
 .subtitle {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   margin-top: 8rpx;
   display: block;
@@ -107,7 +107,7 @@ function goRegister() {
 }
 
 .label {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   margin-bottom: 12rpx;
   display: block;
@@ -118,7 +118,7 @@ function goRegister() {
   padding: 0 24rpx;
   background: var(--bg-input);
   border-radius: 12rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 }
 
 .login-btn {
@@ -130,7 +130,7 @@ function goRegister() {
 }
 
 .link {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: $primary-color;
 }
 </style>

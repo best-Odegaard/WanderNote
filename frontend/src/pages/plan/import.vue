@@ -2,12 +2,12 @@
   <view class="page">
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <text class="back" @tap="goBack">‹</text>
-      <text class="nav-title font-hand">智能导入</text>
+      <text class="nav-title">智能导入</text>
       <view style="width: 80rpx" />
     </view>
 
     <view class="content">
-      <text class="hint font-hand">粘贴链接或行程文本</text>
+      <text class="hint">粘贴链接或行程文本</text>
       <textarea
         v-model="text"
         class="textarea"
@@ -122,7 +122,8 @@ function extractFirstUrl(value: string): string {
 }
 
 .nav-title {
-  font-size: 36rpx;
+  font-size: var(--fs-subhead);
+  font-weight: 600;
 }
 
 .content {
@@ -130,7 +131,8 @@ function extractFirstUrl(value: string): string {
 }
 
 .hint {
-  font-size: 40rpx;
+  font-size: var(--fs-heading);
+  font-weight: 600;
   display: block;
   margin-bottom: 32rpx;
 }
@@ -141,7 +143,7 @@ function extractFirstUrl(value: string): string {
   background: var(--bg-card);
   border-radius: 24rpx;
   padding: 24rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   box-sizing: border-box;
   border: 2rpx solid $accent-border;
 }
@@ -161,7 +163,7 @@ function extractFirstUrl(value: string): string {
 }
 
 .upload-text {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   margin-top: 12rpx;
   display: block;

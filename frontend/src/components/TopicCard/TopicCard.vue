@@ -3,7 +3,7 @@
     <image class="cover" :src="topic.cover" mode="aspectFill" />
     <view class="tag">{{ topic.tag }}</view>
     <view class="overlay">
-      <text class="title font-hand">{{ topic.title }}</text>
+      <text class="title">{{ topic.title }}</text>
       <text class="count">{{ topic.placeCount }}个地点</text>
     </view>
   </view>
@@ -48,7 +48,7 @@ defineEmits<{ tap: [] }>()
   left: 16rpx;
   background: rgba(0, 0, 0, 0.45);
   color: #fff;
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   padding: 8rpx 16rpx;
   border-radius: 20rpx;
 }
@@ -63,14 +63,15 @@ defineEmits<{ tap: [] }>()
 }
 
 .title {
-  font-size: 32rpx;
+  font-size: var(--fs-title);
+  font-weight: 600;
   color: #fff;
   display: block;
   line-height: 1.3;
 }
 
 .count {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: rgba(255, 255, 255, 0.85);
   margin-top: 8rpx;
   display: block;

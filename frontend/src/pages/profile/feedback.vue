@@ -150,7 +150,7 @@ async function handleSubmit() {
 }
 
 .section-title {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--text-main);
   margin-bottom: 20rpx;
@@ -166,7 +166,7 @@ async function handleSubmit() {
   padding: 12rpx 32rpx;
   border-radius: 32rpx;
   background: var(--bg-input);
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   border: 2rpx solid transparent;
 
@@ -185,13 +185,13 @@ async function handleSubmit() {
   border-radius: $card-radius;
   padding: 20rpx;
   box-sizing: border-box;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-main);
 }
 
 .count {
   text-align: right;
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
   margin-top: 8rpx;
 }
@@ -234,7 +234,7 @@ async function handleSubmit() {
 
 .mask-text {
   color: #fff;
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
 }
 
 .remove {
@@ -264,7 +264,7 @@ async function handleSubmit() {
 }
 
 .add-text {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
 }
 
@@ -275,14 +275,14 @@ async function handleSubmit() {
   border-radius: $card-radius;
   padding: 0 20rpx;
   box-sizing: border-box;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-main);
 }
 
 .submit-btn {
   background: $primary-color;
   color: #fff;
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   border-radius: $card-radius;
   height: 88rpx;
   line-height: 88rpx;

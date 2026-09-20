@@ -52,7 +52,7 @@ function handleTap() {
 }
 
 .title {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   font-weight: 500;
   color: var(--text-body);
   margin-bottom: 12rpx;
@@ -66,7 +66,7 @@ function handleTap() {
 }
 
 .text {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
   flex: 1;
 }

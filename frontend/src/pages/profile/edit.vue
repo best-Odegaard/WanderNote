@@ -102,7 +102,7 @@ async function handleSave() {
 }
 
 .change-text {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: $primary-color;
   margin-top: 12rpx;
 }
@@ -110,7 +110,7 @@ async function handleSave() {
 .form-item { margin-bottom: 24rpx; }
 
 .label {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   margin-bottom: 8rpx;
   display: block;
@@ -121,7 +121,7 @@ async function handleSave() {
   padding: 0 20rpx;
   background: var(--bg-input);
   border-radius: 12rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 }
 
 .textarea {
@@ -130,6 +130,6 @@ async function handleSave() {
   padding: 20rpx;
   background: var(--bg-input);
   border-radius: 12rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 }
 </style>

@@ -66,7 +66,7 @@ async function enroll() {
 .content { padding: 32rpx; padding-bottom: 160rpx; }
 
 .title {
-  font-size: 36rpx;
+  font-size: var(--fs-subhead);
   font-weight: 600;
   color: var(--text-body);
   display: block;
@@ -76,7 +76,7 @@ async function enroll() {
 .row {
   display: flex;
   gap: 12rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   margin-bottom: 12rpx;
 }
@@ -84,14 +84,14 @@ async function enroll() {
 .section { margin-top: 32rpx; }
 
 .section-title {
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   font-weight: 600;
   margin-bottom: 12rpx;
   display: block;
 }
 
 .desc {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   line-height: 1.8;
 }
@@ -112,7 +112,7 @@ async function enroll() {
   flex: 1;
   height: 80rpx;
   line-height: 80rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   border-radius: 40rpx;
   background: var(--bg-input);
   border: none;

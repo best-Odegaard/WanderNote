@@ -112,7 +112,7 @@ function goDetail(id: number) {
   padding: 0 24rpx;
   background: var(--bg-input);
   border-radius: 36rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 }
 
 .filters {
@@ -126,7 +126,7 @@ function goDetail(id: number) {
   display: inline-block;
   padding: 8rpx 20rpx;
   margin-right: 12rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
   background: var(--bg-input);
   border-radius: 24rpx;
@@ -159,7 +159,7 @@ function goDetail(id: number) {
 .info { flex: 1; }
 
 .name {
-  font-size: 30rpx;
+  font-size: var(--fs-title);
   font-weight: 500;
   color: var(--text-body);
 }
@@ -170,11 +170,11 @@ function goDetail(id: number) {
   margin-top: 8rpx;
 }
 
-.rating { font-size: 24rpx; color: $warning-color; }
-.city { font-size: 24rpx; color: var(--text-secondary); }
+.rating { font-size: var(--fs-meta); color: $warning-color; }
+.city { font-size: var(--fs-meta); color: var(--text-secondary); }
 
 .price {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: $error-color;
   margin-top: 8rpx;
   display: block;

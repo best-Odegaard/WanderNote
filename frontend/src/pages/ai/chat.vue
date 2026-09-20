@@ -827,13 +827,13 @@ watch(genFrame, (frame) => {
 
 .nav-title {
   flex: 1;
-  font-size: 34rpx;
+  font-size: var(--fs-subhead);
   font-weight: 700;
   color: var(--text-main);
 }
 
 .draft-btn {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: $mint-primary;
   font-weight: 500;
 }
@@ -892,7 +892,7 @@ watch(genFrame, (frame) => {
 }
 
 .role-tag {
-  font-size: 20rpx;
+  font-size: var(--fs-caption);
   font-weight: 700;
   display: block;
   margin-bottom: 8rpx;
@@ -905,7 +905,7 @@ watch(genFrame, (frame) => {
 }
 
 .msg-text {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   line-height: 1.55;
   display: block;
   white-space: pre-wrap;
@@ -913,7 +913,7 @@ watch(genFrame, (frame) => {
 
 /* AI 回复 Markdown 渲染内容（mp-html）样式适配气泡 */
 .msg-md {
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   line-height: 1.55;
   color: var(--text-main);
 
@@ -924,7 +924,7 @@ watch(genFrame, (frame) => {
     }
   }
   :deep(h1), :deep(h2), :deep(h3), :deep(h4) {
-    font-size: 30rpx;
+    font-size: var(--fs-title);
     font-weight: 700;
     margin: 16rpx 0 8rpx;
     line-height: 1.4;
@@ -943,7 +943,7 @@ watch(genFrame, (frame) => {
     background: rgba(0, 0, 0, 0.06);
     border-radius: 6rpx;
     padding: 0 8rpx;
-    font-size: 24rpx;
+    font-size: var(--fs-meta);
   }
   :deep(pre) {
     background: rgba(0, 0, 0, 0.06);
@@ -1005,7 +1005,7 @@ watch(genFrame, (frame) => {
 }
 
 .thinking-text {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 
@@ -1026,7 +1026,7 @@ watch(genFrame, (frame) => {
 }
 
 .error-text {
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--danger);
   display: block;
   margin-bottom: 20rpx;
@@ -1037,7 +1037,7 @@ watch(genFrame, (frame) => {
   color: #fff;
   padding: 14rpx 40rpx;
   border-radius: 999rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   display: inline-block;
 }
 
@@ -1051,7 +1051,7 @@ watch(genFrame, (frame) => {
 }
 
 .plan-title {
-  font-size: 30rpx;
+  font-size: var(--fs-title);
   font-weight: 700;
   color: var(--text-main);
   display: block;
@@ -1068,7 +1068,7 @@ watch(genFrame, (frame) => {
   display: inline-flex;
   align-items: center;
   gap: 6rpx;
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: $mint-primary;
   background: rgba(168, 230, 207, 0.15);
   padding: 4rpx 12rpx;
@@ -1088,7 +1088,7 @@ watch(genFrame, (frame) => {
 }
 
 .day-label {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-main);
   font-weight: 600;
   flex-shrink: 0;
@@ -1096,7 +1096,7 @@ watch(genFrame, (frame) => {
 }
 
 .day-spots {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
   flex: 1;
   line-height: 1.4;
@@ -1106,7 +1106,7 @@ watch(genFrame, (frame) => {
 .detail-btn {
   margin-top: 20rpx;
   width: 100%;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   border-radius: 999rpx;
 }
 
@@ -1120,7 +1120,7 @@ watch(genFrame, (frame) => {
 }
 
 .memory-text {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
 }
 
@@ -1185,7 +1185,7 @@ watch(genFrame, (frame) => {
 
 .chat-input {
   flex: 1;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   color: var(--text-main);
 }
 
@@ -1240,7 +1240,7 @@ watch(genFrame, (frame) => {
   width: 100%;
   height: 88rpx;
   line-height: 88rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
 
   &.disabled {
     opacity: 0.4;
@@ -1293,21 +1293,21 @@ watch(genFrame, (frame) => {
 
 .gen-title {
   margin-top: 28rpx;
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   font-weight: 700;
   color: var(--text-main);
 }
 
 .gen-stage {
   margin-top: 12rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   text-align: center;
 }
 
 .gen-elapsed {
   margin-top: 8rpx;
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
 }
 
@@ -1326,7 +1326,7 @@ watch(genFrame, (frame) => {
   display: flex;
   align-items: center;
   gap: 8rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-body);
   font-weight: 700;
   color: var(--text-main);
   margin-bottom: 16rpx;
@@ -1337,7 +1337,7 @@ watch(genFrame, (frame) => {
 }
 
 .gen-frame-label {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   font-weight: 600;
   color: $mint-primary;
   display: block;
@@ -1345,7 +1345,7 @@ watch(genFrame, (frame) => {
 }
 
 .gen-frame-spots {
-  font-size: 24rpx;
+  font-size: var(--fs-meta);
   color: var(--text-body);
   line-height: 1.5;
 }
@@ -1355,7 +1355,7 @@ watch(genFrame, (frame) => {
   margin-top: 16rpx;
   padding-top: 16rpx;
   border-top: 1rpx dashed var(--border);
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-tertiary);
 }
 
@@ -1374,7 +1374,7 @@ watch(genFrame, (frame) => {
 }
 
 .gen-map-day-label {
-  font-size: 22rpx;
+  font-size: var(--fs-meta);
   color: var(--text-secondary);
 }
 
@@ -1384,7 +1384,7 @@ watch(genFrame, (frame) => {
 }
 
 .gen-map-arrow {
-  font-size: 36rpx;
+  font-size: var(--fs-subhead);
   color: $mint-primary;
   width: 48rpx;
   text-align: center;
@@ -1393,7 +1393,7 @@ watch(genFrame, (frame) => {
 
 .gen-cancel {
   margin-top: 32rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-body);
   color: var(--danger);
   padding: 12rpx 40rpx;
   border: 2rpx solid var(--danger);

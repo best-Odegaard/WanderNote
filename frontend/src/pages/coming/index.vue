@@ -4,7 +4,7 @@
       <view class="header-inner">
         <text class="title">探索</text>
         <view class="publish-btn" @tap="goPublish">
-          <AppIcon name="edit" :size="26" color="#58a883" />
+          <AppIcon name="edit" :size="26" color="var(--brand-ink)" />
           <text>发布</text>
         </view>
       </view>
@@ -151,6 +151,7 @@ function goPublish() {
 .page {
   min-height: 100vh;
   background: var(--bg-page);
+  position: relative;
 }
 
 .header {
@@ -159,7 +160,11 @@ function goPublish() {
   left: 0;
   right: 0;
   z-index: 100;
-  background: var(--bg-page);
+  // 玻璃顶栏
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border-bottom: 1rpx solid var(--glass-border);
   padding-left: $page-padding;
   padding-right: $page-padding;
 }
@@ -172,17 +177,29 @@ function goPublish() {
 }
 
 .title {
-  font-size: 40rpx;
-  font-weight: 700;
+  font-size: 46rpx;
+  font-weight: 800;
   color: var(--text-main);
+  letter-spacing: -0.6rpx;
 }
 
 .publish-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6rpx;
+  gap: 8rpx;
   font-size: 26rpx;
-  color: $mint-primary;
+  font-weight: 600;
+  color: var(--brand-ink);
+  padding: 12rpx 26rpx;
+  // 玻璃胶囊：比裸文字更像一个可点的控件
+  background: var(--brand-soft);
+  border: 1rpx solid var(--glass-border);
+  border-radius: $radius-pill;
+  transition: transform $dur-fast $ease-out;
+
+  &:active {
+    transform: scale(0.94);
+  }
 }
 
 .scroll-body {
@@ -195,16 +212,17 @@ function goPublish() {
 }
 
 .section-title {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: var(--text-main);
   display: block;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
+  letter-spacing: -0.3rpx;
 }
 
 .waterfall {
   display: flex;
-  gap: 16rpx;
+  gap: 20rpx;
 }
 
 .column {
@@ -214,7 +232,7 @@ function goPublish() {
 
 .load-more {
   text-align: center;
-  padding: 24rpx;
+  padding: 28rpx;
   font-size: 24rpx;
   color: var(--text-placeholder);
 }

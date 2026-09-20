@@ -34,18 +34,32 @@ defineEmits<{ action: [] }>()
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 120rpx 48rpx;
+  padding: 72rpx 48rpx 80rpx;
+  margin: 16rpx 0 24rpx;
+  // 空态也用玻璃卡：整站统一的「通透」语言，避免文字裸飘在页面上
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1rpx solid var(--glass-border);
+  border-radius: $card-radius-lg;
+  box-shadow: var(--glass-shadow);
 }
 
 .empty-icon {
   margin-bottom: 24rpx;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 152rpx;
+  height: 152rpx;
+  border-radius: 50%;
+  background: var(--brand-grad-soft);
 }
 
 .empty-title {
-  font-size: 32rpx;
-  color: var(--text-body);
-  font-weight: 500;
+  font-size: 34rpx;
+  color: var(--text-main);
+  font-weight: 700;
 }
 
 .empty-desc {
@@ -56,15 +70,20 @@ defineEmits<{ action: [] }>()
 }
 
 .empty-btn {
-  margin-top: 32rpx;
-  background: $primary-color;
-  color: #fff;
+  margin-top: 36rpx;
+  background: var(--brand-grad);
+  color: var(--on-brand);
   font-size: 28rpx;
-  border-radius: 40rpx;
-  padding: 0 48rpx;
-  height: 72rpx;
-  line-height: 72rpx;
+  font-weight: 600;
+  border-radius: $radius-pill;
+  padding: 0 52rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  box-shadow: var(--brand-glow);
+  transition: transform $dur-fast $ease-out;
 
   &::after { border: none; }
+
+  &:active { transform: scale(0.96); }
 }
 </style>

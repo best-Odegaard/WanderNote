@@ -6,7 +6,7 @@
       <view class="header-inner">
         <text class="brand-name">旅行计划</text>
         <view class="search-wrap">
-          <AppIcon name="search" :size="30" color="#58a883" class="search-icon" />
+          <AppIcon name="search" :size="30" color="var(--brand-ink)" class="search-icon" />
           <input
             class="search-input"
             placeholder="搜索目的地..."
@@ -48,7 +48,7 @@
           <text class="section-title">我的行程</text>
           <view v-if="trips.length > 0" class="section-link" @tap="goTripList">
             <text>查看全部</text>
-            <AppIcon name="chevron-right" :size="26" color="#58a883" />
+            <AppIcon name="chevron-right" :size="26" color="var(--brand-ink)" />
           </view>
         </view>
 
@@ -374,8 +374,14 @@ function onNotify() {
   top: 0;
   left: 0;
   right: 0;
-  height: 320rpx;
-  background: linear-gradient(180deg, rgba(168, 230, 207, 0.3), transparent);
+  height: 400rpx;
+  // 顶部品牌氛围：从薄荷柔光渐隐到页面底色
+  background: linear-gradient(
+    180deg,
+    var(--aurora-1) 0%,
+    rgba(52, 224, 184, 0.06) 42%,
+    transparent 100%
+  );
   pointer-events: none;
   z-index: 1;
 }
@@ -397,35 +403,39 @@ function onNotify() {
 }
 
 .brand-name {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: var(--text-body);
+  font-size: 34rpx;
+  font-weight: 800;
+  color: var(--text-main);
   flex-shrink: 0;
-  max-width: 140rpx;
+  max-width: 150rpx;
+  letter-spacing: -0.5rpx;
 }
 
 .search-wrap {
   flex: 1;
   position: relative;
-  height: 72rpx;
-  background-color: var(--bg-card);
-  border-radius: 9999rpx;
+  height: 76rpx;
+  // 玻璃拟态搜索框：半透明 + 模糊，底下有内容时能透出来
+  background-color: var(--glass-bg-strong);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-radius: $radius-pill;
   display: flex;
   align-items: center;
-  padding: 0 30rpx 0 64rpx;
-  box-shadow: 0 2rpx 10rpx rgba(88, 168, 131, 0.12);
-  border: none;
-  transition: all 0.2s ease;
+  padding: 0 30rpx 0 68rpx;
+  border: 1rpx solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+  transition: transform $dur-fast $ease-out, box-shadow $dur-base $ease-out;
   // 点击按压效果
   &:active {
     transform: scale(0.98);
-    box-shadow: 0 1rpx 5rpx rgba(88, 168, 131, 0.08);
+    box-shadow: var(--shadow-xs);
   }
 }
 
 .search-icon {
   position: absolute;
-  left: 24rpx;
+  left: 26rpx;
   display: flex;
   align-items: center;
 }
@@ -434,7 +444,7 @@ function onNotify() {
   flex: 1;
   font-size: 28rpx;
   color: var(--text-main);
-  height: 72rpx;
+  height: 76rpx;
 }
 
 :deep(.search-placeholder) {
@@ -446,15 +456,18 @@ function onNotify() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56rpx;
-  height: 56rpx;
+  width: 60rpx;
+  height: 60rpx;
   border-radius: 50%;
-  background: var(--bg-card);
-  box-shadow: 0 2rpx 10rpx rgba(88, 168, 131, 0.12);
-  transition: transform 0.15s ease;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1rpx solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+  transition: transform $dur-fast $ease-out;
 
   &:active {
-    transform: scale(0.92);
+    transform: scale(0.9);
   }
 }
 
@@ -464,21 +477,23 @@ function onNotify() {
   padding: 0 32rpx;
   position: relative;
   z-index: 2;
-  // 新增这一行，防止底部内容被tab栏遮挡
-  padding-bottom: calc(130rpx + env(safe-area-inset-bottom));
+  // 防止底部内容被悬浮 TabBar 遮挡
+  padding-bottom: calc(220rpx + env(safe-area-inset-bottom));
 }
 
 .banner-swiper {
-  height: 320rpx;
+  height: 340rpx;
   margin-top: 16rpx;
+  // 大圆角 + 投影，让轮播像一张漂浮的照片卡
   border-radius: $card-radius-lg;
   overflow: hidden;
+  box-shadow: var(--shadow-lg);
 }
 
 .banner-card {
-  height: 320rpx;
+  height: 340rpx;
   border-radius: $card-radius-lg;
-  padding: 48rpx;
+  padding: 44rpx;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -501,7 +516,13 @@ function onNotify() {
   top: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, rgba(42, 163, 117, 0.72), rgba(42, 163, 117, 0.28));
+  // 更深的青绿到透明：保证白字在任何图片上都可读
+  background: linear-gradient(
+    100deg,
+    rgba(6, 78, 59, 0.82) 0%,
+    rgba(6, 78, 59, 0.45) 46%,
+    rgba(6, 78, 59, 0.08) 100%
+  );
   z-index: 2;
 }
 .banner-text {
@@ -510,76 +531,90 @@ function onNotify() {
 }
 
 .banner-title {
-  font-size: 40rpx;
-  font-weight: 700;
+  font-size: 42rpx;
+  font-weight: 800;
   color: #fff;
   display: block;
+  letter-spacing: -0.5rpx;
+  text-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.25);
 }
 
 .banner-sub {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.9);
-  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.92);
+  margin-top: 10rpx;
   display: block;
 }
 
 .banner-btn {
-  margin-top: 24rpx;
+  margin-top: 26rpx;
   display: inline-block;
-  padding: 12rpx 32rpx;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1rpx solid rgba(255, 255, 255, 0.3);
-  border-radius: 999rpx;
-  font-size: 22rpx;
+  padding: 14rpx 34rpx;
+  // 玻璃胶囊按钮：叠在图片上依然可读
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1rpx solid rgba(255, 255, 255, 0.4);
+  border-radius: $radius-pill;
+  font-size: 23rpx;
+  font-weight: 600;
   color: #fff;
   align-self: flex-start;
+  transition: transform $dur-fast $ease-out;
+
+  &:active {
+    transform: scale(0.95);
+  }
 }
 
 .banner-deco {
   position: absolute;
   right: 32rpx;
   bottom: 16rpx;
-  font-size: 120rpx;
-  opacity: 0.3;
+  font-size: 130rpx;
+  opacity: 0.26;
   z-index: 3;
 }
 
 .banner-dots {
   display: flex;
   justify-content: center;
-  gap: 12rpx;
-  margin: 20rpx 0 8rpx;
+  align-items: center;
+  gap: 10rpx;
+  margin: 22rpx 0 8rpx;
 }
 
 .dot {
   width: 12rpx;
   height: 12rpx;
-  border-radius: 999rpx;
-  background: var(--bg-input);
+  border-radius: $radius-pill;
+  background: var(--border-strong);
+  transition: width $dur-base $ease-out, background $dur-base $ease-out;
 
   &.active {
-    width: 32rpx;
-    background: $mint-primary;
+    width: 34rpx;
+    background: var(--brand-grad);
   }
 }
 
 .section {
-  margin-top: 40rpx;
+  margin-top: 44rpx;
 }
 
 .section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20rpx;
+  margin-bottom: 22rpx;
 }
 
 .section-title {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: var(--text-main);
   display: block;
-  margin-bottom: 20rpx;
+  margin-bottom: 22rpx;
+  letter-spacing: -0.3rpx;
 }
 
 .section-head .section-title {
@@ -587,11 +622,12 @@ function onNotify() {
 }
 
 .section-link {
-  font-size: 24rpx;
-  color: $mint-primary;
+  font-size: 25rpx;
+  color: var(--brand-ink);
   display: inline-flex;
   align-items: center;
-  gap: 6rpx;
+  gap: 4rpx;
+  font-weight: 500;
 }
 
 /* 轮播图景点介绍弹窗 */
@@ -606,26 +642,31 @@ function onNotify() {
 .popup-mask {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(8px);
+  background: rgba(4, 32, 26, 0.48);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .popup-panel {
   position: relative;
   width: 100%;
-  max-height: 78vh;
-  background: var(--bg-card);
-  border-radius: 40rpx 40rpx 0 0;
+  max-height: 80vh;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-radius: 48rpx 48rpx 0 0;
+  border-top: 1rpx solid var(--glass-border);
   overflow: hidden;
-  animation: popupSlideUp 0.28s ease-out;
+  animation: popupSlideUp 0.32s $ease-out;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 -12rpx 48rpx rgba(4, 32, 26, 0.28);
 }
 
 @keyframes popupSlideUp {
   from {
     opacity: 0;
-    transform: translateY(60rpx);
+    transform: translateY(80rpx);
   }
   to {
     opacity: 1;
@@ -635,16 +676,23 @@ function onNotify() {
 
 .popup-close {
   position: absolute;
-  top: 20rpx;
-  right: 20rpx;
+  top: 24rpx;
+  right: 24rpx;
   z-index: 5;
-  width: 60rpx;
-  height: 60rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform $dur-fast $ease-out;
+
+  &:active {
+    transform: scale(0.9);
+  }
 }
 
 .popup-close-icon {
@@ -655,37 +703,39 @@ function onNotify() {
 
 .popup-img {
   width: 100%;
-  height: 380rpx;
+  height: 400rpx;
   flex-shrink: 0;
 }
 
 .popup-content {
-  padding: 32rpx;
+  padding: 36rpx 32rpx 48rpx;
   overflow-y: auto;
 }
 
 .popup-name {
-  font-size: 40rpx;
-  font-weight: 700;
-  color: var(--text-body);
+  font-size: 42rpx;
+  font-weight: 800;
+  color: var(--text-main);
   display: block;
+  letter-spacing: -0.5rpx;
 }
 
 .popup-subtitle {
   font-size: 26rpx;
-  color: $mint-primary;
+  color: var(--brand-ink);
   margin-top: 8rpx;
   display: block;
+  font-weight: 500;
 }
 
 .popup-meta {
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
-  margin-top: 24rpx;
-  padding: 20rpx 24rpx;
+  gap: 12rpx;
+  margin-top: 26rpx;
+  padding: 24rpx 26rpx;
   background: var(--bg-input);
-  border-radius: 20rpx;
+  border-radius: $radius-lg;
 }
 
 .popup-meta-item {
@@ -696,15 +746,15 @@ function onNotify() {
 
 .popup-section-title {
   display: block;
-  margin-top: 32rpx;
+  margin-top: 34rpx;
   font-size: 30rpx;
-  font-weight: 600;
-  color: var(--text-body);
+  font-weight: 700;
+  color: var(--text-main);
 }
 
 .popup-desc {
   display: block;
-  margin-top: 12rpx;
+  margin-top: 14rpx;
   font-size: 27rpx;
   color: var(--text-secondary);
   line-height: 1.8;
@@ -712,12 +762,13 @@ function onNotify() {
 
 .popup-tips {
   display: block;
-  margin-top: 24rpx;
-  padding: 20rpx 24rpx;
-  background: rgba(168, 230, 207, 0.35);
-  border-radius: 20rpx;
+  margin-top: 26rpx;
+  padding: 22rpx 26rpx;
+  background: var(--brand-soft);
+  border-left: 6rpx solid var(--brand);
+  border-radius: $radius-md;
   font-size: 24rpx;
   color: var(--text-body);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 </style>

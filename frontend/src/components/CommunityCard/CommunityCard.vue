@@ -50,11 +50,18 @@ function handleDelete() {
 .community-card {
   position: relative;
   background: var(--bg-card);
-  border-radius: $card-radius;
+  border-radius: $card-radius-lg;
   overflow: hidden;
   break-inside: avoid;
-  margin-bottom: 16rpx;
-  box-shadow: 0 2rpx 10rpx rgba(88, 168, 131, 0.08);
+  margin-bottom: 20rpx;
+  border: 1rpx solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: transform $dur-fast $ease-out, box-shadow $dur-base $ease-out;
+
+  &:active {
+    transform: scale(0.975);
+    box-shadow: var(--shadow-xs);
+  }
 }
 
 .cover {
@@ -63,27 +70,28 @@ function handleDelete() {
 }
 
 .info {
-  padding: 16rpx;
+  padding: 20rpx 22rpx 22rpx;
 }
 
 .title {
-  font-size: 26rpx;
-  font-weight: 500;
+  font-size: 27rpx;
+  font-weight: 600;
   color: var(--text-main);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .author-row {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  margin-top: 12rpx;
+  gap: 10rpx;
+  margin-top: 14rpx;
 }
 
 .avatar {
-  width: 36rpx;
-  height: 36rpx;
+  width: 40rpx;
+  height: 40rpx;
   border-radius: 50%;
+  border: 1rpx solid var(--border);
 }
 
 .nickname {
@@ -94,8 +102,8 @@ function handleDelete() {
 
 .stats {
   display: flex;
-  gap: 20rpx;
-  margin-top: 8rpx;
+  gap: 22rpx;
+  margin-top: 12rpx;
 }
 
 .stat {
@@ -111,10 +119,13 @@ function handleDelete() {
   right: 16rpx;
   bottom: 16rpx;
   font-size: 22rpx;
-  color: var(--danger);
-  background: var(--bg-card);
-  border: 2rpx solid var(--danger);
-  padding: 4rpx 16rpx;
-  border-radius: 20rpx;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(230, 67, 64, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 6rpx 20rpx;
+  border-radius: $radius-pill;
+  box-shadow: var(--shadow-sm);
 }
 </style>
