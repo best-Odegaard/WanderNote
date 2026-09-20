@@ -2,10 +2,7 @@
   <view class="auth-page">
     <!-- 品牌主视觉 -->
     <view class="hero">
-      <view class="logo-badge">
-        <view class="logo-sheen" />
-        <AppIcon name="map" :size="64" color="var(--on-brand)" :stroke-width="1.8" />
-      </view>
+      <image class="logo-badge" src="/static/app-icon.png" mode="aspectFit" />
       <text class="title">WanderNote 行笺</text>
       <text class="subtitle">智能文旅行程规划平台</text>
       <view class="hero-chips">
@@ -131,28 +128,11 @@ function goRegister() {
 }
 
 .logo-badge {
-  position: relative;
-  width: 144rpx;
-  height: 144rpx;
-  border-radius: 44rpx;
-  background: var(--brand-grad);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2rpx solid var(--glass-border);
-  box-shadow: var(--brand-glow), var(--shadow-md);
-  overflow: hidden;
-}
-
-/* 顶部弧形高光：玻璃球质感 */
-.logo-sheen {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 52%;
-  background: var(--sheen);
-  pointer-events: none;
+  width: 152rpx;
+  height: 152rpx;
+  // 直接使用 App 图标本身（自带品牌渐变与圆角），保证 App / H5 / favicon 视觉统一
+  border-radius: 46rpx;
+  box-shadow: var(--shadow-md);
 }
 
 .title {

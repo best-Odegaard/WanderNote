@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 启动页背景：与 App 图标同色系的对角渐变 -->
+<!-- 启动页背景：与 App 图标同色系的对角渐变（随新图标由紫改为绿） -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <gradient
         android:angle="315"
-        android:endColor="#7B3BBE"
-        android:startColor="#0C1A47"
+        android:endColor="#66B29A"
+        android:startColor="#479C87"
         android:type="linear" />
 </shape>
