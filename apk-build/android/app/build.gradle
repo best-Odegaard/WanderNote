@@ -17,8 +17,9 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // 覆盖安装旧版要求 versionCode 严格递增，否则 Android 会拒绝安装
-        versionCode 109
-        versionName "1.0.9"
+        // 1.0.10：更换 App 图标为绿色罗盘星，并同步站点图标与启动图
+        versionCode 110
+        versionName "1.0.10"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
