@@ -570,18 +570,57 @@ async function buildMapSpotsForDay(dayIndex: number) {
   }
   mapGeocoding.value = true
   const city = trip.value?.toCity || ''
+
+  /*
+   * location 去重判断：
+   * 部分行程（尤其精选行程）的 location 被写成了同一串标签文本（如「婺源·交通便利」，
+   * 实为 featureTag 误填），此时若仍按 location 地理编码，当天所有景点会解析到
+   * 完全相同的坐标 —— 地图上所有点重叠、路线无法成立（表现为只画出一小段或一个点）。
+   * 因此：只要当天出现「同一 location 被 2 个及以上景点共用」，就判定它没有区分度，
+   * 改用景点名 title 去解析（title 通常带景区前缀，能落到各自真实位置）。
+   */
+  const locCount = new Map<string, number>()
+  for (const s of day) {
+    const loc = (s.location || '').trim()
+    if (loc) locCount.set(loc, (locCount.get(loc) || 0) + 1)
+  }
+  const ambiguous = (loc: string) => {
+    const t = (loc || '').trim()
+    return !!t && (locCount.get(t) || 0) >= 2
+  }
+  const queriedByTitle: string[] = []
+
   const spots: TripMapSpot[] = []
   for (const s of day) {
     if (s.lat != null && s.lng != null) {
       spots.push({ name: s.title, address: s.location, lat: s.lat, lng: s.lng })
       continue
     }
-    const ll = await geocode(s.location || s.title, city, s.title)
+    // location 无区分度时优先用 title；仍失败再用 location 兜一次
+    const name = s.title || ''
+    const loc = s.location || ''
+    const preferTitle = ambiguous(loc)
+    let ll = preferTitle
+      ? await geocode(name, city, name)
+      : await geocode(loc || name, city, name)
+    if (!ll && preferTitle && loc) {
+      ll = await geocode(loc, city, name)
+    }
+    if (!ll && !preferTitle && name) {
+      ll = await geocode(name, city, name)
+    }
     if (ll) {
+      if (preferTitle) queriedByTitle.push(s.title)
       s.lat = ll.lat
       s.lng = ll.lng
       spots.push({ name: s.title, address: s.location, lat: ll.lat, lng: ll.lng })
     }
+  }
+  if (queriedByTitle.length) {
+    console.warn(
+      `[geo] 第${dayIndex + 1}天有 ${queriedByTitle.length} 个景点的 location 无区分度，已改用景点名定位:`,
+      queriedByTitle
+    )
   }
   mapSpotsByDay.value[dayIndex] = spots
   mapSpots.value = spots
