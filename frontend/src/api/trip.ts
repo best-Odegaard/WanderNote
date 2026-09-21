@@ -32,6 +32,11 @@ export interface TripScheduleItem {
   rating?: number
   /** 景区封面图（取 AI photos_json 首张，缺失时前端用 emoji 占位） */
   image?: string
+  /**
+   * 智能体调高德 POI 补全的景点图片 URL。
+   * 后端字段名与智能体保持一致（蛇形 image_url），detail 阶段才有值。
+   */
+  image_url?: string
   /** AI 返回的全部景区图（高德图床） */
   photos?: string[]
   /** 经纬度：前端地理编码填充后用于地图绘制；后端暂未返回，缺省时由 geo.ts 解析 */
@@ -147,7 +152,14 @@ export interface AiAttraction {
   ticket: string
   location: string
   feature_tag: string
-  /** AI 返回的景区图片列表（高德图床 URL） */
+  /**
+   * 智能体在 detail 阶段调高德 POI 补全的景点图片 URL（字段名与智能体一致，蛇形）。
+   * 取不到时为空串。
+   */
+  image_url?: string
+  /** 票价兜底提示（参考值），同由智能体调高德补全 */
+  ticket_hint?: string
+  /** 历史字段：AI 返回的景区图片列表。智能体实际从不下发该字段，仅作向后兼容 */
   photos_json?: string[]
 }
 
@@ -444,18 +456,23 @@ export function mapPlanResponseToTripPlan(
     title: day.date || `第${di + 1}天`,
     schedules: (day.schedule || []).map((spot) => {
       const timeParts = (spot.visit_time_range || '09:00-11:00').split('-')
+      // 图片优先取智能体调高德补全的 image_url；photos_json 是历史字段，智能体从不下发
       const photos = (spot.photos_json || []).filter(Boolean)
+      const cover = spot.image_url || photos[0] || ''
+      // 票价：AI 没给具体值时才用高德兜底提示，避免只显示"详询现场"
+      const ticketText = spot.ticket || spot.ticket_hint || '详询现场'
       return {
         time: spot.visit_time_range || '09:00-11:00',
         title: spot.spot_name || '景点',
-        description: `📍${spot.location || '待定'} | 🕒${spot.open_time || '全天'} | 💰${spot.ticket || '详询现场'}`,
+        description: `📍${spot.location || '待定'} | 🕒${spot.open_time || '全天'} | 💰${ticketText}`,
         type: 'scenic' as const,
         openTime: spot.open_time || '全天',
-        ticket: spot.ticket || '详询现场',
+        ticket: ticketText,
         location: spot.location || '',
         featureTag: spot.feature_tag || '',
-        image: photos[0] || '',
-        photos
+        image: cover,
+        image_url: spot.image_url || '',
+        photos: cover ? [cover, ...photos.filter((p) => p !== cover)] : photos
       }
     })
   }))

@@ -496,6 +496,13 @@ public class TripPlanServiceImpl implements TripPlanService {
                     s.put("ticket", attraction.getTicket());
                     s.put("location", attraction.getLocation());
                     s.put("featureTag", attraction.getFeature_tag());
+                    // 景点图片：由智能体在 detail 阶段调高德补全，前端按 s.image_url 渲染。
+                    // 之前这里没映射，导致智能体取到的图在转成前端 JSON 时被丢弃、卡片只能显示占位图。
+                    s.put("image_url", attraction.getImage_url());
+                    // 票价兜底提示（参考值）：AI 未给具体票价时用它，避免前端只显示"详见现场"
+                    if (attraction.getTicket() == null || attraction.getTicket().isEmpty()) {
+                        s.put("ticket", attraction.getTicket_hint());
+                    }
                     schedules.add(s);
                 }
             }

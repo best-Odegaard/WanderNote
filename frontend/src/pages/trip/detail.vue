@@ -534,8 +534,9 @@ function buildSchedules() {
           openTime: s.openTime || '全天',
           ticket: s.ticket || '详见现场',
           foodRec: s.foodRec || '',
-          // 景区图：优先用 AI 返回的 photos_json 首张；缺失则 emoji 占位
-          image: s.image || s.photos?.[0] || '',
+          // 景区图：优先用智能体调高德补全的 image_url（后端字段名同智能体，蛇形）；
+          // 兼容历史上的 s.image / s.photos；都缺失时由模板用 emoji 占位
+          image: s.image_url || s.image || s.photos?.[0] || '',
           emoji: s.type === 'food' ? '🍜' : '⛰️',
           tags: s.featureTag ? [s.featureTag] : [],
           location: s.location || '',
@@ -1309,6 +1310,12 @@ function onChatModify() {
   border-radius: 16rpx;
   flex-shrink: 0;
   background: var(--bg-input);
+}
+
+/* 真图：image 默认 inline 会有基线间隙，且加载中需要占位底色 */
+.thumb-img {
+  display: block;
+  object-fit: cover;
 }
 
 .thumb {
