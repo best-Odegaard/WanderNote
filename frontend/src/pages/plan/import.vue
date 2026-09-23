@@ -29,6 +29,7 @@ import { useTripStore } from '@/store/trip'
 import { useUserStore } from '@/store/user'
 import { importTripFromLink } from '@/api/trip'
 import { isLoggedIn, redirectToLogin } from '@/utils/auth'
+import { showToast } from '@/utils/feedback'
 
 const systemInfo = uni.getSystemInfoSync()
 const statusBarHeight = systemInfo.statusBarHeight || 20
@@ -39,7 +40,7 @@ const userStore = useUserStore()
 
 onMounted(() => {
   if (!isLoggedIn()) {
-    uni.showToast({ title: '请先登录后创建行程', icon: 'none' })
+    showToast({ title: '请先登录后创建行程', icon: 'none' })
     setTimeout(() => {
       redirectToLogin()
     }, 500)
@@ -54,14 +55,14 @@ function chooseImage() {
   uni.chooseImage({
     count: 3,
     success: () => {
-      uni.showToast({ title: '图片已选择，识别开发中', icon: 'none' })
+      showToast({ title: '图片已选择，识别开发中', icon: 'none' })
     }
   })
 }
 
 async function handleImport() {
   if (!isLoggedIn()) {
-    uni.showToast({ title: '请先登录后创建行程', icon: 'none' })
+    showToast({ title: '请先登录后创建行程', icon: 'none' })
     setTimeout(() => {
       redirectToLogin()
     }, 500)
@@ -70,7 +71,7 @@ async function handleImport() {
 
   const sourceUrl = extractFirstUrl(text.value)
   if (!sourceUrl) {
-    uni.showToast({ title: '请输入内容', icon: 'none' })
+    showToast({ title: '请输入内容', icon: 'none' })
     return
   }
 
@@ -82,7 +83,7 @@ async function handleImport() {
     })
     tripStore.currentTrip = trip
     loading.value = false
-    uni.showToast({ title: '导入成功', icon: 'success' })
+    showToast({ title: '导入成功', icon: 'success' })
     setTimeout(() => {
       if (trip.id) {
         uni.navigateTo({ url: `/pages/trip/detail?id=${trip.id}` })

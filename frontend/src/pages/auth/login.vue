@@ -66,6 +66,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/AppIcon/AppIcon.vue'
 import { useLogin } from '@/hooks/useLogin'
+import { showToast } from '@/utils/feedback'
 
 const { loading, handleLogin } = useLogin()
 const username = ref('')
@@ -88,11 +89,11 @@ onLoad((options?: Record<string, string>) => {
 
 async function submit() {
   if (!username.value) {
-    uni.showToast({ title: '请输入用户名', icon: 'none' })
+    showToast({ title: '请输入用户名', icon: 'none' })
     return
   }
   if (!password.value) {
-    uni.showToast({ title: '请输入密码', icon: 'none' })
+    showToast({ title: '请输入密码', icon: 'none' })
     return
   }
   await handleLogin(username.value, password.value, redirect.value)

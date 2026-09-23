@@ -75,9 +75,10 @@
     </scroll-view>
 
     <!-- 轮播图景点介绍弹窗 -->
-    <view v-if="bannerIntro" class="popup-root" @tap="closeBannerIntro">
-      <view class="popup-mask" />
-      <view class="popup-panel" @tap.stop>
+    <transition name="fb-fade">
+      <view v-if="bannerIntro" class="popup-root" @tap="closeBannerIntro">
+        <view class="popup-mask" />
+        <view class="popup-panel" @tap.stop>
         <view class="popup-close" @tap.stop="closeBannerIntro">
           <text class="popup-close-icon">✕</text>
         </view>
@@ -96,6 +97,7 @@
         </view>
       </view>
     </view>
+    </transition>
 
     <!-- #ifndef MP-WEIXIN -->
     <AppTabBar />
@@ -116,6 +118,7 @@ import { getFeaturedList, type FeaturedTripItem } from '@/api/featured'
 import { toMyPlanItem, type MyPlanItem } from '@/utils/tripCard'
 import { useLogin } from '@/hooks/useLogin'
 import type { BannerItem } from '@/api/home'
+import { showModal, showToast } from '@/utils/feedback'
 
 const { checkLogin } = useLogin()
 
@@ -346,7 +349,7 @@ function onBannerChange(e: { detail: { current: number } }) {
 }
 
 function onSearch() {
-  uni.showModal({
+  showModal({
     title: '提示',
     content: '由于数据不完善，暂时不对外开放',
     showCancel: false,
@@ -355,7 +358,7 @@ function onSearch() {
 }
 
 function onNotify() {
-  uni.showToast({ title: '暂无新消息', icon: 'none' })
+  showToast({ title: '暂无新消息', icon: 'none' })
 }
 </script>
 
@@ -635,6 +638,15 @@ function onNotify() {
   background: rgba(4, 32, 26, 0.48);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+
+/* 退场动画：仅 leave 分支，入场仍由 .popup-panel 自身动画负责 */
+.fb-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.fb-fade-leave-to {
+  opacity: 0;
 }
 
 .popup-panel {

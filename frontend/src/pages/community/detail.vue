@@ -66,6 +66,7 @@ import { useUserStore } from '@/store/user'
 import { useTripStore } from '@/store/trip'
 import { useLogin } from '@/hooks/useLogin'
 import type { CommunityPost } from '@/api/community'
+import { showModal, showToast } from '@/utils/feedback'
 
 const loading = ref(true)
 const post = ref<CommunityPost | null>(null)
@@ -124,12 +125,12 @@ async function toggleLike() {
   post.value.likeCount += post.value.isLiked ? 1 : -1
   try {
     await toggleJournalLike(post.value.id)
-    uni.showToast({ title: post.value.isLiked ? '点赞成功' : '已取消点赞', icon: 'none' })
+    showToast({ title: post.value.isLiked ? '点赞成功' : '已取消点赞', icon: 'none' })
   } catch {
     // 请求失败，回滚 UI
     post.value.isLiked = wasLiked
     post.value.likeCount += wasLiked ? 1 : -1
-    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
+    showToast({ title: '操作失败，请重试', icon: 'none' })
   }
 }
 
@@ -145,29 +146,29 @@ async function toggleCollect() {
     } else {
       await uncollectPost(post.value.id)
     }
-    uni.showToast({ title: post.value.isCollected ? '收藏成功' : '已取消收藏', icon: 'none' })
+    showToast({ title: post.value.isCollected ? '收藏成功' : '已取消收藏', icon: 'none' })
   } catch {
     // 请求失败，回滚 UI
     post.value.isCollected = wasCollected
     post.value.collectCount += wasCollected ? 1 : -1
-    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
+    showToast({ title: '操作失败，请重试', icon: 'none' })
   }
 }
 
 function followAuthor() {
   if (!post.value) return
   post.value.isFollowed = true
-  uni.showToast({ title: '关注成功', icon: 'none' })
+  showToast({ title: '关注成功', icon: 'none' })
 }
 
 function share() {
-  uni.showToast({ title: '点击右上角分享', icon: 'none' })
+  showToast({ title: '点击右上角分享', icon: 'none' })
 }
 
 /** 删除游记（仅发布者可操作） */
 function handleDelete() {
   if (!post.value) return
-  uni.showModal({
+  showModal({
     title: '删除游记',
     content: '确定删除该游记吗？删除后不可恢复',
     confirmText: '删除',
@@ -176,7 +177,7 @@ function handleDelete() {
       if (!res.confirm) return
       try {
         await deletePost(post.value!.id)
-        uni.showToast({ title: '已删除', icon: 'success' })
+        showToast({ title: '已删除', icon: 'success' })
         // 通知列表页刷新
         uni.$emit('journal:deleted', post.value!.id)
         setTimeout(() => {
@@ -185,7 +186,7 @@ function handleDelete() {
           else uni.switchTab({ url: '/pages/community/index' })
         }, 500)
       } catch {
-        uni.showToast({ title: '删除失败，请重试', icon: 'none' })
+        showToast({ title: '删除失败，请重试', icon: 'none' })
       }
     }
   })

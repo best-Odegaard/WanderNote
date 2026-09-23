@@ -86,6 +86,7 @@ import {
   budgetToAmount,
   paceToTag
 } from '@/utils/surveyQuestions'
+import { showModal, showToast } from '@/utils/feedback'
 
 const tripStore = useTripStore()
 
@@ -121,7 +122,7 @@ function selectOption(questionId: string, option: string) {
 }
 
 function openCustomInput() {
-  uni.showModal({
+  showModal({
     title: '手动添加需求',
     editable: true,
     placeholderText: '如：想住江景房、避开网红店排队等',
@@ -147,7 +148,7 @@ function goBack() {
 function submitRequirements() {
   const missing = questions.value.find((q) => !answers[q.id])
   if (missing) {
-    uni.showToast({ title: '请完成所有问题', icon: 'none' })
+    showToast({ title: '请完成所有问题', icon: 'none' })
     return
   }
 

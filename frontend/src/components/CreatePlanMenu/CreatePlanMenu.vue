@@ -1,7 +1,8 @@
 <template>
-  <view v-if="visible" class="menu-root" @tap="close">
-    <view class="menu-mask" />
-    <view class="menu-panel" @tap.stop>
+  <transition name="fb-fade">
+    <view v-if="visible" class="menu-root" @tap="close">
+      <view class="menu-mask" />
+      <view class="menu-panel" @tap.stop>
       <view class="menu-item menu-item-primary" @tap="onCreateNew">
         <view class="menu-text">
           <text class="menu-title">智能规划行程</text>
@@ -31,12 +32,14 @@
       </view>
     </view>
   </view>
+  </transition>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/store/app'
 import { isLoggedIn, redirectToLogin } from '@/utils/auth'
+import { showModal, showToast } from '@/utils/feedback'
 
 const appStore = useAppStore()
 const { showCreateMenu: visible } = storeToRefs(appStore)
@@ -48,7 +51,7 @@ function close() {
 function requireLogin(): boolean {
   if (isLoggedIn()) return true
   close()
-  uni.showToast({ title: '请先登录后创建行程', icon: 'none' })
+  showToast({ title: '请先登录后创建行程', icon: 'none' })
   setTimeout(() => {
     redirectToLogin()
   }, 500)
@@ -62,7 +65,7 @@ function onCreateNew() {
 }
 
 function showNotDeveloped() {
-  uni.showModal({
+  showModal({
     title: '提示',
     content: '功能暂未开发，敬请期待',
     showCancel: false,
@@ -92,8 +95,19 @@ function onCollect() {
 .menu-mask {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(8px);
+  // 与首页弹窗/日期面板同一套浅青黑遮罩，比原来的纯黑柔和
+  background: rgba(4, 32, 26, 0.48);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* 退场动画：仅 leave 分支，入场仍由 .menu-panel 的 slideUp 负责 */
+.fb-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.fb-fade-leave-to {
+  opacity: 0;
 }
 
 .menu-panel {

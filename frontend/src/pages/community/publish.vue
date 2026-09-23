@@ -85,6 +85,7 @@ import { COMMUNITY_TAG_GROUPS, CUSTOM_TAG_LIMIT } from '@/utils/constant'
 import { publishPost } from '@/api/community'
 import { useUpload } from '@/hooks/useUpload'
 import type { ImageItem } from '@/hooks/useUpload'
+import { showToast } from '@/utils/feedback'
 
 const { uploading, progress, chooseImages } = useUpload()
 const publishing = ref(false)
@@ -120,11 +121,11 @@ function addCustomTag() {
   const val = customTagInput.value.trim()
   if (!val) return
   if (customTags.value.length >= CUSTOM_TAG_LIMIT) {
-    uni.showToast({ title: `最多添加 ${CUSTOM_TAG_LIMIT} 个自定义标签`, icon: 'none' })
+    showToast({ title: `最多添加 ${CUSTOM_TAG_LIMIT} 个自定义标签`, icon: 'none' })
     return
   }
   if (customTags.value.includes(val) || form.tags.includes(val)) {
-    uni.showToast({ title: '标签已存在', icon: 'none' })
+    showToast({ title: '标签已存在', icon: 'none' })
     return
   }
   customTags.value.push(val)
@@ -142,7 +143,7 @@ async function addImages() {
     const items = await chooseImages(remain)
     imageItems.value.push(...items)
   } catch {
-    uni.showToast({ title: '选择图片失败', icon: 'none' })
+    showToast({ title: '选择图片失败', icon: 'none' })
   }
 }
 
@@ -159,32 +160,32 @@ function getUploadedUrls(): string[] {
 
 async function handlePublish() {
   if (!form.title.trim()) {
-    uni.showToast({ title: '请填写标题', icon: 'none' })
+    showToast({ title: '请填写标题', icon: 'none' })
     return
   }
   if (!form.content.trim()) {
-    uni.showToast({ title: '请填写内容', icon: 'none' })
+    showToast({ title: '请填写内容', icon: 'none' })
     return
   }
   if (imageItems.value.length === 0) {
-    uni.showToast({ title: '请至少添加一张图片', icon: 'none' })
+    showToast({ title: '请至少添加一张图片', icon: 'none' })
     return
   }
   if (!form.location.trim()) {
-    uni.showToast({ title: '请填写发布城市', icon: 'none' })
+    showToast({ title: '请填写发布城市', icon: 'none' })
     return
   }
 
   // 等待所有正在上传的图片完成
   const uploadingItems = imageItems.value.filter((img) => img.uploading)
   if (uploadingItems.length > 0) {
-    uni.showToast({ title: `正在上传 ${uploadingItems.length} 张图片...`, icon: 'none' })
+    showToast({ title: `正在上传 ${uploadingItems.length} 张图片...`, icon: 'none' })
     return
   }
 
   const uploadedUrls = getUploadedUrls()
   if (uploadedUrls.length === 0) {
-    uni.showToast({ title: '图片上传失败，请重试', icon: 'none' })
+    showToast({ title: '图片上传失败，请重试', icon: 'none' })
     return
   }
 
@@ -197,10 +198,10 @@ async function handlePublish() {
       tags: [...form.tags, ...customTags.value],
       location: form.location
     })
-    uni.showToast({ title: '发布成功', icon: 'success' })
+    showToast({ title: '发布成功', icon: 'success' })
     setTimeout(() => uni.navigateBack(), 1000)
   } catch {
-    uni.showToast({ title: '发布失败，请重试', icon: 'none' })
+    showToast({ title: '发布失败，请重试', icon: 'none' })
   } finally {
     publishing.value = false
   }

@@ -174,8 +174,9 @@
     精选行程只有「几天、每天去哪」的模板内容，不带具体日期，
     所以出行时间必须在这里由用户确定，否则行程落库后没有日期、列表上会显示成占位日期。
   -->
-  <view v-if="showDateSheet" class="date-mask" @tap="closeDateSheet">
-    <view class="date-panel safe-bottom" @tap.stop>
+  <transition name="fb-fade">
+    <view v-if="showDateSheet" class="date-mask" @tap="closeDateSheet">
+      <view class="date-panel safe-bottom" @tap.stop>
       <view class="date-handle" />
       <view class="date-head">
         <text class="date-title">选个出发日期</text>
@@ -219,7 +220,8 @@
         <button class="date-confirm" :disabled="!selectedDate" @tap="confirmAddToMine">确定</button>
       </view>
     </view>
-  </view>
+    </view>
+  </transition>
 </template>
 
 <script setup lang="ts">
@@ -235,6 +237,7 @@ import { installBackGuard } from '@/utils/backGuard'
 import { useLogin } from '@/hooks/useLogin'
 import { getFeaturedDetail, copyFeaturedToMine } from '@/api/featured'
 import type { TripPlan } from '@/api/trip'
+import { showModal, showToast } from '@/utils/feedback'
 
 /** 每天路线颜色色板（总览模式按天分配，循环使用） */
 const ROUTE_COLORS = [
@@ -479,7 +482,7 @@ onMounted(async () => {
     trip.value = tripStore.currentTrip
     if (!trip.value) {
       loading.value = false
-      uni.showToast({ title: '暂无行程数据', icon: 'none' })
+      showToast({ title: '暂无行程数据', icon: 'none' })
       return
     }
   } else {
@@ -492,7 +495,7 @@ onMounted(async () => {
   // 获取失败或返回空：显示空状态，不兜底任何假数据
   if (!trip.value) {
     loading.value = false
-    uni.showToast({ title: '行程获取失败或不存在', icon: 'none' })
+    showToast({ title: '行程获取失败或不存在', icon: 'none' })
     return
   }
   buildSchedules()
@@ -715,7 +718,7 @@ function goBack() {
 }
 
 function onShare() {
-  uni.showToast({ title: '分享功能开发中', icon: 'none' })
+  showToast({ title: '分享功能开发中', icon: 'none' })
 }
 
 function onEdit() {
@@ -759,7 +762,7 @@ function removeSchedule(index: number) {
 }
 
 function onAddSpot() {
-  uni.showToast({ title: '添加景点开发中', icon: 'none' })
+  showToast({ title: '添加景点开发中', icon: 'none' })
 }
 
 /** 单个景点卡片：弹出导航选项（复制地址 / 高德 / 腾讯） */
@@ -770,7 +773,7 @@ function onNavigate(s: DetailSchedule) {
 /** 导航到当前选中天第一个景点（弹出导航选项） */
 function onMapRoute() {
   const target = currentSchedules.value.find((s) => s.title)
-  if (!target) return uni.showToast({ title: '暂无可导航的地点', icon: 'none' })
+  if (!target) return showToast({ title: '暂无可导航的地点', icon: 'none' })
   showNaviOptions({ title: target.title, address: target.location || '', lat: target.lat, lng: target.lng })
 }
 
@@ -805,9 +808,9 @@ async function onSave() {
   syncSchedulesToTrip()
   try {
     if (trip.value) await tripStore.saveTrip(trip.value)
-    uni.showToast({ title: '行程已保存', icon: 'success' })
+    showToast({ title: '行程已保存', icon: 'success' })
   } catch {
-    uni.showToast({ title: '行程已保存', icon: 'success' })
+    showToast({ title: '行程已保存', icon: 'success' })
   }
   // 保存后退出详情界面（重新进入时地图按需重绘）
   setTimeout(() => uni.switchTab({ url: '/pages/trip/index' }), 600)
@@ -817,7 +820,7 @@ async function onSave() {
 function onDeleteTrip() {
   const id = trip.value?.id
   if (id == null) return
-  uni.showModal({
+  showModal({
     title: '删除行程',
     content: `确定删除「${trip.value?.title || '该行程'}」？删除后不可恢复。`,
     confirmText: '删除',
@@ -826,11 +829,11 @@ function onDeleteTrip() {
       if (!res.confirm) return
       try {
         await tripStore.deleteTrip(id)
-        uni.showToast({ title: '已删除', icon: 'success' })
+        showToast({ title: '已删除', icon: 'success' })
         setTimeout(() => uni.switchTab({ url: '/pages/trip/index' }), 600)
       } catch (e) {
         console.warn('[trip/detail] 删除行程失败:', e)
-        uni.showToast({ title: '删除失败，请重试', icon: 'none' })
+        showToast({ title: '删除失败，请重试', icon: 'none' })
       }
     }
   })
@@ -948,7 +951,7 @@ async function confirmAddToMine() {
   showDateSheet.value = false
   try {
     await copyFeaturedToMine(featuredTripId.value, selectedDate.value)
-    uni.showToast({ title: `已添加：${range}`, icon: 'none', duration: 2200 })
+    showToast({ title: `已添加：${range}`, icon: 'none', duration: 2200 })
     setTimeout(() => uni.switchTab({ url: '/pages/trip/index' }), 1200)
   } catch (e) {
     // 失败提示由请求层统一弹出，这里只留日志
@@ -1483,6 +1486,15 @@ function onChatModify() {
   -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: flex-end;
+}
+
+/* 日期面板退场动画：仅 leave 分支，入场仍由 .date-panel 自身动画负责 */
+.fb-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.fb-fade-leave-to {
+  opacity: 0;
 }
 
 .date-panel {

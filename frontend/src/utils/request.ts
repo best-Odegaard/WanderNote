@@ -4,6 +4,7 @@
  */
 import { API_BASE_URL, REQUEST_TIMEOUT, USE_MOCK } from './constant'
 import { getToken, redirectToLogin } from './auth'
+import { hideLoading, showLoading, showToast } from '@/utils/feedback'
 export interface RequestConfig {
   url: string
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -34,17 +35,18 @@ export function abortCurrentRequest() {
   pendingTasks.clear()
 }
 
-function showLoading(text = '加载中...') {
+/** 请求层自己的并发计数（计数归零才真正显示/隐藏，避免并发请求闪烁） */
+function enterRequestLoading(text = '加载中...') {
   loadingCount++
   if (loadingCount === 1) {
-    uni.showLoading({ title: text, mask: true })
+    showLoading({ title: text, mask: true })
   }
 }
 
-function hideLoading() {
+function leaveRequestLoading() {
   loadingCount = Math.max(0, loadingCount - 1)
   if (loadingCount === 0) {
-    uni.hideLoading()
+    hideLoading()
   }
 }
 
@@ -73,7 +75,7 @@ function request<T = unknown>(config: RequestConfig): Promise<T> {
     timeout
   } = config
 
-  if (needLoading) showLoading(loadingText)
+  if (needLoading) enterRequestLoading(loadingText)
 
   const token = getToken()
   const headers: Record<string, string> = {
@@ -96,7 +98,7 @@ function request<T = unknown>(config: RequestConfig): Promise<T> {
         const body = res.data as ApiResponse<T>
 
         if (statusCode === 401) {
-          uni.showToast({ title: '请先登录', icon: 'none' })
+          showToast({ title: '请先登录', icon: 'none' })
           redirectToLogin()
           reject(new Error('未授权'))
           return
@@ -109,7 +111,7 @@ function request<T = unknown>(config: RequestConfig): Promise<T> {
               resolve(body.data)
             } else {
               const msg = body.msg || '请求失败'
-              uni.showToast({ title: msg, icon: 'none' })
+              showToast({ title: msg, icon: 'none' })
               console.error('[API Error]', url, body)
               reject(new Error(msg))
             }
@@ -118,7 +120,7 @@ function request<T = unknown>(config: RequestConfig): Promise<T> {
           }
         } else {
           const msg = `请求失败(${statusCode})`
-          uni.showToast({ title: msg, icon: 'none' })
+          showToast({ title: msg, icon: 'none' })
           console.error('[HTTP Error]', url, statusCode, res.data)
           reject(new Error(msg))
         }
@@ -127,14 +129,14 @@ function request<T = unknown>(config: RequestConfig): Promise<T> {
         // 用户主动中止（abort）时不算网络异常，不弹提示
         const aborted = String(err?.errMsg || '').includes('abort')
         if (!aborted && !USE_MOCK) {
-          uni.showToast({ title: '网络异常，请稍后重试', icon: 'none' })
+          showToast({ title: '网络异常，请稍后重试', icon: 'none' })
         }
         console.warn('[Network Error]', url, err)
         reject(err)
       },
       complete: () => {
         pendingTasks.delete(task)
-        if (needLoading) hideLoading()
+        if (needLoading) leaveRequestLoading()
       }
     })
     pendingTasks.add(task)

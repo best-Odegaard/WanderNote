@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { applyTheme, initTheme } from '@/utils/theme'
+// 命名空间导入：store 对外仍暴露 showLoading/hideLoading，避免与 import 同名遮蔽
+import * as feedback from '@/utils/feedback'
 
 export type ThemeMode = 'light' | 'dark'
 
@@ -39,12 +41,12 @@ export const useAppStore = defineStore('app', () => {
 
   function showLoading() {
     loading.value = true
-    uni.showLoading({ title: '加载中...', mask: true })
+    feedback.showLoading({ title: '加载中...', mask: true })
   }
 
   function hideLoading() {
     loading.value = false
-    uni.hideLoading()
+    feedback.hideLoading()
   }
 
   return {

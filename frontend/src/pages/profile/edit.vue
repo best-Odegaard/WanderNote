@@ -27,6 +27,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useUserStore } from '@/store/user'
 import { useUpload } from '@/hooks/useUpload'
+import { showToast } from '@/utils/feedback'
 
 const userStore = useUserStore()
 const { userInfo } = storeToRefs(userStore)
@@ -61,7 +62,7 @@ async function changeAvatar() {
     if (item?.remoteUrl) form.avatar = item.remoteUrl
     else if (item?.localPath) form.avatar = item.localPath
   } catch {
-    uni.showToast({ title: '头像上传失败，请重试', icon: 'none' })
+    showToast({ title: '头像上传失败，请重试', icon: 'none' })
   }
 }
 
@@ -69,10 +70,10 @@ async function handleSave() {
   saving.value = true
   try {
     await userStore.updateUserInfo({ ...form })
-    uni.showToast({ title: '保存成功', icon: 'success' })
+    showToast({ title: '保存成功', icon: 'success' })
     setTimeout(() => uni.navigateBack(), 1000)
   } catch (e: any) {
-    uni.showToast({ title: e?.data?.msg || e?.message || '保存失败，请重试', icon: 'none' })
+    showToast({ title: e?.data?.msg || e?.message || '保存失败，请重试', icon: 'none' })
   } finally {
     saving.value = false
   }

@@ -95,8 +95,9 @@
       </button>
     </view>
 
-    <view v-if="showCalendar" class="calendar-mask" @tap="closeCalendar">
-      <view class="calendar-panel safe-bottom" @tap.stop>
+    <transition name="fb-fade">
+      <view v-if="showCalendar" class="calendar-mask" @tap="closeCalendar">
+        <view class="calendar-panel safe-bottom" @tap.stop>
         <view class="calendar-handle" />
         <view class="calendar-head">
           <view>
@@ -136,11 +137,13 @@
           <text>确定</text>
         </button>
       </view>
-    </view>
+      </view>
+    </transition>
 
     <!-- 城市选择面板：搜索 + 热门 + 省份/城市两级 -->
-    <view v-if="showCityPicker" class="city-mask" @tap="closeCityPicker">
-      <view class="city-panel safe-bottom" @tap.stop>
+    <transition name="fb-fade">
+      <view v-if="showCityPicker" class="city-mask" @tap="closeCityPicker">
+        <view class="city-panel safe-bottom" @tap.stop>
         <view class="city-handle" />
         <view class="city-head">
           <text class="city-title">选择目的地城市</text>
@@ -192,7 +195,8 @@
           </view>
         </template>
       </view>
-    </view>
+      </view>
+    </transition>
   </view>
 </template>
 
@@ -204,6 +208,7 @@ import { useTripStore } from '@/store/trip'
 import { useLogin } from '@/hooks/useLogin'
 import { isLoggedIn, redirectToLogin } from '@/utils/auth'
 import type { GenerateTripParams } from '@/api/trip'
+import { showToast } from '@/utils/feedback'
 
 const tripStore = useTripStore()
 const { checkLogin } = useLogin()
@@ -266,7 +271,7 @@ onMounted(() => {
   tripStore.resetForNewTrip()
 
   if (!isLoggedIn()) {
-    uni.showToast({ title: '请先登录后创建行程', icon: 'none' })
+    showToast({ title: '请先登录后创建行程', icon: 'none' })
     setTimeout(() => {
       redirectToLogin()
     }, 500)
@@ -402,11 +407,11 @@ function toggleFlexibleDays() {
 
 function confirmCalendar() {
   if (!tempStartDate.value) {
-    uni.showToast({ title: '请选择出发时间', icon: 'none' })
+    showToast({ title: '请选择出发时间', icon: 'none' })
     return
   }
   if (isFlexibleDays.value && !tempEndDate.value) {
-    uni.showToast({ title: '请选择完整行程时间', icon: 'none' })
+    showToast({ title: '请选择完整行程时间', icon: 'none' })
     return
   }
   form.startDate = tempStartDate.value
@@ -478,7 +483,7 @@ function goChat() {
 	    addCityFromInput()
 	  }
 	  if (!destination.value) {
-	    uni.showToast({ title: '请选择目的地', icon: 'none' })
+	    showToast({ title: '请选择目的地', icon: 'none' })
 	    return
 	  }
 
@@ -501,7 +506,7 @@ function goChat() {
 	  if (!form.fromCity) form.fromCity = '当前城市'
 	  // 预算约束：不允许负数预算进入智能规划
 	  if (!Number.isFinite(form.budget) || form.budget < 0) {
-	    uni.showToast({ title: '预算不能为负数', icon: 'none' })
+	    showToast({ title: '预算不能为负数', icon: 'none' })
 	    return
 	  }
 	  syncFormTags()
@@ -755,7 +760,10 @@ function goChat() {
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: rgba(0, 0, 0, 0.58);
+  // 与首页弹窗/日期面板同一套浅青黑遮罩，比原来的纯黑柔和
+  background: rgba(4, 32, 26, 0.48);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: flex-end;
 }
@@ -954,9 +962,21 @@ function goChat() {
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: rgba(0, 0, 0, 0.58);
+  // 与首页弹窗/日期面板同一套浅青黑遮罩，比原来的纯黑柔和
+  background: rgba(4, 32, 26, 0.48);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: flex-end;
+}
+
+/* 日历 / 城市选择面板退场动画：仅 leave 分支，入场仍由 panel 自身动画负责 */
+.fb-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.fb-fade-leave-to {
+  opacity: 0;
 }
 
 .city-panel {

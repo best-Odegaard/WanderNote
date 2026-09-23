@@ -7,6 +7,7 @@
  * - App：用 plus.runtime.isApplicationExist 检测高德/腾讯地图是否安装，
  *   已安装用 App scheme 直接唤起，未安装提示并打开网页版兜底。
  */
+import { showActionSheet, showToast } from '@/utils/feedback'
 
 export type NaviMode = 'drive' | 'walk' | 'bus' | 'bike'
 
@@ -95,7 +96,7 @@ function appInstalled(app: { pname: string; action: string }): boolean {
 function copyLinkFallback(url: string): void {
   uni.setClipboardData({
     data: url,
-    success: () => uni.showToast({ title: '导航链接已复制，请到浏览器打开', icon: 'none' })
+    success: () => showToast({ title: '导航链接已复制，请到浏览器打开', icon: 'none' })
   })
 }
 
@@ -106,7 +107,7 @@ export function openAmapNavi(target: NaviTarget): void {
   if (appInstalled(AMAP_APP)) {
     plus.runtime.openURL(buildAmapScheme(target))
   } else {
-    uni.showToast({ title: '未检测到高德地图，已打开网页版', icon: 'none' })
+    showToast({ title: '未检测到高德地图，已打开网页版', icon: 'none' })
     plus.runtime.openURL(url)
   }
   // #endif
@@ -125,7 +126,7 @@ export function openQqMapNavi(target: NaviTarget): void {
   if (appInstalled(QQMAP_APP)) {
     plus.runtime.openURL(buildQqMapScheme(target))
   } else {
-    uni.showToast({ title: '未检测到腾讯地图，已打开网页版', icon: 'none' })
+    showToast({ title: '未检测到腾讯地图，已打开网页版', icon: 'none' })
     plus.runtime.openURL(url)
   }
   // #endif
@@ -142,7 +143,7 @@ export function copyAddress(target: NaviTarget): void {
   const text = target.address ? `${target.title}\n${target.address}` : target.title
   uni.setClipboardData({
     data: text,
-    success: () => uni.showToast({ title: '地址已复制', icon: 'success' })
+    success: () => showToast({ title: '地址已复制', icon: 'success' })
   })
 }
 
@@ -153,7 +154,7 @@ export function copyAddress(target: NaviTarget): void {
  * 3) 腾讯地图导航（同上）
  */
 export function showNaviOptions(target: NaviTarget): void {
-  uni.showActionSheet({
+  showActionSheet({
     itemList: ['复制地址信息', '高德地图导航', '腾讯地图导航'],
     success: (res) => {
       if (res.tapIndex === 0) copyAddress(target)

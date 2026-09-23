@@ -29,6 +29,7 @@ import LoadingView from '@/components/LoadingView/LoadingView.vue'
 import { getActivityDetail, collectActivity, uncollectActivity, enrollActivity } from '@/api/activity'
 import { formatDate } from '@/utils/format'
 import type { ActivityItem } from '@/api/activity'
+import { showToast } from '@/utils/feedback'
 
 const loading = ref(true)
 const detail = ref<ActivityItem | null>(null)
@@ -44,16 +45,16 @@ onMounted(async () => {
 async function toggleCollect() {
   if (!detail.value) return
   detail.value.isCollected = !detail.value.isCollected
-  uni.showToast({ title: detail.value.isCollected ? '已收藏' : '已取消', icon: 'none' })
+  showToast({ title: detail.value.isCollected ? '已收藏' : '已取消', icon: 'none' })
 }
 
 async function enroll() {
   if (!detail.value) return
   try {
     await enrollActivity(detail.value.id)
-    uni.showToast({ title: '报名成功', icon: 'success' })
+    showToast({ title: '报名成功', icon: 'success' })
   } catch {
-    uni.showToast({ title: '报名成功（演示）', icon: 'success' })
+    showToast({ title: '报名成功（演示）', icon: 'success' })
   }
 }
 </script>

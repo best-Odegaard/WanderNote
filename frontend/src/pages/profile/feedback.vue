@@ -77,6 +77,7 @@ import { reactive, ref } from 'vue'
 import { submitFeedback } from '@/api/feedback'
 import { useUpload, type ImageItem } from '@/hooks/useUpload'
 import { useLogin } from '@/hooks/useLogin'
+import { showToast } from '@/utils/feedback'
 
 const feedbackTypes = ['功能建议', '内容纠错', '投诉举报', '其他']
 
@@ -105,11 +106,11 @@ async function handleSubmit() {
 
   const content = form.content.trim()
   if (content.length < 5) {
-    uni.showToast({ title: '请至少输入5个字', icon: 'none' })
+    showToast({ title: '请至少输入5个字', icon: 'none' })
     return
   }
   if (uploading.value) {
-    uni.showToast({ title: '图片上传中，请稍候', icon: 'none' })
+    showToast({ title: '图片上传中，请稍候', icon: 'none' })
     return
   }
 
@@ -122,7 +123,7 @@ async function handleSubmit() {
       images,
       contact: form.contact.trim() || undefined
     })
-    uni.showToast({ title: '提交成功，感谢您的反馈', icon: 'success' })
+    showToast({ title: '提交成功，感谢您的反馈', icon: 'success' })
     setTimeout(() => uni.navigateBack(), 1200)
   } catch {
     // request.ts 已统一 toast 错误信息

@@ -58,6 +58,7 @@ import { ref, reactive } from 'vue'
 import CustomNavbar from '@/components/CustomNavbar/CustomNavbar.vue'
 import AppIcon from '@/components/AppIcon/AppIcon.vue'
 import { useUserStore } from '@/store/user'
+import { showToast } from '@/utils/feedback'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -74,18 +75,18 @@ const form = reactive({
 
 async function submit() {
   if (!form.username || form.username.length < 3 || form.username.length > 20) {
-    uni.showToast({ title: '用户名长度3~20位', icon: 'none' })
+    showToast({ title: '用户名长度3~20位', icon: 'none' })
     return
   }
   if (form.password.length < 6 || form.password.length > 20) {
-    uni.showToast({ title: '密码长度6~20位', icon: 'none' })
+    showToast({ title: '密码长度6~20位', icon: 'none' })
     return
   }
 
   loading.value = true
   try {
     await userStore.register(form)
-    uni.showToast({ title: '注册成功', icon: 'success' })
+    showToast({ title: '注册成功', icon: 'success' })
     setTimeout(() => uni.navigateBack(), 1000)
   } catch {
     // handled by request interceptor

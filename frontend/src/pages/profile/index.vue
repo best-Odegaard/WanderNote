@@ -70,6 +70,7 @@ import { useUserStore } from '@/store/user'
 import { useTripStore } from '@/store/trip'
 import { getMyCollects, getMyJournals } from '@/api/community'
 import { isLoggedIn } from '@/utils/auth'
+import { showModal, showToast } from '@/utils/feedback'
 
 const appStore = useAppStore()
 const userStore = useUserStore()
@@ -142,7 +143,7 @@ const tabPaths = ['/pages/home/index', '/pages/trip/index', '/pages/coming/index
 
 function goPage(path: string) {
   if (!path) {
-    uni.showToast({ title: '功能开发中', icon: 'none' })
+    showToast({ title: '功能开发中', icon: 'none' })
     return
   }
   if (path.includes('trip') && !isLogin.value) {
@@ -159,7 +160,7 @@ function goPage(path: string) {
 }
 
 function handleLogout() {
-  uni.showModal({
+  showModal({
     title: '提示',
     content: '确定退出登录？',
     success: (res) => {

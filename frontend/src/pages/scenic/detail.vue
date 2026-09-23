@@ -48,6 +48,7 @@ import LoadingView from '@/components/LoadingView/LoadingView.vue'
 import { getScenicDetail, collectScenic, uncollectScenic } from '@/api/scenic'
 import { formatRating, formatPrice } from '@/utils/format'
 import type { ScenicItem } from '@/api/scenic'
+import { showToast } from '@/utils/feedback'
 
 const loading = ref(true)
 const detail = ref<ScenicItem | null>(null)
@@ -82,10 +83,10 @@ async function toggleCollect() {
       await collectScenic(detail.value.id)
       detail.value.isCollected = true
     }
-    uni.showToast({ title: detail.value.isCollected ? '已收藏' : '已取消', icon: 'none' })
+    showToast({ title: detail.value.isCollected ? '已收藏' : '已取消', icon: 'none' })
   } catch {
     detail.value.isCollected = !detail.value.isCollected
-    uni.showToast({ title: detail.value.isCollected ? '已收藏' : '已取消', icon: 'none' })
+    showToast({ title: detail.value.isCollected ? '已收藏' : '已取消', icon: 'none' })
   }
 }
 

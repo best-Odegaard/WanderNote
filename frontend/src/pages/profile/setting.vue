@@ -29,6 +29,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAppStore } from '@/store/app'
+import { showModal, showToast } from '@/utils/feedback'
 
 const appStore = useAppStore()
 const notify = ref(true)
@@ -40,7 +41,7 @@ function toggleDark() {
 }
 
 function clearCache() {
-  uni.showModal({
+  showModal({
     title: '清除缓存',
     content: '确定清除本地缓存？',
     success: (res) => {
@@ -48,7 +49,7 @@ function clearCache() {
         uni.clearStorageSync()
         // 清缓存会连带清掉主题存储，重新持久化当前主题，避免重启后回退
         appStore.changeTheme(appStore.theme)
-        uni.showToast({ title: '已清除', icon: 'none' })
+        showToast({ title: '已清除', icon: 'none' })
       }
     }
   })

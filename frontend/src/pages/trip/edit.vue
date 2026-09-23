@@ -39,6 +39,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useTripStore } from '@/store/trip'
 import type { TripPlan } from '@/api/trip'
+import { showToast } from '@/utils/feedback'
 
 const tripStore = useTripStore()
 const saving = ref(false)
@@ -63,7 +64,7 @@ onMounted(async () => {
     const trip = await tripStore.getTripDetail(tripId.value)
     Object.assign(form, trip)
   } catch {
-    uni.showToast({ title: '行程加载失败', icon: 'none' })
+    showToast({ title: '行程加载失败', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 800)
   }
 })
@@ -84,10 +85,10 @@ async function handleSave() {
     if (tripId.value) {
       await tripStore.saveTrip(form as TripPlan)
     }
-    uni.showToast({ title: '保存成功', icon: 'success' })
+    showToast({ title: '保存成功', icon: 'success' })
     setTimeout(() => uni.navigateBack(), 1000)
   } catch {
-    uni.showToast({ title: '保存失败，请重试', icon: 'none' })
+    showToast({ title: '保存失败，请重试', icon: 'none' })
   } finally {
     saving.value = false
   }

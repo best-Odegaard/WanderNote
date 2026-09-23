@@ -34,6 +34,7 @@ import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import { getMyJournals, getMyCollects, deletePost } from '@/api/community'
 import { useLogin } from '@/hooks/useLogin'
 import type { CommunityPost } from '@/api/community'
+import { showModal, showToast } from '@/utils/feedback'
 
 const { checkLogin } = useLogin()
 
@@ -68,7 +69,7 @@ onShow(load)
 
 /** 删除我的游记 */
 function handleDelete(item: CommunityPost) {
-  uni.showModal({
+  showModal({
     title: '删除游记',
     content: '确定删除该游记吗？删除后不可恢复',
     confirmText: '删除',
@@ -77,12 +78,12 @@ function handleDelete(item: CommunityPost) {
       if (!res.confirm) return
       try {
         await deletePost(item.id)
-        uni.showToast({ title: '已删除', icon: 'success' })
+        showToast({ title: '已删除', icon: 'success' })
         posts.value = posts.value.filter((p) => p.id !== item.id)
         // 同步通知社区列表页刷新
         uni.$emit('journal:deleted', item.id)
       } catch {
-        uni.showToast({ title: '删除失败，请重试', icon: 'none' })
+        showToast({ title: '删除失败，请重试', icon: 'none' })
       }
     }
   })

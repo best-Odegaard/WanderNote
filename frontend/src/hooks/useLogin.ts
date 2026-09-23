@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useUserStore } from '@/store/user'
 import { isLoggedIn, goToRedirectPage } from '@/utils/auth'
+import { showModal, showToast } from '@/utils/feedback'
 
 /** 登录相关 Hook */
 export function useLogin() {
@@ -12,7 +13,7 @@ export function useLogin() {
     loading.value = true
     try {
       await userStore.login({ username, password })
-      uni.showToast({ title: '登录成功', icon: 'success' })
+      showToast({ title: '登录成功', icon: 'success' })
       setTimeout(() => {
         // 优先回跳到触发登录前的页面（redirect 参数由 login 页 onLoad 解析）
         if (redirect) {
@@ -33,7 +34,7 @@ export function useLogin() {
 
   function checkLogin(): boolean {
     if (!isLoggedIn()) {
-      uni.showModal({
+      showModal({
         title: '提示',
         content: '请先登录',
         confirmText: '去登录',

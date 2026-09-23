@@ -90,8 +90,9 @@
     </scroll-view>
 
       <!-- 生成行程计划进度遮罩（异步任务：检索 → 框架 → 详情，可取消） -->
-    <view v-if="finalizing" class="gen-overlay">
-      <view class="gen-card">
+    <transition name="fb-fade">
+      <view v-if="finalizing" class="gen-overlay">
+        <view class="gen-card">
         <view class="gen-spinner" />
         <text class="gen-title">正在生成行程计划</text>
         <text class="gen-stage">{{ genMessage }}</text>
@@ -131,6 +132,7 @@
         <view class="gen-cancel" @tap="cancelGeneration">取消生成</view>
       </view>
     </view>
+    </transition>
 
     <view class="footer safe-bottom">
       <!--
@@ -201,6 +203,7 @@ import {
   getActiveChatSession,
   setActiveChatSession
 } from '@/utils/chatSession'
+import { showToast } from '@/utils/feedback'
 
 interface PlanPreview {
   title: string
@@ -296,7 +299,7 @@ onLoad(async (options?: Record<string, string>) => {
   // 对话链路已收回登录态：后端要按 user_id 沉淀画像，未登录直接去登录页（带 redirect 回跳）。
   // 对话页是 tabBar 之外的非 tab 页，登录成功后 redirectTo 会回到这里。
   if (!isLoggedIn()) {
-    uni.showToast({ title: '请先登录', icon: 'none' })
+    showToast({ title: '请先登录', icon: 'none' })
     setTimeout(() => redirectToLogin(), 400)
     return
   }
@@ -308,7 +311,7 @@ onLoad(async (options?: Record<string, string>) => {
       messages.value = [getIntroMessage()]
     } catch (e) {
       console.warn('加载行程对话目标失败:', e)
-      uni.showToast({ title: '行程加载失败', icon: 'none' })
+      showToast({ title: '行程加载失败', icon: 'none' })
       return
     }
   }
@@ -361,7 +364,7 @@ function buildChatRequest(userInput: string): ChatRequestParams | null {
 function validateTripBudget(): boolean {
   const t = currentTrip.value
   if (t && Number(t.budget) < 0) {
-    uni.showToast({ title: '预算不能为负数', icon: 'none' })
+    showToast({ title: '预算不能为负数', icon: 'none' })
     return false
   }
   return true
@@ -446,7 +449,7 @@ async function callAiChat(userInput: string) {
 /** 暂停/停止当前 AI 生成（中止进行中的请求） */
 function stopAiCall() {
   abortCurrentRequest()
-  uni.showToast({ title: '正在停止...', icon: 'none' })
+  showToast({ title: '正在停止...', icon: 'none' })
 }
 
 function retryAiCall() {
@@ -469,7 +472,7 @@ watch(loadingAi, (val) => {
 async function sendMessage() {
   // AI 生成期间不允许发送下一条需求（按钮已变为暂停）
   if (loadingAi.value) {
-    uni.showToast({ title: 'AI 正在生成中，请稍候', icon: 'none' })
+    showToast({ title: 'AI 正在生成中，请稍候', icon: 'none' })
     return
   }
   if (!ensureLogin()) return
@@ -486,7 +489,7 @@ async function sendMessage() {
 /** 登录拦截：对话/生成链路需要登录，未登录先去登录页（带 redirect 回跳） */
 function ensureLogin(): boolean {
   if (isLoggedIn()) return true
-  uni.showToast({ title: '请先登录', icon: 'none' })
+  showToast({ title: '请先登录', icon: 'none' })
   setTimeout(() => redirectToLogin(), 400)
   return false
 }
@@ -514,7 +517,7 @@ async function toggleProfileSwitch() {
     if (res && typeof res.enabled === 'boolean') {
       profileEnabled.value = res.enabled
     }
-    uni.showToast({
+    showToast({
       title: next ? '已开启，AI 会延续你的偏好' : '已关闭，AI 会重新询问你的偏好',
       icon: 'none'
     })
@@ -529,7 +532,7 @@ function goBack() {
 }
 
 function onDraft() {
-  uni.showToast({ title: '草稿已保存', icon: 'success' })
+  showToast({ title: '草稿已保存', icon: 'success' })
 }
 
 /**
@@ -540,7 +543,7 @@ function onDraft() {
 async function goItinerary() {
   if (!ensureLogin()) return
   if (!sessionId.value) {
-    uni.showToast({ title: '请先发送消息与AI对话', icon: 'none' })
+    showToast({ title: '请先发送消息与AI对话', icon: 'none' })
     return
   }
   if (finalizing.value) return
@@ -549,7 +552,7 @@ async function goItinerary() {
 
   const params = buildChatRequest('请综合以上所有讨论内容，生成最终的完整旅游行程计划')
   if (!params) {
-    uni.showToast({ title: '请先填写行程信息', icon: 'none' })
+    showToast({ title: '请先填写行程信息', icon: 'none' })
     return
   }
 
@@ -583,7 +586,7 @@ async function goItinerary() {
     currentAiResponse.value = finalPlan
 
     if (result.fromCache) {
-      uni.showToast({ title: '命中缓存，已为你秒开 ⚡', icon: 'none' })
+      showToast({ title: '命中缓存，已为你秒开 ⚡', icon: 'none' })
     }
 
     // detail 完成：用精确 location 重新地理编码，把遮罩内地图更新为精确路线
@@ -617,7 +620,7 @@ async function goItinerary() {
     } catch (saveErr) {
       console.warn('行程入库失败，仍可预览（未持久化）:', saveErr)
       // 入库失败不阻断预览，但提示用户
-      uni.showToast({ title: '行程已生成，但保存失败，请稍后在详情页重试保存', icon: 'none', duration: 2500 })
+      showToast({ title: '行程已生成，但保存失败，请稍后在详情页重试保存', icon: 'none', duration: 2500 })
     }
 
     // 在对话区展示最终行程预览卡片（含"查看详情"入口，进地图路线详情页）
@@ -639,13 +642,13 @@ async function goItinerary() {
     const msg = String(err?.errMsg || err?.message || '')
     // 用户取消
     if (msg.includes('CANCELED') || msg.includes('已取消')) {
-      uni.showToast({ title: '已取消生成，可随时重新生成', icon: 'none', duration: 2000 })
+      showToast({ title: '已取消生成，可随时重新生成', icon: 'none', duration: 2000 })
     }
     // 超时（agent 生成慢）给友好提示，避免显示原始错误串
     else if (msg.includes('timeout') || msg.includes('超时')) {
-      uni.showToast({ title: '生成超时，AI 服务繁忙，请稍后重试', icon: 'none', duration: 3000 })
+      showToast({ title: '生成超时，AI 服务繁忙，请稍后重试', icon: 'none', duration: 3000 })
     } else {
-      uni.showToast({ title: err?.data?.msg || msg || '生成最终行程失败', icon: 'none' })
+      showToast({ title: err?.data?.msg || msg || '生成最终行程失败', icon: 'none' })
     }
   } finally {
     clearInterval(elapsedTimer)
@@ -1264,6 +1267,15 @@ watch(genFrame, (frame) => {
   align-items: center;
   justify-content: center;
   padding: 0 48rpx;
+}
+
+/* 生成进度遮罩退场动画：仅 leave 分支，入场仍由 .gen-card 自身动画负责 */
+.fb-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.fb-fade-leave-to {
+  opacity: 0;
 }
 
 .gen-card {
