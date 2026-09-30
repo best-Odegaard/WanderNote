@@ -14,7 +14,11 @@
 set -e
 
 # ---------- 常量配置 ----------
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 本脚本在 deploy/ 下，仓库根在它的上一级。
+# 早先这里只取了 dirname，于是 PROJECT_ROOT 成了 deploy/ 本身，
+# 后面所有 LOCAL_* 路径都指向 deploy/backend、deploy/frontend（不存在），
+# 构建必然失败在 "cd: .../deploy/backend: No such file or directory"。
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/your-key.pem}"
 SSH_USER="${SSH_USER:-ubuntu}"
 SSH_HOST="${SSH_HOST:-your-server-ip}"

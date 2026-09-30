@@ -17,7 +17,8 @@
 # ============================================================
 set -e
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 本脚本在 deploy/ 下，仓库根在它的上一级（与 deploy.sh 同一处坑）
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/your-key.pem}"
 SSH_USER="${SSH_USER:-ubuntu}"
 SSH_HOST="${SSH_HOST:-your-server-ip}"
