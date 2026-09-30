@@ -1,3 +1,8 @@
-chat_model: "deepseek-v4-pro-0813"
+# 对话模型：小笺"陪聊 + 给建议"用的模型。
+# 换成 qwen3.8-flash（阿里千问，成本低、响应快），比原来的 deepseek-v4-pro 更适合高频多轮短回复。
+# 官方文档：https://help.aliyun.com/zh/model-studio/qwen3-8-flash
+chat_model: "qwen3.8-flash"
+
+# 行程生成模型：生成结构化行程（要按 Pydantic 模型输出 JSON），对指令遵循要求更高，先保持不动。
 plan_model: "deepseek-v4-pro-0813"
 

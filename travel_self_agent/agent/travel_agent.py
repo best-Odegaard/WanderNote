@@ -7,6 +7,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from utils.prompt_loader import load_chat_prompt
 from utils.prompt_loader import load_plan_prompt, load_plan_frame_prompt, load_plan_detail_prompt
+from utils.config_handler import agent_config
 from model.structured_model import TripPlan, TripPlanFrame
 from typing import Generator
 
@@ -22,19 +23,32 @@ if not MAAS_API_KEY:
         "  PowerShell    : $env:MAAS_API_KEY=\"sk-xxxxxxxx\""
     )
 
+# 模型名一律从 config/agent.yml 读，不在这里硬编码。
+#
+# 原来两个模型名是写死的，而 config/agent.yml 里的同名配置只被打印过、从未参与构造 ——
+# 结果「改配置换模型」完全不生效，排查时容易怀疑到别的地方去。
+# 现在统一成一处配置：换模型只改 config/agent.yml。
+CHAT_MODEL = agent_config.get("chat_model") or "qwen3.8-flash"
+PLAN_MODEL = agent_config.get("plan_model") or "deepseek-v4-pro-0813"
+
+# 所有模型共用同一个 OpenAI 兼容端点与同一把 Key
+MAAS_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
 class TravelAgent:
     def __init__(self):
+        # 对话模型：小笺的多轮短回复，量大、要求快
         self.llm_chat = ChatOpenAI(
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            base_url=MAAS_BASE_URL,
             api_key=MAAS_API_KEY,
-            model="deepseek-v4-pro-0813",
+            model=CHAT_MODEL,
             temperature=0.7
         )
 
+        # 行程生成模型：要按 Pydantic 模型吐结构化 JSON，对指令遵循更敏感
         self.llm_plan = ChatOpenAI(
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            base_url=MAAS_BASE_URL,
             api_key=MAAS_API_KEY,
-            model="deepseek-v4-pro-0813",
+            model=PLAN_MODEL,
             temperature=0.3
         )
         self.plan_prompt = PromptTemplate(
@@ -116,7 +130,15 @@ class TravelAgent:
         ]
 
     def build_chat_messages(self,inputs)-> list:
-        system_text=self.chat_prompt.format(
+        # 每轮重新读一次对话提示词文件，而不是用启动时缓存的那份。
+        #
+        # 原因：缓存会导致「改了 prompt 必须重启进程才生效」，这个摩擦很坑人 ——
+        # 人改完文案看到毫无变化，只会去别处找原因（实测为此浪费过好几轮）。
+        # 读的是几 KB 的纯文本，开销可以忽略。
+        system_text=PromptTemplate(
+            input_variables=["base_info"],
+            template=load_chat_prompt()
+        ).format(
             base_info=inputs["base_info"]
         )
         history_message=self.to_langchain_messages(inputs.get("chat_history",[]))
