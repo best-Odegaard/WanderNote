@@ -20,4 +20,9 @@ public class BaseInfoDTO {
          * 服务端每次都用自己查库构建的值覆盖，客户端传什么都不作数。
          */
         private String profile_note;
+        /**
+         * 已通过槽位选项确认的结构化需求（酒店风格 / 节奏 / 同行人等）。
+         * 与 profile_note 一样只由服务端注入，用于告诉模型「别再追问这些了」。
+         */
+        private String slot_note;
 }

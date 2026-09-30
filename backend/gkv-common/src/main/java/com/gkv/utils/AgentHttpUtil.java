@@ -57,13 +57,26 @@ public class AgentHttpUtil {
      * 需要流式读取并拼接为完整回复文本。
      */
     public ChatResponseDTO callChat(ChatRequestDTO req) {
+        return buildChatResponse(req, streamChat(req, null));
+    }
+
+    /**
+     * 长对话聊天（流式版）：每读到一段文本就回调 onChunk，用于实时推给前端。
+     *
+     * ⚠️ 刻意不用 BufferedReader.readLine()：
+     * 模型输出是逐字吐的，不保证带换行。按行读会把内容一直攒到第一个换行才返回，
+     * 前端要等一整段才看到字，流式就名存实亡了。这里按字符块读。
+     *
+     * @param onChunk 每段增量的回调；传 null 等价于 {@link #callChat}
+     * @return 拼接完成的完整回复
+     */
+    public String streamChat(ChatRequestDTO req, java.util.function.Consumer<String> onChunk) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
 
         String wrappedJson = buildAgentRequest(req.getSession_id(), req.getBase_info(), req.getUser_input(), req.getChat_history());
-        HttpEntity<String> request = new HttpEntity<>(wrappedJson, headers);
 
-        // 流式读取响应体并拼接完整文本
+        // 流式读取响应体：边读边拼接，同时把增量回调出去
         String replyText = restTemplate.execute(
                 chatUrl,
                 HttpMethod.POST,
@@ -73,16 +86,26 @@ public class AgentHttpUtil {
                 },
                 res -> {
                     StringBuilder sb = new StringBuilder();
-                    try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                            new java.io.InputStreamReader(res.getBody(), java.nio.charset.StandardCharsets.UTF_8))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            sb.append(line).append("\n");
+                    try (java.io.Reader reader = new java.io.InputStreamReader(
+                            res.getBody(), java.nio.charset.StandardCharsets.UTF_8)) {
+                        char[] buf = new char[128];
+                        int n;
+                        while ((n = reader.read(buf)) != -1) {
+                            String chunk = new String(buf, 0, n);
+                            sb.append(chunk);
+                            if (onChunk != null) {
+                                onChunk.accept(chunk);
+                            }
                         }
                     }
                     return sb.toString();
                 });
 
+        return replyText != null ? replyText.trim() : "";
+    }
+
+    /** 组装一个只带 session_id 与回复文本的响应（供上面两个方法共用） */
+    private ChatResponseDTO buildChatResponse(ChatRequestDTO req, String replyText) {
         ChatResponseDTO dto = new ChatResponseDTO();
         dto.setSession_id(req.getSession_id());
         dto.setReply(replyText != null ? replyText.trim() : "");
@@ -207,6 +230,9 @@ public class AgentHttpUtil {
             // 注意：智能体侧的入参模型必须显式声明这个字段 —— pydantic 默认会静默丢弃
             // 未声明的额外字段，否则前端看着传了，prompt 里其实什么都没有。
             baseInfoObj.put("profile_note", baseInfo.getProfile_note() != null ? baseInfo.getProfile_note() : "");
+            // 槽位引擎已确认的结构化需求。同样必须在这里显式透传：
+            // 智能体侧的 BaseInfo 已声明 slot_note 字段，缺了这段等于白收集。
+            baseInfoObj.put("slot_note", baseInfo.getSlot_note() != null ? baseInfo.getSlot_note() : "");
         }
         wrapper.put("base_info", baseInfoObj);
         wrapper.put("user_input", userInput != null ? userInput : "");

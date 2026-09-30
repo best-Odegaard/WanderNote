@@ -1,0 +1,244 @@
+# 对话式行程规划的「槽位问题树」
+#
+# 设计目标：让用户不需要自己想问题 —— AI 每次只问一件事，用户点选项即可。
+#
+# 字段说明：
+#   key          槽位唯一标识，与前端 / Agent 共享
+#   weight       完整度权重（所有 weight 之和即分母；weight=0 的槽位不参与完整度）
+#   priority     提问优先级，越大越先问（与 weight 解耦，便于单独调整追问顺序）
+#   question     问题文案，≤20 字，口语化
+#   hint         可选的一句话建议，降低用户决策成本
+#   options      选项列表；不写则退化为纯文本输入
+#   useHotCities 用 hotCities 作为选项（目的地用）
+#   skippable    是否可跳过；跳过时若配了 defaultValue 则按默认值填充并标记来源 default
+#   dependsOn    依赖条件：仅当指定槽位取到给定值时该问题才会被提出（二级提问的核心）
+#   askable      false 表示不主动提问，只用于承载推断结果（如 people）
+#
+# 调度规则见 SlotEngine：每轮只问一个、可推断不问、最多 maxAskedCount 轮、依赖不满足不问。
+
+maxAskedCount: 6
+
+# 目的地候选：渲染成「你想去哪里？」下面的一排选项卡。
+# 刻意只留十几个——选项太多反而挑不出来。
+hotCities:
+  - 广州
+  - 肇庆
+  - 重庆
+  - 成都
+  - 桂林
+  - 杭州
+  - 北京
+  - 上海
+  - 西安
+  - 三亚
+  - 厦门
+  - 长沙
+
+# 从自由文本里识别城市的**额外**词典（会自动与 hotCities 合并，不用重复写）。
+#
+# 为什么要有它：hotCities 同时当选项卡和识别词典时，两者诉求是冲突的——
+# 选项卡要少（十几个人才挑得动），识别词典要多。实测踩过这个坑：
+# 用户说「我想去深圳」，深圳不在表里 → destination 推不出来 →
+# 所有依赖目的地的规则（当地话题、猜你想问）全部失效，界面看起来像"AI 没听懂"。
+#
+# 这里只写 hotCities 之外的城市；热门城市不用重复列。
+cityDictionary:
+  - 深圳
+  - 珠海
+  - 佛山
+  - 东莞
+  - 中山
+  - 惠州
+  - 汕头
+  - 湛江
+  - 清远
+  - 韶关
+  - 梅州
+  - 潮州
+  - 潮汕
+  - 阳江
+  - 南京
+  - 苏州
+  - 无锡
+  - 扬州
+  - 青岛
+  - 济南
+  - 烟台
+  - 威海
+  - 大连
+  - 沈阳
+  - 哈尔滨
+  - 长春
+  - 天津
+  - 郑州
+  - 武汉
+  - 南昌
+  - 福州
+  - 泉州
+  - 南宁
+  - 海口
+  - 贵阳
+  - 昆明
+  - 大理
+  - 丽江
+  - 西双版纳
+  - 拉萨
+  - 兰州
+  - 西宁
+  - 银川
+  - 乌鲁木齐
+  - 呼和浩特
+  - 太原
+  - 石家庄
+  - 秦皇岛
+  - 洛阳
+  - 开封
+  - 温州
+  - 宁波
+  - 绍兴
+  - 舟山
+  - 黄山
+  - 张家界
+  - 凤凰
+  - 北海
+  # 以下几类不是"地级市"但同样是用户嘴里的目的地（实测 AI 会推荐景德镇、
+  # 景德镇不在词典里 → 认不出来 → 也排不到选项前面，用户点不到）
+  - 景德镇
+  - 婺源
+  - 平遥
+  - 敦煌
+  - 喀什
+  - 稻城
+  - 香格里拉
+  - 阳朔
+  - 乌镇
+  - 西塘
+  - 周庄
+  - 同里
+  - 南浔
+  - 宏村
+  - 泸沽湖
+  - 喀纳斯
+  - 伊犁
+  - 张掖
+  - 嘉峪关
+  - 甘南
+
+slots:
+  - key: destination
+    weight: 25
+    priority: 100
+    question: "你想去哪里？"
+    useHotCities: true
+    skippable: false
+    skipLabel: "还没定"
+
+  - key: days
+    weight: 20
+    priority: 90
+    question: "你想玩几天？"
+    hint: "多数人玩 2 天刚好"
+    options:
+      - { label: "1 天", value: "1" }
+      - { label: "2 天", value: "2" }
+      - { label: "3 天", value: "3" }
+      - { label: "4 天以上", value: "4" }
+    skippable: true
+    skipLabel: "还没想好"
+    defaultValue: "2"
+
+  # 二级提问示例①：只有选了「亲子」才会追问孩子年龄
+  - key: childAge
+    weight: 0
+    priority: 85
+    question: "孩子多大了？"
+    hint: "影响节奏和景点选择"
+    dependsOn:
+      companion: [ "family" ]
+    options:
+      - { label: "3 岁以下", value: "0-3" }
+      - { label: "3-6 岁", value: "3-6" }
+      - { label: "7-12 岁", value: "7-12" }
+      - { label: "12 岁以上", value: "12+" }
+    skippable: true
+    skipLabel: "跳过"
+
+  - key: companion
+    weight: 5
+    priority: 80
+    question: "和谁一起？"
+    options:
+      - { label: "独自", value: "solo" }
+      - { label: "双人", value: "couple" }
+      - { label: "亲子", value: "family" }
+      - { label: "朋友", value: "friends" }
+    skippable: true
+    skipLabel: "还没定"
+
+  - key: budget
+    weight: 10
+    priority: 70
+    question: "预算大概多少？"
+    hint: "按人均算，不确定可以跳过"
+    options:
+      - { label: "人均 500 以内", value: "500" }
+      - { label: "人均 500-1000", value: "800" }
+      - { label: "人均 1000-2000", value: "1500" }
+      - { label: "人均 2000 以上", value: "2500" }
+    skippable: true
+    skipLabel: "不确定"
+    defaultValue: "1500"
+
+  - key: hotelStyle
+    weight: 10
+    priority: 60
+    question: "住宿想住哪种？"
+    options:
+      - { label: "经济连锁", value: "经济连锁" }
+      - { label: "舒适型", value: "舒适型" }
+      - { label: "高端/度假", value: "高端度假" }
+      - { label: "民宿/特色", value: "民宿特色" }
+      - { label: "不确定", value: "不限" }
+    skippable: true
+    skipLabel: "不确定"
+    defaultValue: "不限"
+
+  - key: departCity
+    weight: 10
+    priority: 50
+    question: "从哪出发？"
+    hint: "要用来看车票和首日路线"
+    skippable: true
+    skipLabel: "暂不确定"
+
+  - key: dateRange
+    weight: 10
+    priority: 40
+    question: "大概什么时候去？"
+    options:
+      - { label: "这周末", value: "this_weekend" }
+      - { label: "下周", value: "next_week" }
+      - { label: "下个月", value: "next_month" }
+      - { label: "还没定", value: "flexible" }
+    skippable: true
+    skipLabel: "还没定"
+    defaultValue: "flexible"
+
+  - key: pace
+    weight: 0
+    priority: 30
+    question: "想怎么玩？"
+    options:
+      - { label: "轻松，不想爬山", value: "轻松" }
+      - { label: "正常走走", value: "常规" }
+      - { label: "多打卡多看点", value: "暴走" }
+    skippable: true
+    skipLabel: "随意"
+
+  # 不主动提问：由 companion 推断得出（避免重复劳动），但参与完整度计算
+  - key: people
+    weight: 10
+    priority: 10
+    askable: false
+    dependsOn:
+      companion: [ "solo", "couple", "family", "friends" ]

@@ -62,6 +62,12 @@ profile:
     model: ${PROFILE_SUMMARY_MODEL:}
 
 sky:
+  # 用户历史画像是否回灌给大模型。
+  # false（默认）= 停用：对话里不会带上用户过往偏好，前端也不再展示「记住的偏好」开关。
+  # 注意：画像数据仍在正常沉淀，「记住的偏好」只是不再生效；改回 true 即可恢复。
+  profile:
+    inject-enabled: ${PROFILE_INJECT_ENABLED:false}
+
   jwt:
     # 设置jwt签名加密时使用的秘钥
     admin-secret-key: itcast
