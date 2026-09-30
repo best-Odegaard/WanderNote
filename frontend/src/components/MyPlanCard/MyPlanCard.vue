@@ -24,6 +24,15 @@
           <AppIcon name="user" :size="26" color="var(--text-tertiary)" />
         </view>
       </view>
+
+      <!--
+        从行程列表进入「该行程的对话」。
+        原来这个入口是行程列表自己画在卡片上的，首页的行程卡片搬过来后合并到这里，
+        保证迁移不丢能力。
+      -->
+      <view v-if="showChatEntry" class="plan-chat-btn" @tap.stop="$emit('chat')">
+        <text>进入行程对话</text>
+      </view>
     </view>
 
     <!-- 右侧缩略图：斜放并向右溢出，多余部分被卡片裁掉；无图时用同尺寸占位保持版式一致 -->
@@ -43,11 +52,13 @@ interface Props {
   plan: MyPlanItem
   /** 列表内序号，用于底色按序循环 */
   index?: number
+  /** 是否显示「进入行程对话」入口（行程绑定了 AI 会话时才显示） */
+  showChatEntry?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { index: 0 })
+const props = withDefaults(defineProps<Props>(), { index: 0, showChatEntry: false })
 
-defineEmits<{ tap: [] }>()
+defineEmits<{ tap: []; chat: [] }>()
 
 const bgColor = computed(() => tripCardBg(props.index))
 
@@ -149,6 +160,22 @@ const metaFirstLine = computed(() => {
   justify-content: center;
   background: var(--trip-badge-bg);
   border-color: transparent;
+}
+
+/* 进入行程对话：与卡片同色系的浅底胶囊，不抢卡片本身的点击（stop 阻止冒泡） */
+.plan-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 20rpx;
+  padding: 12rpx 26rpx;
+  border-radius: 999rpx;
+  background: var(--trip-badge-bg);
+  font-size: var(--fs-caption);
+  color: var(--text-main);
+
+  &:active {
+    opacity: 0.7;
+  }
 }
 
 /* 缩略图：向右溢出 52rpx（= 210 的 1/4），即露出四分之三，另外四分之一被卡片右缘裁掉。

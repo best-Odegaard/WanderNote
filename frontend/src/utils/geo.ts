@@ -213,17 +213,43 @@ export function decodeRoutePolyline(polyline: unknown): RoutePoint[] {
 }
 
 /**
- * 驾车路线规划（默认打车/驾车模式）：
- * 按景点顺序 from -> waypoints -> to，返回沿道路的路径点数组。
- * 失败返回 null，调用方降级为景点直线连接。
- * @param points 有序景点坐标（>=2）
+ * 腾讯驾车路线返回的单条 route（只声明用到的字段）
+ *
+ * 量纲实测（2026-09，广州塔 → 珠江新城，5.5km）：
+ *   distance = 5524（米）、duration = 15（分钟）
+ * 注意 duration 是分钟不是秒，别再做除法。
  */
-export function planDrivingRoute(points: LatLng[]): Promise<RoutePoint[] | null> {
-  if (!MAP_WS_KEY || points.length < 2) return Promise.resolve(null)
+interface TencentRoute {
+  polyline?: unknown
+  /** 耗时（分钟） */
+  duration?: number
+  /** 距离（米） */
+  distance?: number
+}
 
-  const from = points[0]
-  const to = points[points.length - 1]
-  const waypoints = points.slice(1, -1)
+/** 统一解析腾讯驾车响应，取第一条路线；失败打印原因并返回 null */
+function pickRoute(data: any): TencentRoute | null {
+  if (data?.status === 0 && data?.result?.routes?.[0]) {
+    return data.result.routes[0] as TencentRoute
+  }
+  console.warn('[geo] 驾车路线规划失败:', data?.message || data?.status)
+  return null
+}
+
+/**
+ * 请求腾讯驾车路线。
+ *
+ * waypoints 上限：官方文档没有明确写死，实测传 12 个途经点仍返回 status=0。
+ * 但本函数只用于「一段路」（from→to）和「整天一次规划」两种场景，
+ * 拿分段耗时请用 planRouteSegments（它会拆成多次两点的请求）。
+ */
+function fetchDrivingRoute(
+  from: LatLng,
+  to: LatLng,
+  waypoints: LatLng[] = []
+): Promise<TencentRoute | null> {
+  if (!MAP_WS_KEY) return Promise.resolve(null)
+
   const base =
     `https://apis.map.qq.com/ws/direction/v1/driving/` +
     `?from=${from.lat},${from.lng}` +
@@ -232,13 +258,7 @@ export function planDrivingRoute(points: LatLng[]): Promise<RoutePoint[] | null>
     `&key=${encodeURIComponent(MAP_WS_KEY)}`
 
   // #ifdef H5
-  return jsonpRequest(base).then((data: any) => {
-    if (data?.status === 0 && data.result?.routes?.[0]?.polyline) {
-      return decodeRoutePolyline(data.result.routes[0].polyline)
-    }
-    console.warn('[geo] 驾车路线规划失败:', data?.message || data?.status)
-    return null
-  })
+  return jsonpRequest(base).then(pickRoute)
   // #endif
   // #ifndef H5
   return new Promise((resolve) => {
@@ -246,15 +266,7 @@ export function planDrivingRoute(points: LatLng[]): Promise<RoutePoint[] | null>
       url: base,
       method: 'GET',
       timeout: 12000,
-      success: (res) => {
-        const data = res.data as any
-        if (data?.status === 0 && data.result?.routes?.[0]?.polyline) {
-          resolve(decodeRoutePolyline(data.result.routes[0].polyline))
-        } else {
-          console.warn('[geo] 驾车路线规划失败:', data?.message || data?.status)
-          resolve(null)
-        }
-      },
+      success: (res) => resolve(pickRoute(res.data)),
       fail: (err) => {
         console.warn('[geo] 驾车路线规划请求失败:', err)
         resolve(null)
@@ -262,6 +274,112 @@ export function planDrivingRoute(points: LatLng[]): Promise<RoutePoint[] | null>
     })
   })
   // #endif
+}
+
+/**
+ * 驾车路线规划（默认打车/驾车模式）：
+ * 按景点顺序 from -> waypoints -> to，返回沿道路的路径点数组。
+ * 失败返回 null，调用方降级为景点直线连接。
+ * @param points 有序景点坐标（>=2）
+ */
+export async function planDrivingRoute(points: LatLng[]): Promise<RoutePoint[] | null> {
+  if (!MAP_WS_KEY || points.length < 2) return null
+  const route = await fetchDrivingRoute(points[0], points[points.length - 1], points.slice(1, -1))
+  return route ? decodeRoutePolyline(route.polyline) : null
+}
+
+/** 一段路的规划结果 */
+export interface RouteLeg {
+  /** 沿道路的路径点 */
+  path: RoutePoint[]
+  /** 驾车耗时（分钟）；拿不到为 null */
+  durationMin: number | null
+  /** 距离（公里）；拿不到为 null */
+  distanceKm: number | null
+}
+
+/**
+ * 规划「一段」路：from → to，同时拿到耗时与距离。
+ *
+ * 为什么不复用 planDrivingRoute：它只返回 polyline。
+ * 而「第 2/5 段 · 下一站：七星岩」这种接续导航体验，必须要每段各自的耗时/距离，
+ * 一次带动全部途经点的请求只会给出整条路线的合计值，拿不到分段数据。
+ */
+export async function planSingleLeg(from: LatLng, to: LatLng): Promise<RouteLeg | null> {
+  const route = await fetchDrivingRoute(from, to)
+  if (!route) return null
+  return {
+    path: decodeRoutePolyline(route.polyline),
+    durationMin: typeof route.duration === 'number' ? route.duration : null,
+    distanceKm: typeof route.distance === 'number' ? route.distance / 1000 : null
+  }
+}
+
+/**
+ * 批量规划分段路线（相邻两点为一段）。
+ *
+ * 并发上限默认 3：整天路线可能有 5-8 段，串行太慢，全并发又容易触发腾讯的 QPS 限制。
+ * 单段失败不影响其他段，失败位置返回 null，调用方按直线兜底。
+ */
+export async function planRouteSegments(
+  points: LatLng[],
+  concurrency = 3
+): Promise<(RouteLeg | null)[]> {
+  const count = Math.max(0, points.length - 1)
+  const legs: (RouteLeg | null)[] = new Array(count).fill(null)
+  if (count === 0 || !MAP_WS_KEY) return legs
+
+  let cursor = 0
+  const worker = async () => {
+    while (cursor < count) {
+      const i = cursor++
+      legs[i] = await planSingleLeg(points[i], points[i + 1])
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, concurrency), count) }, () => worker())
+  )
+  return legs
+}
+
+/**
+ * 批量定位一串节点：已带坐标的直接用；否则按「地址 → 名称」逐个地理编码。
+ *
+ * 关键规则（与行程详情页一致）：当同一 location 被多个节点共用时，判定它没有区分度
+ * （常见于 location 被写成「婺源·交通便利」这类标签文本），改用节点名称去解析，
+ * 否则所有点会落到同一个坐标、路线退化成一条短线。
+ *
+ * @returns 与入参等长的数组，解析失败的槽位为 null
+ */
+export async function geocodeNodes(
+  items: Array<{ name: string; location?: string; lat?: number; lng?: number }>,
+  city: string
+): Promise<(LatLng | null)[]> {
+  const locCount = new Map<string, number>()
+  for (const it of items) {
+    const loc = (it.location || '').trim()
+    if (loc) locCount.set(loc, (locCount.get(loc) || 0) + 1)
+  }
+  const ambiguous = (loc: string) => {
+    const t = (loc || '').trim()
+    return !!t && (locCount.get(t) || 0) >= 2
+  }
+
+  const out: (LatLng | null)[] = []
+  for (const it of items) {
+    if (it.lat != null && it.lng != null) {
+      out.push({ lat: it.lat, lng: it.lng })
+      continue
+    }
+    const name = it.name || ''
+    const loc = (it.location || '').trim()
+    const preferTitle = ambiguous(loc)
+    let ll = preferTitle ? await geocode(name, city, name) : await geocode(loc || name, city, name)
+    if (!ll && preferTitle && loc) ll = await geocode(loc, city, name)
+    if (!ll && !preferTitle && name) ll = await geocode(name, city, name)
+    out.push(ll)
+  }
+  return out
 }
 
 /**

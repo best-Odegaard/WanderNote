@@ -156,7 +156,7 @@
           <button class="btn-black footer-main" @tap="openDateSheet">添加到我的行程</button>
         </view>
         <view v-else class="sheet-footer safe-bottom">
-          <button class="btn-mint-outline" @tap="onMapRoute">地图导航</button>
+          <button class="btn-mint-outline" @tap="onMapRoute">今日路线</button>
           <button class="btn-black footer-main" @tap="onSave">保存行程</button>
         </view>
         <!-- 删除行程：破坏性操作，独立成行放在主操作下方，避免误触。
@@ -770,11 +770,20 @@ function onNavigate(s: DetailSchedule) {
   showNaviOptions({ title: s.title, address: s.location || '', lat: s.lat, lng: s.lng })
 }
 
-/** 导航到当前选中天第一个景点（弹出导航选项） */
+/**
+ * 进入「今日路线」：把当天行程变成一条可照着走的闭环路线（分段耗时 + 接续导航）。
+ *
+ * 原来是「导航到当天第一个景点」，只解决了一个点 —— 用户走完第一个点就没了下文。
+ * 现在整天的移动交给路线页：起点终点一致、每段都能一键唤起地图。
+ */
 function onMapRoute() {
-  const target = currentSchedules.value.find((s) => s.title)
-  if (!target) return showToast({ title: '暂无可导航的地点', icon: 'none' })
-  showNaviOptions({ title: target.title, address: target.location || '', lat: target.lat, lng: target.lng })
+  if (!currentSchedules.value.length) {
+    showToast({ title: '当天还没有可导航的地点', icon: 'none' })
+    return
+  }
+  const id = trip.value?.id
+  const parts = [id ? `id=${id}` : '', `day=${activeDayIndex.value}`].filter(Boolean)
+  uni.navigateTo({ url: `/pages/trip/route?${parts.join('&')}` })
 }
 
 /**

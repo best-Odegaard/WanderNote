@@ -1,5 +1,6 @@
 import http from '@/utils/request'
-import { USE_MOCK } from '@/utils/constant'
+import { API_BASE_URL, USE_MOCK } from '@/utils/constant'
+import { getToken } from '@/utils/auth'
 import * as mock from '@/api/mock/handlers'
 
 export interface GenerateTripParams {
@@ -233,6 +234,97 @@ export interface AiChatResponse {
   reply: string
   /** 完整对话历史（含本轮 user + assistant） */
   chat_history: ChatMessageVO[]
+  /** 槽位快照：本轮之后收集到哪一步了（后端槽位引擎填充） */
+  slot_state?: SlotState
+  /**
+   * 「猜你想问」：本轮之后推荐的追问，点一下就成了下一轮输入。
+   * 与 slot_state 的分工：槽位收参数，这里给话题。后端纯规则生成，不额外调模型。
+   */
+  suggested_questions?: string[]
+}
+
+// ==================== 槽位问答（让用户点一下就能完善行程） ====================
+
+/** 槽位的值与来源 */
+export interface SlotValue {
+  value: string
+  /** user=用户点选/输入；inferred=系统推断；default=跳过用的默认值；imported=外部带入 */
+  source: 'user' | 'inferred' | 'default' | 'imported' | string
+}
+
+/** 一个可点击选项 */
+export interface SlotOption {
+  label: string
+  value: string
+}
+
+/** 下一个要问的问题 */
+export interface SlotQuestion {
+  slot: string
+  text: string
+  hint?: string | null
+  /** 为空表示该问题需要用户自由输入 */
+  options?: SlotOption[] | null
+  allowSkip?: boolean
+  skipLabel?: string
+}
+
+/** 能力就绪标记：由后端计算，前端只负责按标记渐显入口 */
+export interface SlotReady {
+  /** 可生成行程骨架（目的地 + 天数已知） */
+  frame: boolean
+  /** 可选酒店 */
+  hotel: boolean
+  /** 可查车票 */
+  transport: boolean
+  /** 可生成完整路线 */
+  fullRoute: boolean
+}
+
+/** 槽位快照（对接后端 SlotStateVO） */
+export interface SlotState {
+  sessionId?: string
+  slots: Record<string, SlotValue>
+  /** 需求完整度 0~1 */
+  completeness: number
+  ready: SlotReady
+  nextQuestion?: SlotQuestion | null
+  askedCount?: number
+}
+
+/** 空的槽位快照：后端不可用或 mock 模式下的兜底，保证 UI 不炸 */
+export function emptySlotState(): SlotState {
+  return {
+    slots: {},
+    completeness: 0,
+    ready: { frame: false, hotel: false, transport: false, fullRoute: false },
+    nextQuestion: null,
+    askedCount: 0
+  }
+}
+
+/** 回答槽位问题（点选项 / 点跳过） — POST /travel/plan/slot */
+export function submitSlotAnswer(data: {
+  sessionId: string
+  slot: string
+  value?: string
+  skipped?: boolean
+}): Promise<SlotState> {
+  if (USE_MOCK) return Promise.resolve(emptySlotState())
+  return http.post<SlotState>('/travel/plan/slot', data, {
+    timeout: 10000,
+    // 带上业务 key，便于后续按业务中止；也避免被「停止生成」误伤
+    key: 'slot'
+  })
+}
+
+/** 查询槽位快照（刷新页面后恢复进度） — GET /travel/plan/slot/state */
+export function getSlotState(sessionId: string): Promise<SlotState> {
+  if (USE_MOCK) return Promise.resolve(emptySlotState())
+  return http.get<SlotState>('/travel/plan/slot/state', { sessionId }, {
+    timeout: 10000,
+    key: 'slot-state'
+  })
 }
 
 // ==================== 新增 AI Agent API ====================
@@ -283,7 +375,11 @@ export function chatWithAi(data: ChatRequestParams): Promise<AiChatResponse> {
           history.push({ role: 'user', content: data.user_input })
           history.push({
             role: 'assistant',
-            content: '已收到你的需求，我正在为你规划。你可以继续补充偏好（如美食、自然风光、历史文化），或直接点击下方"生成行程计划"。'
+            content:
+              '好嘞，我按你说的来安排 👌\n\n' +
+              '- 你先点上面的选项把目的地和天数定下来\n' +
+              '- 有特别想去的地方或者忌口，直接跟我说\n\n' +
+              '定完我就把路线画出来 🗺️'
           })
         }
         mockChatHistories.set(sessionId, history)
@@ -298,8 +394,129 @@ export function chatWithAi(data: ChatRequestParams): Promise<AiChatResponse> {
   // 对话链路已收回登录态（后端要按 user_id 沉淀画像），不能再用 skipAuth：
   // 不加 token 会被后端 401，用户只会看到"请先登录"
   return http.post<AiChatResponse>('/travel/chat', data, {
-    timeout: 120000 // AI 对话较慢（多轮历史大时更慢），放宽到 2 分钟
+    timeout: 120000, // AI 对话较慢（多轮历史大时更慢），放宽到 2 分钟
+    key: 'chat' // 「停止生成」只中止对话请求，不误伤槽位/地图等并发请求
   })
+}
+
+// ==================== 流式对话（SSE） ====================
+
+/**
+ * 当前端是否具备流式读取能力。
+ *
+ * 只有 H5 / App（webview 里就是浏览器）能拿到 fetch + ReadableStream；
+ * 小程序端的 uni.request 不支持流式读取，调用方要回落到 {@link chatWithAi}。
+ * 这也是后端同时保留整包接口的原因。
+ */
+export function canStreamChat(): boolean {
+  // #ifdef H5 || APP-PLUS
+  return typeof fetch === 'function' && typeof ReadableStream !== 'undefined'
+  // #endif
+  // #ifndef H5 || APP-PLUS
+  return false
+  // #endif
+}
+
+export interface StreamChatHandlers {
+  /** 每收到一段增量文本回调一次 */
+  onDelta: (text: string) => void
+  /** 整轮结束：拿到与整包接口一致的响应体（session_id / chat_history / slot_state） */
+  onDone: (resp: AiChatResponse) => void
+}
+
+/**
+ * 流式对话 — POST /travel/chat/stream（SSE）
+ *
+ * 事件协议见后端 TravelController.chatStream：
+ *   delta → data 是 JSON 字符串字面量（转义过换行）
+ *   done  → data 是 ChatResponseDTO 的 JSON
+ *   error → data 是给用户看的一句话
+ *
+ * 不用 EventSource：它只能发 GET、也不能带 Authentication 头，
+ * 而后端这条链路是要鉴权的 POST。所以用 fetch 拿裸流自己解析 SSE 帧。
+ */
+export async function chatWithAiStream(
+  data: ChatRequestParams,
+  handlers: StreamChatHandlers
+): Promise<void> {
+  const token = getToken()
+  const res = await fetch(`${API_BASE_URL}/travel/chat/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authentication: token } : {})
+    },
+    body: JSON.stringify(data)
+  })
+
+  if (res.status === 401) {
+    // 刻意不在这里跳登录页：鉴权只交给回落后的整包链路统一处理（request.ts）。
+    // 原因：流式端点比普通接口多一层不确定性（网关/代理/端点未部署都可能返回 401），
+    // 如果在这里直接 redirectToLogin，用户会在"其实还能正常用"的情况下被反复弹回登录页。
+    // 抛出后 tryStreamChat 会回落整包接口，那边如果确实 401 再跳，只跳一次且语义正确。
+    throw new Error('未授权')
+  }
+  if (!res.ok || !res.body) {
+    throw new Error(`流式接口不可用(${res.status})`)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      // SSE 以空行分隔事件；Spring 会把 data 里的换行转义成多行 data:，
+      // 所以这里按空行切分不会把一条消息切成两半。
+      let sep = buffer.indexOf('\n\n')
+      while (sep >= 0) {
+        const frame = buffer.slice(0, sep)
+        buffer = buffer.slice(sep + 2)
+        dispatchSseFrame(frame, handlers)
+        sep = buffer.indexOf('\n\n')
+      }
+    }
+  } finally {
+    // 用户中途「停止生成」时主动断开，避免连接挂着
+    try {
+      await reader.cancel()
+    } catch {
+      /* 已关闭，忽略 */
+    }
+  }
+}
+
+/** 解析一条 SSE 事件帧并分发 */
+function dispatchSseFrame(frame: string, handlers: StreamChatHandlers) {
+  let event = 'message'
+  const dataLines: string[] = []
+  for (const rawLine of frame.split('\n')) {
+    const line = rawLine.replace(/\r$/, '')
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim()
+    } else if (line.startsWith('data:')) {
+      // SSE 规范：data: 后若有一个空格要去掉
+      dataLines.push(line.slice(5).replace(/^ /, ''))
+    }
+  }
+  const payload = dataLines.join('\n')
+
+  if (event === 'delta') {
+    try {
+      handlers.onDelta(JSON.parse(payload) as string)
+    } catch {
+      // 不是合法 JSON 就按原文处理，宁可多显示也不错丢
+      handlers.onDelta(payload)
+    }
+  } else if (event === 'done') {
+    handlers.onDone(JSON.parse(payload) as AiChatResponse)
+  } else if (event === 'error') {
+    throw new Error(payload || 'AI 服务暂时不可用')
+  }
 }
 
 /**
@@ -323,19 +540,28 @@ export function generateTravelPlan(
 /** 提交生成任务 — POST /travel/generatePlan（需登录：生成结果要关联用户画像） */
 export function submitGeneratePlan(data: ChatRequestParams): Promise<PlanSubmitResult> {
   if (USE_MOCK) return mock.mockSubmitPlan(data)
-  return http.post<PlanSubmitResult>('/travel/generatePlan', data, { timeout: 30000 })
+  return http.post<PlanSubmitResult>('/travel/generatePlan', data, { timeout: 30000, key: 'plan' })
 }
 
 /** 查询任务状态 — GET /travel/plan/status/:taskId */
 export function getPlanStatus(taskId: string): Promise<PlanTaskStatus> {
   if (USE_MOCK) return mock.mockGetPlanStatus(taskId)
-  return http.get<PlanTaskStatus>(`/travel/plan/status/${taskId}`, {}, { skipAuth: true, timeout: 15000 })
+  return http.get<PlanTaskStatus>(`/travel/plan/status/${taskId}`, {}, {
+    skipAuth: true,
+    timeout: 15000,
+    // 轮询请求若与「停止生成」共用 key，会被反复中止导致任务状态永远拿不到
+    key: `plan-status-${taskId}`
+  })
 }
 
 /** 取消任务 — POST /travel/plan/cancel/:taskId */
 export function cancelPlanTask(taskId: string): Promise<void> {
   if (USE_MOCK) return mock.mockCancelPlan(taskId)
-  return http.post<void>(`/travel/plan/cancel/${taskId}`, {}, { skipAuth: true, timeout: 10000 })
+  return http.post<void>(`/travel/plan/cancel/${taskId}`, {}, {
+    skipAuth: true,
+    timeout: 10000,
+    key: `plan-cancel-${taskId}`
+  })
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))

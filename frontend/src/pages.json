@@ -52,7 +52,7 @@
       "path": "pages/ai/chat",
       "style": {
         "navigationStyle": "custom",
-        "navigationBarTitleText": "AI行程助手"
+        "navigationBarTitleText": "小笺"
       }
     },
     {
@@ -109,6 +109,13 @@
       "path": "pages/trip/edit",
       "style": {
         "navigationBarTitleText": "编辑行程"
+      }
+    },
+    {
+      "path": "pages/trip/route",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "今日路线"
       }
     },
     {

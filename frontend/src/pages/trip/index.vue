@@ -7,29 +7,22 @@
     <scroll-view scroll-y class="scroll-body" :style="{ paddingTop: headerHeight + 'px' }">
       <LoadingView v-if="loading" />
 
-      <view v-else-if="trips.length === 0" class="empty soft-shadow" @tap="goSurvey">
+      <view v-else-if="cards.length === 0" class="empty soft-shadow" @tap="goCreate">
         <AppIcon name="calendar" :size="96" color="var(--text-tertiary)" />
         <text class="empty-title">还没有行程</text>
-        <text class="empty-hint">点击底部 + 创建行程</text>
+        <text class="empty-hint">去首页和 AI 聊一句，就能生成行程</text>
       </view>
 
       <view v-else class="trip-list">
-        <view
-          v-for="trip in trips"
-          :key="String(trip.id)"
-          class="trip-card soft-shadow"
-          @tap="viewTrip(trip)"
-        >
-          <view class="trip-head">
-            <text class="trip-title">{{ trip.title }}</text>
-            <AppIcon name="chevron-right" :size="32" color="var(--text-body)" class="trip-arrow" />
-          </view>
-          <text class="trip-meta">{{ trip.toCity }} · {{ trip.days }}天 · {{ trip.people }}人</text>
-          <text class="trip-date">{{ tripDateText(trip) }}</text>
-          <view v-if="trip.chatSessionId" class="trip-chat-btn" @tap.stop="openTripChat(trip)">
-            <text>进入行程对话</text>
-          </view>
-        </view>
+        <MyPlanCard
+          v-for="(c, i) in cards"
+          :key="String(c.trip.id)"
+          :plan="c.item"
+          :index="i"
+          :show-chat-entry="!!c.trip.chatSessionId"
+          @tap="viewTrip(c.trip)"
+          @chat="openTripChat(c.trip)"
+        />
       </view>
 
       <view style="height: 160rpx" />
@@ -42,11 +35,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+/**
+ * 我的行程。
+ *
+ * 卡片样式来自原首页的 MyPlanCard（带状态徽章、日期区间、地点数、封面缩略图），
+ * 首页改成对话界面后，这套卡片整体迁到这里；原来行程页自绘的卡片上独有的
+ * 「进入行程对话」入口合并进了 MyPlanCard（showChatEntry），迁移不丢能力。
+ */
+import { ref, computed, onMounted } from 'vue'
+import MyPlanCard from '@/components/MyPlanCard/MyPlanCard.vue'
 import LoadingView from '@/components/LoadingView/LoadingView.vue'
+import AppIcon from '@/components/AppIcon/AppIcon.vue'
 import AppTabBar from '@/components/AppTabBar/AppTabBar.vue'
 import { useTabBarPage } from '@/hooks/useTabBarPage'
 import { useTripStore } from '@/store/trip'
+import { toMyPlanItem } from '@/utils/tripCard'
 import type { TripPlan } from '@/api/trip'
 
 const tripStore = useTripStore()
@@ -57,6 +60,11 @@ const headerHeight = statusBarHeight + 88
 
 const trips = ref<TripPlan[]>([])
 const loading = ref(true)
+
+/** 原始行程 + 卡片视图模型配对，避免在模板里反复做转换 */
+const cards = computed(() =>
+  trips.value.map((trip, i) => ({ trip, item: toMyPlanItem(trip, i) }))
+)
 
 useTabBarPage(1, loadTrips)
 
@@ -84,24 +92,9 @@ function openTripChat(trip: TripPlan) {
   uni.navigateTo({ url: `/pages/ai/chat?tripId=${encodeURIComponent(String(trip.id))}` })
 }
 
-/**
- * 卡片上的日期文案。
- * 优先显示真实的出行日期区间；早于本次改动的老行程没有出行日期，退回显示创建时间。
- * 注意：后端 VO 给的字段是 createTime，历史上这里读的是 createdAt，永远取不到值，
- * 于是全都被兜底成写死的 '2026-05-01' —— 那是个假日期，已去掉。
- */
-function tripDateText(t: TripPlan) {
-  if (t.startDate && t.endDate) {
-    return t.startDate === t.endDate ? t.startDate : `${t.startDate} ~ ${t.endDate}`
-  }
-  if (t.startDate) return t.startDate
-  const created = t.createTime || t.createdAt
-  if (!created) return '未设置出行日期'
-  return `创建于 ${String(created).slice(0, 10)}`
-}
-
-function goSurvey() {
-  uni.navigateTo({ url: '/pages/plan/wizard' })
+/** 新建行程的入口现在是首页的对话：引导用户切到首页说一句 */
+function goCreate() {
+  uni.switchTab({ url: '/pages/home/index' })
 }
 </script>
 
@@ -176,81 +169,5 @@ function goSurvey() {
 
 .trip-list {
   padding-top: 16rpx;
-}
-
-.trip-card {
-  position: relative;
-  background: var(--bg-card);
-  border-radius: $card-radius-lg;
-  padding: 36rpx 32rpx 32rpx;
-  margin-bottom: 26rpx;
-  border: 1rpx solid var(--border);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  transition: transform $dur-fast $ease-out, box-shadow $dur-base $ease-out;
-  // 左侧品牌渐变竖条：一眼区分「这是行程卡」
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 8rpx;
-    background: var(--brand-grad);
-  }
-
-  &:active {
-    transform: scale(0.98);
-    box-shadow: var(--shadow-xs);
-  }
-}
-
-.trip-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.trip-title {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: var(--text-main);
-  letter-spacing: -0.3rpx;
-}
-
-.trip-arrow {
-  flex-shrink: 0;
-}
-
-.trip-meta {
-  font-size: 26rpx;
-  color: var(--text-secondary);
-  margin-top: 12rpx;
-  display: block;
-}
-
-.trip-date {
-  font-size: 24rpx;
-  color: var(--brand-ink);
-  margin-top: 10rpx;
-  display: block;
-  font-weight: 500;
-}
-
-.trip-chat-btn {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 22rpx;
-  padding: 12rpx 26rpx;
-  border-radius: $radius-pill;
-  background: var(--brand-soft);
-  color: var(--brand-ink);
-  font-size: 24rpx;
-  font-weight: 500;
-  transition: transform $dur-fast $ease-out;
-
-  &:active {
-    transform: scale(0.95);
-  }
 }
 </style>

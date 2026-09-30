@@ -208,7 +208,8 @@ import { useTripStore } from '@/store/trip'
 import { useLogin } from '@/hooks/useLogin'
 import { isLoggedIn, redirectToLogin } from '@/utils/auth'
 import type { GenerateTripParams } from '@/api/trip'
-import { showToast } from '@/utils/feedback'
+import { submitSlotAnswer } from '@/api/trip'
+import { showModal, showToast } from '@/utils/feedback'
 
 const tripStore = useTripStore()
 const { checkLogin } = useLogin()
@@ -266,10 +267,6 @@ const calendarMonths = computed(() => {
 })
 
 onMounted(() => {
-  // 进入向导即开始新的规划上下文，不能复用上一行程的聊天会话。
-  // pendingTripContext 属于本次外部入口上下文，由提交时单独消费。
-  tripStore.resetForNewTrip()
-
   if (!isLoggedIn()) {
     showToast({ title: '请先登录后创建行程', icon: 'none' })
     setTimeout(() => {
@@ -277,6 +274,15 @@ onMounted(() => {
     }, 500)
     return
   }
+
+  /*
+   * 刻意**不**在这里 resetForNewTrip()。
+   *
+   * 精细设置是从对话里点进来的（顶栏「精细设置」），用户此时往往已经和小笺聊了几轮，
+   * 把会话和槽位清掉等于让他把刚说过的话再说一遍。所以这里改为：
+   * 用对话里已收集到的信息预填表单，让精细设置成为"继续聊"的另一种输入方式。
+   */
+  prefillFromConversation()
 
   const pages = getCurrentPages()
   const page = pages[pages.length - 1] as { options?: { city?: string } }
@@ -287,6 +293,63 @@ onMounted(() => {
     }
   }
 })
+
+/**
+ * 用对话里已收集到的信息预填表单。
+ *
+ * 数据来源两处，优先级：槽位快照（对话里刚收集的）> currentTrip（已生成过的行程）。
+ * 这就是「对话过程中用户输入的信息要匹配进精细设置」的落点 ——
+ * 用户在对话里说过"去深圳、玩两天、预算 1500"，进精细设置时这些都应该已经填好。
+ */
+function prefillFromConversation() {
+  const slots = tripStore.slotState.slots || {}
+  const slotText = (k: string) => (slots[k]?.value || '').trim()
+  const trip = tripStore.currentTrip
+
+  const city = slotText('destination') || trip?.toCity || ''
+  if (city) {
+    destination.value = city
+    form.toCity = city
+  }
+
+  const from = slotText('departCity') || trip?.fromCity || ''
+  if (from && from !== '当前城市') {
+    form.fromCity = from
+  }
+
+  const days = Number(slotText('days')) || Number(trip?.days) || 0
+  if (days > 0) {
+    form.days = days
+    // 天数变了要同步结束日期，否则表单自相矛盾（显示 1 天却选了 3 天的区间）
+    const start = new Date(`${form.startDate}T00:00:00`)
+    const end = new Date(start)
+    end.setDate(start.getDate() + days - 1)
+    form.endDate = formatDateValue(end)
+  }
+
+  const budget = Number(slotText('budget')) || Number(trip?.budget) || 0
+  if (budget > 0) {
+    form.budget = budget
+  }
+
+  const people = Number(slotText('people')) || Number(trip?.people) || 0
+  if (people > 0) {
+    form.people = people
+  }
+
+  if (trip?.tags?.length && form.tags.length === 0) {
+    form.tags = [...trip.tags]
+  }
+
+  if (city) {
+    showToast({ title: `已带入对话里的信息：${city}`, icon: 'none' })
+  }
+}
+
+/** 对话里已经定下的城市（用于城市冲突检测） */
+function conversationCity(): string {
+  return (tripStore.slotState.slots?.destination?.value || tripStore.currentTrip?.toCity || '').trim()
+}
 
 function prefIdToTag(id: string): string {
   const map: Record<string, string> = {
@@ -511,8 +574,41 @@ function goChat() {
 	  }
 	  syncFormTags()
 
-  // 提交时再次重置，覆盖同一向导页重复规划不同城市的场景。
-  tripStore.resetForNewTrip()
+  /*
+   * 城市冲突检测。
+   *
+   * 场景：用户已经和小笺聊定了「肇庆」，又点「精细设置」把目的地改成「深圳」。
+   * 这时不能默默地把刚聊的那份行程冲掉 —— 他可能只是手滑，也可能真想换。
+   * 所以问一句再决定：确认=按新城市重开一段对话；取消=保留原对话、留在本页。
+   */
+  const chattingCity = conversationCity()
+  if (chattingCity && chattingCity !== form.toCity) {
+    showModal({
+      title: '城市不一致',
+      content: `对话里定的是「${chattingCity}」，这里填的是「${form.toCity}」。要按新城市重新制定行程吗？`,
+      confirmText: '制定新行程',
+      cancelText: '保留原对话',
+      success: (res) => {
+        if (res.confirm) {
+          tripStore.resetForNewTrip()
+          submitToChat()
+        } else {
+          showToast({ title: `已保留对话里的「${chattingCity}」`, icon: 'none' })
+        }
+      }
+    })
+    return
+  }
+
+  submitToChat()
+}
+
+/** 把表单提交进对话链路（不含冲突检测，冲突分支确认后也走这里） */
+async function submitToChat() {
+  // 把表单里的值回写进槽位，避免"精细设置里改了 3 天，对话里的选项还显示 2 天"这种自相矛盾。
+  // 失败不阻断：对话照常进行，只是选项栏可能落后一档。
+  await syncFormToSlots()
+
   tripStore.currentTrip = {
     title: `${form.toCity}${form.days}日之旅`,
     fromCity: form.fromCity,
@@ -530,8 +626,36 @@ function goChat() {
   // 上下文只消费一次，避免残留到下一次创建
   tripStore.pendingTripContext = ''
 
-	  uni.navigateTo({ url: '/pages/ai/chat' })
-	}
+  uni.navigateTo({ url: '/pages/ai/chat' })
+}
+
+/**
+ * 把表单字段回写到后端槽位。
+ *
+ * 为什么必须回写：槽位状态在后端，前端只是镜像；只改本地的话，
+ * 下一轮对话后端返回的快照会把本地改动覆盖掉，用户就会看到"改了又变回去"。
+ */
+async function syncFormToSlots() {
+  const sessionId = tripStore.slotState.sessionId
+  if (!sessionId) return
+
+  const pairs: Array<[string, string]> = [
+    ['destination', form.toCity],
+    ['days', String(form.days)],
+    ['departCity', form.fromCity === '当前城市' ? '' : form.fromCity],
+    ['budget', String(form.budget)],
+    ['people', String(form.people)]
+  ]
+  for (const [slot, value] of pairs) {
+    if (!value) continue
+    try {
+      tripStore.setSlotState(await submitSlotAnswer({ sessionId, slot, value }))
+    } catch (e) {
+      console.warn('[wizard] 同步槽位失败:', slot, e)
+      return
+    }
+  }
+}
 </script>
 
 <style lang="scss" scoped>

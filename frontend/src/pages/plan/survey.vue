@@ -26,7 +26,7 @@
         <view class="step-line" />
       </view>
 
-      <text class="ai-hint">AI小蚂正在确认您的旅行需求</text>
+      <text class="ai-hint">小笺正在确认您的旅行需求</text>
 
       <!-- 问题列表 -->
       <view

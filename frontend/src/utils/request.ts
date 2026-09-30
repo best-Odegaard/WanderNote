@@ -16,6 +16,15 @@ export interface RequestConfig {
   skipAuth?: boolean
   /** 覆盖默认超时（毫秒）。AI 长请求（生成行程）需远大于默认 30s */
   timeout?: number
+  /**
+   * 业务标识：用于按业务中止请求（abortRequest(key)）。
+   *
+   * 为什么需要它：原先 pendingTasks 是一个全局 Set，abortCurrentRequest() 会
+   * 把所有在途请求一起中止。当页面同时存在「对话」「槽位推进」「地图路线」等
+   * 并发请求时，点一下「停止生成」会把地图请求也一起打断，表现为路线随机画不出来。
+   * 带上 key 后，各业务只中止自己那一类请求。
+   */
+  key?: string
 }
 
 export interface ApiResponse<T = unknown> {
@@ -26,13 +35,35 @@ export interface ApiResponse<T = unknown> {
 
 let loadingCount = 0
 
-/** 进行中的请求任务集合（支持"停止生成"等中止操作） */
-const pendingTasks = new Set<UniApp.RequestTask>()
+/**
+ * 进行中的请求任务（支持"停止生成"等中止操作）。
+ *
+ * 用 Map<task, key> 而不是 Set：既要能按 key 精确中止（abortRequest），
+ * 也要保留「中止全部」的旧语义（abortCurrentRequest）。
+ */
+const pendingTasks = new Map<UniApp.RequestTask, string>()
+let requestSeq = 0
 
-/** 中止所有进行中的请求（AI 长请求的"暂停/停止"按钮使用） */
+/** 中止指定业务的在途请求；不传 key 等价于中止全部（兼容旧调用） */
+export function abortRequest(key?: string) {
+  const targets: UniApp.RequestTask[] = []
+  pendingTasks.forEach((taskKey, task) => {
+    if (key === undefined || taskKey === key) targets.push(task)
+  })
+  targets.forEach((t) => {
+    t.abort()
+    pendingTasks.delete(t)
+  })
+}
+
+/**
+ * 中止所有进行中的请求。
+ *
+ * @deprecated 优先使用 abortRequest(key)，避免误伤其他业务的并发请求。
+ * 保留它是为了不破坏既有调用方的语义。
+ */
 export function abortCurrentRequest() {
-  pendingTasks.forEach((t) => t.abort())
-  pendingTasks.clear()
+  abortRequest(undefined)
 }
 
 /** 请求层自己的并发计数（计数归零才真正显示/隐藏，避免并发请求闪烁） */
@@ -72,7 +103,8 @@ function request<T = unknown>(config: RequestConfig): Promise<T> {
     showLoading: needLoading = false,
     loadingText,
     skipAuth = false,
-    timeout
+    timeout,
+    key
   } = config
 
   if (needLoading) enterRequestLoading(loadingText)
@@ -98,6 +130,11 @@ function request<T = unknown>(config: RequestConfig): Promise<T> {
         const body = res.data as ApiResponse<T>
 
         if (statusCode === 401) {
+          // 诊断日志：把"这次请求有没有带令牌"打出来。
+          // 带令牌仍 401 => 令牌被服务端拒绝（过期 / 换了签名密钥）；
+          // 没带令牌     => 本地存储里根本没有令牌（登录没存住）。
+          // 这两种原因的修法完全不同，所以别只打一句"请先登录"。
+          console.warn('[HTTP 401]', url, 'tokenAttached=', !!token)
           showToast({ title: '请先登录', icon: 'none' })
           redirectToLogin()
           reject(new Error('未授权'))
@@ -139,7 +176,9 @@ function request<T = unknown>(config: RequestConfig): Promise<T> {
         if (needLoading) leaveRequestLoading()
       }
     })
-    pendingTasks.add(task)
+    // 未显式指定 key 的请求用自增序号占位：它们只能被「中止全部」命中，
+    // 不会被任何按业务 key 的中止误伤。
+    pendingTasks.set(task, key ?? `__auto_${++requestSeq}`)
   })
 }
 

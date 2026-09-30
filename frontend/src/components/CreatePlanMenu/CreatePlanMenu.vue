@@ -6,7 +6,7 @@
       <view class="menu-item menu-item-primary" @tap="onCreateNew">
         <view class="menu-text">
           <text class="menu-title">智能规划行程</text>
-          <text class="menu-desc">填写目的地、天数与偏好，进入 AI 行程助手继续补充需求</text>
+          <text class="menu-desc">说一句话就能开始，AI 会一路问你需要什么</text>
         </view>
         <view class="menu-icon">
           <AppIcon name="sparkles" :size="34" color="currentColor" />
@@ -38,8 +38,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/store/app'
-import { isLoggedIn, redirectToLogin } from '@/utils/auth'
-import { showModal, showToast } from '@/utils/feedback'
+import { showModal } from '@/utils/feedback'
 
 const appStore = useAppStore()
 const { showCreateMenu: visible } = storeToRefs(appStore)
@@ -48,20 +47,16 @@ function close() {
   appStore.closeCreateMenu()
 }
 
-function requireLogin(): boolean {
-  if (isLoggedIn()) return true
-  close()
-  showToast({ title: '请先登录后创建行程', icon: 'none' })
-  setTimeout(() => {
-    redirectToLogin()
-  }, 500)
-  return false
-}
-
+/**
+ * 智能规划行程 → 切到首页。
+ *
+ * 首页现在就是 AI 对话界面，不再需要先进表单页填目的地/天数/偏好。
+ * 这里刻意不做登录拦截：对话页自己会处理未登录（发消息时才要求登录，
+ * 而 checkLogin 那套弹窗跳登录页时不带回跳地址，会丢掉用户的意图）。
+ */
 function onCreateNew() {
-  if (!requireLogin()) return
   close()
-  uni.navigateTo({ url: '/pages/plan/wizard' })
+  uni.switchTab({ url: '/pages/home/index' })
 }
 
 function showNotDeveloped() {

@@ -29,6 +29,17 @@ export const USER_INFO_KEY = 'userInfo'
 /** 请求超时时间（毫秒） */
 export const REQUEST_TIMEOUT = 30000
 
+/**
+ * 模型候选追问块的起始标记。
+ *
+ * 必须与 `travel_self_agent/agent/prompt/chat_prompt.txt` 的约定、
+ * 以及后端 `SuggestionEngine.FOLLOWUP_OPEN` 保持一致。
+ *
+ * 这个块不该出现在聊天气泡里 —— 流式渲染时要按它截断（后端也会从正文里剥离，
+ * 所以存库与 done 事件里的正文都是干净的）。
+ */
+export const FOLLOWUP_MARK_OPEN = '<followups>'
+
 /** 兴趣标签列表（兼容旧版） */
 export const INTEREST_TAGS = [
   '美食',
