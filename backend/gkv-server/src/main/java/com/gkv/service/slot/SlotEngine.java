@@ -347,9 +347,10 @@ public class SlotEngine {
             return;
         }
         SlotState state = store.computeIfAbsent(sessionId, k -> new SlotState());
+        // 不用 List.copyOf：那是 Java 10+ 的 API，线上后端只有 Java 8，会运行期报 NoSuchMethodError
         state.mentionedCities = (cities == null || cities.isEmpty())
                 ? Collections.emptyList()
-                : List.copyOf(cities);
+                : Collections.unmodifiableList(new ArrayList<>(cities));
     }
 
     // ===================== 内部状态 =====================

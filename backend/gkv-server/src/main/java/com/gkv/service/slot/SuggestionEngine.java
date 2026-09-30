@@ -88,7 +88,9 @@ public class SuggestionEngine {
     private static String cleanTail(String text) {
         if (text == null) return "";
         String s = text.replaceAll("(?m)^\\s*[-—=*]{3,}\\s*$", "");
-        return s.strip();
+        // 用 trim() 而不是 strip()：线上后端跑的是 Java 8，strip() 是 Java 11 才有的方法，
+        // 编译期看不出问题（本地 JDK 17），运行期抛 NoSuchMethodError 把整条流式链路打断。
+        return s.trim();
     }
 
     /** 解析结果：剥离后的正文 + 模型给出的候选追问（可能为空） */
