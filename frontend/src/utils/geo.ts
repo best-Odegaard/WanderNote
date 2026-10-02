@@ -159,6 +159,134 @@ export function geocode(address: string, city?: string, name?: string): Promise<
   // #endif
 }
 
+// ===== 逆地理编码（坐标 -> 城市） =====
+//
+// 用途：出发地槽位的「📍 用当前位置」—— 用户点一下就把所在城市填进出发地。
+// 与 geocode 互为反向：geocode 是「地址 -> 坐标」，这里是「坐标 -> 城市」。
+//
+// 注意：出发地会直接影响车票查询与首日路线，所以这里的策略是**宁可失败也不猜** ——
+// 任何一步拿不到就返回 null，由调用方提示用户手动选，而不是塞一个默认城市进去。
+
+/** 从腾讯逆地理编码响应里取城市名（去掉「市」后缀，与槽位选项里的城市名对齐） */
+function pickCityFromReverse(data: any): string | null {
+  const comp = data?.result?.address_component
+  // 直辖市没有 city 字段，回落到 province；两者都拿不到就放弃
+  const raw = comp?.city || comp?.province || ''
+  const city = String(raw).trim().replace(/市$/, '')
+  return city || null
+}
+
+/** 方式一（App/小程序）：逆地理编码的 uni.request 调用 */
+function reverseGeocodeByRequest(lat: number, lng: number): Promise<string | null> {
+  if (!MAP_WS_KEY) return Promise.resolve(null)
+
+  const url =
+    `https://apis.map.qq.com/ws/geocoder/v1/?location=${lat},${lng}` +
+    `&key=${encodeURIComponent(MAP_WS_KEY)}`
+
+  return new Promise<string | null>((resolve) => {
+    uni.request({
+      url,
+      method: 'GET',
+      timeout: 8000,
+      success: (res) => {
+        const data = res.data as any
+        const city = pickCityFromReverse(data)
+        if (!city) {
+          console.warn('[geo] 逆地理编码失败:', data?.message || data?.status)
+        }
+        resolve(city)
+      },
+      fail: (err) => {
+        console.warn('[geo] 逆地理编码请求失败:', err)
+        resolve(null)
+      }
+    })
+  })
+}
+
+/** 方式二（H5）：逆地理编码的 JSONP 调用（同 geocode，绕 CORS） */
+// #ifdef H5
+function reverseGeocodeByJsonp(lat: number, lng: number): Promise<string | null> {
+  if (!MAP_WS_KEY) return Promise.resolve(null)
+
+  const url =
+    `https://apis.map.qq.com/ws/geocoder/v1/?location=${lat},${lng}` +
+    `&key=${encodeURIComponent(MAP_WS_KEY)}`
+
+  return jsonpRequest(url).then((data: any) => pickCityFromReverse(data))
+}
+// #endif
+
+/** 坐标 -> 城市名；失败返回 null */
+export function reverseGeocodeCity(lat: number, lng: number): Promise<string | null> {
+  // #ifdef H5
+  return reverseGeocodeByJsonp(lat, lng)
+  // #endif
+  // #ifndef H5
+  return reverseGeocodeByRequest(lat, lng)
+  // #endif
+}
+
+/**
+ * 取当前经纬度。
+ *
+ * 优先用 uni.getLocation：App/小程序端走系统原生定位，最可靠。
+ * 失败再回落浏览器定位。两者坐标系不同（uni 要 gcj02，navigator 返回 wgs84），
+ * 但城市级只差几百米、不影响「反查出是哪个城市」，所以这里不做坐标转换。
+ */
+function getCurrentLatLng(): Promise<LatLng | null> {
+  return new Promise((resolve) => {
+    try {
+      uni.getLocation({
+        type: 'gcj02',
+        success: (res: any) => {
+          const lat = Number(res?.latitude)
+          const lng = Number(res?.longitude)
+          resolve(Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null)
+        },
+        fail: (err: any) => {
+          console.warn('[geo] uni.getLocation 失败，尝试浏览器定位:', err?.errMsg || err)
+          resolve(getLatLngByNavigator())
+        }
+      })
+    } catch (e) {
+      console.warn('[geo] uni.getLocation 不可用，尝试浏览器定位:', e)
+      resolve(getLatLngByNavigator())
+    }
+  })
+}
+
+/**
+ * H5 兜底：浏览器原生定位。
+ * ⚠️ 非 https 环境浏览器会直接拒绝调用（线上是 http://…，就是这种情况），
+ * 此时只能返回 null 让用户手动选出发城市。
+ */
+function getLatLngByNavigator(): Promise<LatLng | null> {
+  // #ifdef H5
+  if (typeof navigator !== 'undefined' && navigator.geolocation) {
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        (err) => {
+          console.warn('[geo] 浏览器定位失败:', err?.message)
+          resolve(null)
+        },
+        { timeout: 8000, enableHighAccuracy: false }
+      )
+    })
+  }
+  // #endif
+  return Promise.resolve(null)
+}
+
+/** 定位 + 逆地理编码，拿到当前所在城市；任一步失败都返回 null */
+export async function locateCurrentCity(): Promise<string | null> {
+  const ll = await getCurrentLatLng()
+  if (!ll) return null
+  return reverseGeocodeCity(ll.lat, ll.lng)
+}
+
 // ===== 驾车路线规划（真实路径，默认驾车/打车） =====
 
 /**

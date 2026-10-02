@@ -119,7 +119,7 @@
       <ChatChips
         v-if="visibleQuestion && !finalizing"
         :question="visibleQuestion"
-        :disabled="slotSubmitting || loadingAi"
+        :disabled="slotSubmitting || loadingAi || locating"
         @select="onChipSelect"
         @skip="onChipSkip"
       />
@@ -131,7 +131,7 @@
       <SuggestedQuestions
         v-if="suggestedQuestions.length > 0 && !finalizing"
         :questions="suggestedQuestions"
-        :disabled="slotSubmitting || loadingAi"
+        :disabled="slotSubmitting || loadingAi || locating"
         @pick="onSuggestPick"
       />
 
@@ -229,7 +229,7 @@ import type { TripMapSpot } from '@/components/TripMap/TripMap.vue'
 import ChatChips from '@/components/ChatChips/ChatChips.vue'
 import SuggestedQuestions from '@/components/SuggestedQuestions/SuggestedQuestions.vue'
 import SlotProgress from '@/components/SlotProgress/SlotProgress.vue'
-import { geocodeSpotsSequential, planDrivingRoute, type GeoSpot } from '@/utils/geo'
+import { geocodeSpotsSequential, locateCurrentCity, planDrivingRoute, type GeoSpot } from '@/utils/geo'
 import {
   chatWithAi,
   chatWithAiStream,
@@ -727,7 +727,10 @@ function retryAiCall() {
 /** 当前待回答的问题（由后端槽位引擎下发） */
 const activeQuestion = computed<SlotQuestion | null>(() => tripStore.slotState.nextQuestion || null)
 /** 正在提交槽位回答：期间禁用 chips，避免连点造成状态错乱 */
+/** 正在提交槽位回答：期间禁用 chips，避免连点造成状态错乱 */
 const slotSubmitting = ref(false)
+/** 正在定位取当前位置：同样要禁用 chips，否则连点会并发发起定位 */
+const locating = ref(false)
 
 /**
  * 「猜你想问」：后端每轮下发的追问候选（纯规则生成，不额外调模型）。
@@ -833,11 +836,24 @@ function optionLabel(slot: string, value: string): string {
   return opt?.label || value
 }
 
+/**
+ * 出发地槽位「📍 用当前位置」的哨兵值。
+ *
+ * 必须与 `question-tree.yml` 里 departCity 第一项的 value 完全一致：
+ * 后端只负责把这个选项下发下来（定位是端能力，后端拿不到用户的 GPS），
+ * 真正解析成城市名由前端完成，再按普通槽位回答提交上去。
+ */
+const LOCATE_OPTION_VALUE = '__locate__'
+
 function onChipSelect(slot: string, value: string) {
   // 开场三选一走的是「意图 -> 让模型回应」的链路，不是槽位赋值
   if (slot === ENTRY_SLOT) {
     onEntrySelect(value)
     return
+  }
+  // 「用当前位置」同样是端能力：先定位拿到城市名，再当普通选项提交
+  if (value === LOCATE_OPTION_VALUE) {
+    return onLocateSelect(slot)
   }
   return answerSlot(slot, value, false, optionLabel(slot, value))
 }
@@ -866,6 +882,31 @@ function onChipSkip(slot: string) {
 }
 
 /**
+ * 点「📍 用当前位置」：定位 → 逆地理编码 → 用城市名回答出发地。
+ *
+ * 失败时**不提交**：出发地直接影响车票查询与首日路线，宁可让用户手动点一个城市，
+ * 也不要写一个猜的城市进去。失败后问题仍留在屏上，用户可继续点别的城市或「暂不确定」。
+ *
+ * 最常见的失败原因是环境：线上跑的是 http，浏览器会直接拒绝定位请求
+ * （只有 https / localhost 才被允许），App 内不受此限制。
+ */
+async function onLocateSelect(slot: string) {
+  if (loadingAi.value || slotSubmitting.value || locating.value || !ensureLogin()) return
+  locating.value = true
+  showToast({ title: '正在定位…', icon: 'none' })
+  try {
+    const city = await locateCurrentCity()
+    if (!city) {
+      showToast({ title: '定位失败，请手动选择出发城市', icon: 'none' })
+      return
+    }
+    await answerSlot(slot, city, false, `当前位置：${city}`)
+  } finally {
+    locating.value = false
+  }
+}
+
+/**
  * 提交一次槽位回答。
  *
  * 这条链路刻意不走大模型：点一下选项就该在百毫秒内出下一个问题。
@@ -874,6 +915,13 @@ function onChipSkip(slot: string) {
 async function answerSlot(slot: string, value: string, skipped: boolean, echo: string) {
   if (!sessionId.value || slotSubmitting.value) return
   slotSubmitting.value = true
+  // 上一轮的「猜你想问」到这里就过期了：它是按上一轮 AI 回复生成的，用户已经点了新选项，
+  // 还留在屏幕上就会出现「已经选了成都、却还挂着大理/厦门」—— 实测反馈的就是这个。
+  //
+  // 清掉之后屏上只剩一个槽位问题，这正是「问一轮、答一轮」的预期：
+  // 槽位链路（/travel/plan/slot）是纯规则的，本身不下发候选追问，
+  // 下一次走 /travel/chat 时才会按新状态重新给。
+  suggestedQuestions.value = []
   // 立即回显用户的选择，避免"点了没反应"
   messages.value.push({ role: 'user', content: echo })
   scrollToBottom()
@@ -881,10 +929,23 @@ async function answerSlot(slot: string, value: string, skipped: boolean, echo: s
     const next = await submitSlotAnswer({ sessionId: sessionId.value, slot, value, skipped })
     tripStore.setSlotState(next)
     const q = next.nextQuestion
-    messages.value.push({
-      role: 'assistant',
-      content: q ? q.text : '基本信息够了，点下方按钮就能生成行程。'
-    })
+    const reply = q ? q.text : '基本信息够了，点下方按钮就能生成行程。'
+    messages.value.push({ role: 'assistant', content: reply })
+
+    // [F] 把这一轮「点选项」的问答补进对话历史，让模型看得见用户点过什么。
+    //
+    // 为什么必须补：槽位链路（/travel/plan/slot）纯规则、不调模型也不落库，
+    // 模型那边只能从 base_info.slot_note 的一行字里知道"目的地=成都"，
+    // 既看不到用户点了什么、也看不到系统问了什么，上下文天然滞后一轮 ——
+    // 于是它下一轮的回复与候选追问会按更早的语境走
+    // （实测现象：已经选了成都，还在继续聊第一轮提过的大理/厦门）。
+    // 补进去之后，下一轮 /travel/chat 会带上这两条一起提交，模型看到的就和用户屏幕一致了。
+    //
+    // 只补内存里的 chatHistory、**不落库**：chat_history 表仍只存模型回合，
+    // 后端统计轮次（round）用的也是模型回合数，语义不变。
+    chatHistory.value.push({ role: 'user', content: echo })
+    chatHistory.value.push({ role: 'assistant', content: reply })
+
     scrollToBottom()
   } catch (e) {
     console.warn('槽位提交失败:', e)

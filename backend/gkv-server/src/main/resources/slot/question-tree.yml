@@ -203,11 +203,31 @@ slots:
     skipLabel: "不确定"
     defaultValue: "不限"
 
+  # 出发地的选项刻意手写，不复用 hotCities：
+  # 出发地要的是「交通枢纽」，和「去哪玩」的热门城市不是一回事
+  # （肇庆/桂林/三亚这类旅游城市很少有人从那儿出发），而且这里还要额外承载
+  # 一个「用当前位置」的哨兵项。
+  #
+  # value=__locate__ 是前后端约定的哨兵值：后端只负责把它下发成一个普通可点选项，
+  # 真正解析成城市名由前端完成（定位是端能力，后端拿不到用户的 GPS）。
+  # 前端拿到城市名后，再按普通槽位回答提交上来 —— 与开场三选一的 __entry__ 同一套做法。
+  # 改这个值必须同步改 ChatPlanner.vue 的 LOCATE_OPTION_VALUE。
   - key: departCity
     weight: 10
     priority: 50
     question: "从哪出发？"
     hint: "要用来看车票和首日路线"
+    options:
+      - { label: "📍 用当前位置", value: "__locate__" }
+      - { label: "北京", value: "北京" }
+      - { label: "上海", value: "上海" }
+      - { label: "广州", value: "广州" }
+      - { label: "深圳", value: "深圳" }
+      - { label: "成都", value: "成都" }
+      - { label: "杭州", value: "杭州" }
+      - { label: "西安", value: "西安" }
+      - { label: "武汉", value: "武汉" }
+      - { label: "重庆", value: "重庆" }
     skippable: true
     skipLabel: "暂不确定"
 

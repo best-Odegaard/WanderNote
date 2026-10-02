@@ -104,6 +104,45 @@ public class SuggestionEngine {
             this.questions = questions;
         }
     }
+    /**
+     * 合并「规则候选」与「模型候选」：**规则优先，模型只用来补足到上限**。
+     *
+     * 为什么规则优先（而不是最初那版模型优先）：
+     *   1) 规则引擎是唯一知道当前槽位的组件 —— 它按 destination 给当地话题，
+     *      还会避开"当前正在问的那个问题"；而模型的 <followups> 只被 prompt 要求
+     *      「紧扣刚说的那条回复」，没有任何机制校验它与槽位一致；
+     *   2) 模型看不到用户点选项的那些回合（槽位链路不调模型、也不落库），
+     *      上下文天然滞后一轮，容易继续顺着更早聊过的城市出题 ——
+     *      实测现象就是「已经选了成都，却还在推第一轮提过的大理/厦门」。
+     *
+     * 模型候选仍有价值（它紧扣本轮回复，通常比通用规则具体），
+     * 所以在规则不足上限时按序补位，并做去重。
+     *
+     * @param ruleSuggestions 规则引擎给的候选，可为 null/空
+     * @param modelFollowUps  模型 <followups> 给的候选，可为 null/空
+     * @param maxItems        每轮候选上限
+     */
+    public static List<String> mergeSuggestions(List<String> ruleSuggestions,
+                                                List<String> modelFollowUps,
+                                                int maxItems) {
+        List<String> merged = new ArrayList<>();
+        appendDistinct(merged, ruleSuggestions, maxItems);
+        appendDistinct(merged, modelFollowUps, maxItems);
+        return merged;
+    }
+
+    /** 按序追加：跳过 null/空白、去掉重复、到上限即停 */
+    private static void appendDistinct(List<String> target, List<String> source, int maxItems) {
+        if (source == null) return;
+        for (String q : source) {
+            if (target.size() >= maxItems) return;
+            if (q == null) continue;
+            String text = q.trim();
+            if (text.isEmpty() || target.contains(text)) continue;
+            target.add(text);
+        }
+    }
+
 
     @Getter
     private int maxItems = 3;

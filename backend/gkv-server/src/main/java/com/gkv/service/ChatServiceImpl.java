@@ -169,12 +169,21 @@ public class ChatServiceImpl implements ChatService {
                     .filter(m -> m != null && "user".equalsIgnoreCase(m.getRole()))
                     .count();
         }
-        // 候选优先用**模型自己给的**：它刚写完那段回答，最清楚该顺着问什么，
-        // 这样候选才和回复内容有联系（按槽位规则生成的候选与回复无关）。
-        // 模型没按格式给（或本轮没给）时，退回规则候选，保证永远有东西可点。
-        List<String> suggestions = followUps.getQuestions().isEmpty()
-                ? suggestionEngine.suggest(slotState, round)
-                : followUps.getQuestions();
+        // 候选追问：**规则优先**，模型给的 <followups> 只用来补足到上限。
+        //
+        // 为什么不再模型优先（原实现）：规则引擎是唯一知道当前槽位的地方 ——
+        // 它按 destination 给当地话题，还会避开"当前正在问的那个问题"。
+        // 而模型的 <followups> 只被 prompt 要求「紧扣刚说的那条回复」，
+        // 没有任何机制校验它和槽位一致；加上模型看不到用户点选项的回合
+        // （槽位链路不调模型、也不落库），它的上下文天然滞后一轮 ——
+        // 实测现象就是「已经选了成都，却还在推第一轮提过的大理/厦门」。
+        //
+        // 合并策略抽到 SuggestionEngine.mergeSuggestions，便于单测覆盖。
+        List<String> suggestions = SuggestionEngine.mergeSuggestions(
+                suggestionEngine.suggest(slotState, round),
+                followUps.getQuestions(),
+                suggestionEngine.getMaxItems());
+        agentResp.setSuggested_questions(suggestions);
         agentResp.setSuggested_questions(suggestions);
         return agentResp;
     }

@@ -55,6 +55,14 @@ public class SlotEngine {
 
     /** 「你想去哪里？」里最多把几个对话提到过的城市提到最前 —— 多了等于没排 */
     private static final int MAX_MENTIONED_CITIES = 3;
+    /**
+     * 「从X」后面允许紧跟的字，用来判断 X 是不是出发地。
+     *
+     * 只收「出发/交通」类字眼（从上海出发 / 从北京走 / 从广州飞 / 从深圳自驾 / 从成都坐高铁…），
+     * 刻意不放「的」这类字：像「从成都的熊猫基地开始玩」这种句子里的成都是地点不是出发地，
+     * 认错比认不出来更糟 —— 认不出只是少填一个槽，认错会污染车票与首日路线。
+     */
+    private static final String DEPART_TAIL_CHARS = "出走飞起来去回坐乘搭到过开自驾高火赶转";
 
     private final QuestionTree tree;
     private final Map<String, SlotState> store = new ConcurrentHashMap<>();
@@ -109,17 +117,91 @@ public class SlotEngine {
             putIfAbsent(state, "days", m.group(1), SOURCE_INFERRED);
         }
 
-        // 用「识别词典」而不是「热门城市选项卡」：后者只有十几个城市，
+        // 先摘出发地：「从X出发」里的 X 和目的地用的是同一本城市词典，
+        // 不先拿出来，下面按「第一个出现的城市」取目的地时就会把 X 当成目的地
+        // （「我想从广州去成都」→ 目的地判成广州）。
+        String departCity = departCityIn(text);
+        if (departCity != null) {
+            putIfAbsent(state, "departCity", departCity, SOURCE_INFERRED);
+        }
+
+        // 目的地用「识别词典」而不是「热门城市选项卡」：后者只有十几个城市，
         // 用户说"去深圳"时认不出来，后面依赖目的地的规则会整条失效。
+        //
+        // 按**在文本里出现的先后**取第一个，而不是按词典顺序：词典是「热门城市在前」
+        // （广州、肇庆、重庆、成都…），用户说「我想从广州去成都」时会命中排在更前面的
+        // 广州，目的地直接判错。所以这里遍历词典取「出现位置最小」的那个。
+        int destIndex = Integer.MAX_VALUE;
+        String destCity = null;
         for (String city : tree.getCityDictionary()) {
-            if (text.contains(city)) {
-                putIfAbsent(state, "destination", city, SOURCE_INFERRED);
-                break;
+            int idx = text.indexOf(city);
+            if (idx < 0) continue;
+            // 「从上海出发」里的上海已经算出发地了，不能再当一次目的地
+            if (city.equals(departCity)) continue;
+            if (idx < destIndex) {
+                destIndex = idx;
+                destCity = city;
             }
+        }
+        if (destCity != null) {
+            putIfAbsent(state, "destination", destCity, SOURCE_INFERRED);
         }
 
         inferDerived(state);
         state.updatedAt = System.currentTimeMillis();
+    }
+
+    /**
+     * 从「从X出发」这类句式里抽出出发城市；抽不到返回 null。
+     *
+     * 为什么必须单独识别：出发地和目的地共用同一本城市词典。只按「第一个出现的城市」
+     * 取，用户说「从广州去成都」时广州会先被当成目的地，后面的车票与首日路线全错。
+     *
+     * 为什么还要校验 X 后面跟的字：「从成都的熊猫基地开始玩」里的成都是地点不是出发地。
+     * 认错比认不出来更糟 —— 认不出只是少填一个槽，用户还能点选项补上；
+     * 认错会直接污染车票与首日路线，用户还看不出是哪儿错了。
+     */
+    private String departCityIn(String text) {
+        int from = text.indexOf('从');
+        while (from >= 0) {
+            int p = from + 1;
+            while (p < text.length() && Character.isWhitespace(text.charAt(p))) {
+                p++;
+            }
+            String city = longestCityAt(text, p);
+            if (city != null) {
+                int next = p + city.length();
+                // 「从上海市出发」：先跳过行政区后缀再判断后面的字
+                if (next < text.length() && text.charAt(next) == '市') {
+                    next++;
+                }
+                // 句尾直接结束也算（「我打算从上海」）
+                if (next >= text.length()
+                        || Character.isWhitespace(text.charAt(next))
+                        || DEPART_TAIL_CHARS.indexOf(text.charAt(next)) >= 0) {
+                    return city;
+                }
+            }
+            from = text.indexOf('从', from + 1);
+        }
+        return null;
+    }
+
+    /**
+     * 取 pos 位置开始能匹配到的最长城市名。
+     *
+     * 取最长而不是命中即返回：词典里有「潮州/潮汕」这类前缀相同的城市，
+     * 命中即返回会随词典顺序取到较短的那个。
+     */
+    private String longestCityAt(String text, int pos) {
+        String best = null;
+        for (String city : tree.getCityDictionary()) {
+            if (!text.startsWith(city, pos)) continue;
+            if (best == null || city.length() > best.length()) {
+                best = city;
+            }
+        }
+        return best;
     }
 
     /** 生成完整度 / 就绪标记 / 下一个问题 */
