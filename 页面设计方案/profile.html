@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>我的 - WanderNote 行笺</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="page">
+    <div class="profile-header">
+      <div class="profile-avatar">😊</div>
+      <div class="profile-name">游客用户</div>
+      <div style="font-size:13px;opacity:0.85;margin-top:4px;">登录后可保存行程、收藏游记</div>
+    </div>
+
+    <div class="profile-menu">
+      <a href="auth-login.html" class="menu-item">
+        <div class="menu-item-left"><span class="menu-icon">🔑</span> 登录 / 注册</div>
+        <span class="menu-arrow">›</span>
+      </a>
+      <a href="trip-index.html" class="menu-item">
+        <div class="menu-item-left"><span class="menu-icon">🗓️</span> 我的行程</div>
+        <span class="menu-arrow">›</span>
+      </a>
+      <a href="profile-journals.html" class="menu-item">
+        <div class="menu-item-left"><span class="menu-icon">📝</span> 我的游记</div>
+        <span class="menu-arrow">›</span>
+      </a>
+      <a href="community.html" class="menu-item">
+        <div class="menu-item-left"><span class="menu-icon">❤️</span> 我的收藏</div>
+        <span class="menu-arrow">›</span>
+      </a>
+      <a href="profile-edit.html" class="menu-item">
+        <div class="menu-item-left"><span class="menu-icon">👤</span> 编辑资料</div>
+        <span class="menu-arrow">›</span>
+      </a>
+      <a href="profile-settings.html" class="menu-item">
+        <div class="menu-item-left"><span class="menu-icon">⚙️</span> 设置</div>
+        <span class="menu-arrow">›</span>
+      </a>
+      <a href="profile-feedback.html" class="menu-item">
+        <div class="menu-item-left"><span class="menu-icon">💬</span> 意见反馈</div>
+        <span class="menu-arrow">›</span>
+      </a>
+    </div>
+  </div>
+
+  <script src="assets/mock.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    window.mountTabBar(3);
+  </script>
+</body>
+</html>

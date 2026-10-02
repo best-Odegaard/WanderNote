@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>社区 - WanderNote 行笺</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="page-no-tab">
+    <div class="navbar">
+      <div class="nav-back" data-back>‹</div>
+      <div class="navbar-title">旅行社区</div>
+      <div class="nav-spacer"></div>
+    </div>
+
+    <div class="hotel-filters" style="padding-top:8px;">
+      <span class="chip selected">推荐</span>
+      <span class="chip">亲子</span>
+      <span class="chip">情侣</span>
+      <span class="chip">美食</span>
+      <span class="chip">摄影</span>
+    </div>
+
+    <div id="journalList"></div>
+
+    <div style="position:fixed;right:16px;bottom:calc(20px + var(--safe-bottom));z-index:130;">
+      <a href="community-publish.html" class="btn btn-primary" style="border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:var(--shadow-lg);">＋</a>
+    </div>
+  </div>
+
+  <script src="assets/mock.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    document.getElementById('journalList').innerHTML = MOCK.journals.map(j => `
+      <a href="community-detail.html?id=${j.id}" class="journal-card">
+        <div class="journal-cover">${j.emoji}</div>
+        <div class="journal-body">
+          <div class="journal-title">${j.title}</div>
+          <div class="journal-author">
+            <span>@${j.author}</span>
+            <span>❤️ ${j.likes}</span>
+          </div>
+        </div>
+      </a>
+    `).join('');
+  </script>
+</body>
+</html>

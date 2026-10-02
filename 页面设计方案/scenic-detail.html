@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>景点详情 - WanderNote 行笺</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="page-no-tab">
+    <div class="navbar">
+      <div class="nav-back" data-back>‹</div>
+      <div class="navbar-title">景点详情</div>
+      <div class="nav-spacer"></div>
+    </div>
+
+    <div style="height:240px;background:linear-gradient(135deg,#a7f3d0,#5eead4);display:flex;align-items:center;justify-content:center;font-size:80px;">🏞️</div>
+
+    <div style="padding:20px;background:#fff;border-radius:24px 24px 0 0;margin-top:-20px;position:relative;z-index:2;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <span class="tag tag-hot">近期热点</span>
+        <span class="tag tag-brand">5A 景区</span>
+      </div>
+      <h1 style="font-size:24px;font-weight:800;color:var(--text-main);margin:0 0 8px;">七星岩</h1>
+      <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin:0 0 16px;">全国最大溶洞群，冬季恒温 20℃，12-1 月落羽杉正当观赏期，是肇庆最具代表性的自然景观。</p>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+        <div style="background:var(--bg-input);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:12px;color:var(--text-secondary);">开放时间</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text-main);margin-top:4px;">08:00-18:00</div>
+        </div>
+        <div style="background:var(--bg-input);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:12px;color:var(--text-secondary);">门票</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text-main);margin-top:4px;">¥70</div>
+        </div>
+        <div style="background:var(--bg-input);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:12px;color:var(--text-secondary);">建议游玩</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text-main);margin-top:4px;">2.5 小时</div>
+        </div>
+      </div>
+
+      <div style="font-size:14px;color:var(--text-body);line-height:1.7;margin-bottom:20px;">
+        <div style="font-weight:700;color:var(--text-main);margin-bottom:6px;">🌲 为什么值得去</div>
+        <div>七星岩以峰林、溶洞、湖泊、碑刻闻名，被誉为「岭南第一奇观」。冬季落羽杉变红，与碧绿湖水形成强烈对比，是珠三角地区最便捷的赏秋目的地之一。</div>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <a href="ai-chat.html?city=zq&must=七星岩" class="btn btn-primary" style="flex:2;">就这里，帮我规划</a>
+        <button class="btn btn-outline" style="flex:1;" onclick="openMapModal()">🧭 导航</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mapModal">
+    <div class="modal-panel">
+      <div class="modal-title">选择导航地图</div>
+      <div class="map-options">
+        <div class="map-option" onclick="chooseMap('amap')">高德地图</div>
+        <div class="map-option" onclick="chooseMap('baidu')">百度地图</div>
+        <div class="map-option" onclick="chooseMap('tencent')">腾讯地图</div>
+      </div>
+      <button class="btn btn-ghost btn-block" onclick="closeMapModal()">取消</button>
+    </div>
+  </div>
+
+  <script src="assets/mock.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>小笺 - WanderNote 行笺</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <style>
+    .chat-page {
+      min-height: 100vh;
+      background: var(--bg-page);
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 220px;
+    }
+    .chat-bottom {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 150;
+      background: rgba(255,255,255,0.98);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+    }
+    .generating-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 400;
+      background: rgba(255,255,255,0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .generating-mask.hidden { display: none; }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="chat-page">
+    <div class="navbar">
+      <div class="nav-back" data-back>‹</div>
+      <div class="navbar-title">小笺</div>
+      <div class="nav-spacer"></div>
+    </div>
+
+    <div class="chat-list" id="chatList"></div>
+
+    <div class="chat-bottom">
+      <div class="completeness-bar" id="completenessBox" style="display:none;">
+        <div class="completeness-header">
+          <span>需求完整度</span>
+          <span id="completenessText">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="completenessBar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="toolbar" id="toolbar">
+        <a href="plan-hotel.html" class="tool-btn">🏨 选酒店</a>
+        <a href="trip-detail.html" class="tool-btn primary" onclick="generateNow(event)">✨ 生成行程</a>
+      </div>
+
+      <form class="input-bar" style="position:static;" onsubmit="sendText(event)">
+        <div class="input-inner">
+          <input type="text" id="chatInput" placeholder="输入你的想法，或点击上方选项" autocomplete="off">
+          <button type="submit" class="send-btn">➤</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="generating-mask hidden" id="generatingMask">
+    <div class="spinner"></div>
+    <div style="font-size:15px;color:var(--text-secondary);">正在生成你的专属行程…</div>
+  </div>
+
+  <script src="assets/mock.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    const chatList = document.getElementById('chatList');
+    const toolbar = document.getElementById('toolbar');
+    const completenessBox = document.getElementById('completenessBox');
+    const completenessBar = document.getElementById('completenessBar');
+    const completenessText = document.getElementById('completenessText');
+
+    let askedCount = 0;
+    let currentQuestionIndex = 0;
+    let slots = window.loadSlots();
+
+    // 初始化上下文
+    const q = window.getQuery('q');
+    const city = window.getQuery('city');
+    const must = window.getQuery('must');
+
+    if (city && !slots.destination) slots.destination = MOCK_UTILS.getCityById(city).name;
+    if (must) slots.mustVisit = must;
+    if (q && !slots.destination) slots.destination = q.split(/[,，\s]/)[0];
+
+    // 从探索页「确认加入」的必去项合并进槽位，然后清空暂存清单
+    const mustList = window.getMustList();
+    if (mustList.length) {
+      const merged = new Set([...(slots.mustVisit ? slots.mustVisit.split('、') : []), ...mustList]);
+      slots.mustVisit = Array.from(merged).join('、');
+      window.clearMustList();
+    }
+    window.saveSlots(slots);
+
+    function addMsg(text, isUser = false) {
+      const div = document.createElement('div');
+      div.className = `msg ${isUser ? 'msg-user' : 'msg-ai'}`;
+      div.innerHTML = `
+        <div class="msg-avatar">${isUser ? '😊' : '🗺️'}</div>
+        <div class="msg-bubble">${text}</div>
+      `;
+      chatList.appendChild(div);
+      chatList.scrollTop = chatList.scrollHeight;
+    }
+
+    function askNext() {
+      if (askedCount >= 6 || currentQuestionIndex >= MOCK.questionTree.length) {
+        showGenerateHint();
+        return;
+      }
+      const q = MOCK.questionTree[currentQuestionIndex];
+      if (slots[q.slot]) {
+        currentQuestionIndex++;
+        askNext();
+        return;
+      }
+      let html = `<div style="margin-bottom:8px;">${q.text}</div>`;
+      if (q.hint) html += `<div style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px;">${q.hint}</div>`;
+      html += `<div class="chips" style="margin-top:8px;">`;
+      q.options.forEach(opt => {
+        html += `<button class="chip" onclick="answerChip('${q.slot}', '${opt.value}', '${opt.label}')">${opt.label}</button>`;
+      });
+      html += `<button class="chip chip-skip" onclick="skipSlot('${q.slot}')">跳过 / 还没想好</button>`;
+      html += `</div>`;
+      addMsg(html);
+      askedCount++;
+      currentQuestionIndex++;
+    }
+
+    window.answerChip = function(slot, value, label) {
+      slots = window.setSlot(slot, value);
+      addMsg(label, true);
+      updateCompleteness();
+      setTimeout(() => askNext(), 250);
+    };
+
+    window.skipSlot = function(slot) {
+      slots = window.setSlot(slot, '');
+      addMsg('跳过', true);
+      updateCompleteness();
+      setTimeout(() => askNext(), 250);
+    };
+
+    function updateCompleteness() {
+      const ratio = MOCK_UTILS.computeCompleteness(slots);
+      const pct = Math.round(ratio * 100);
+      completenessBox.style.display = 'block';
+      completenessBar.style.width = pct + '%';
+      completenessText.textContent = pct + '%';
+
+      if (slots.destination && slots.days) {
+        toolbar.classList.add('show');
+      }
+    }
+
+    function showGenerateHint() {
+      const html = `
+        <div>信息已经够了，我可以直接生成行程啦～</div>
+        <div class="chips" style="margin-top:10px;">
+          <a href="trip-detail.html" class="chip" style="background:var(--brand-grad);color:#fff;border-color:var(--brand);">✨ 生成行程</a>
+          <button class="chip chip-skip" onclick="continueChat()">继续补充</button>
+        </div>
+      `;
+      addMsg(html);
+    }
+
+    window.continueChat = function() {
+      addMsg('继续补充', true);
+      setTimeout(() => {
+        addMsg('好的，还有什么想调整的吗？比如预算、酒店风格或者出发地。');
+      }, 250);
+    };
+
+    function sendText(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      addMsg(text, true);
+      input.value = '';
+      setTimeout(() => {
+        addMsg('收到，已记录你的需求。');
+        updateCompleteness();
+        if (askedCount < 6) askNext();
+      }, 300);
+    }
+
+    window.generateNow = function(e) {
+      e.preventDefault();
+      document.getElementById('generatingMask').classList.remove('hidden');
+      setTimeout(() => {
+        window.location.href = 'trip-detail.html?generated=1';
+      }, 1800);
+    };
+
+    // 开场
+    const cityName = slots.destination || '这里';
+    const mustText = slots.mustVisit;
+    let opening = `嗨，我是小笺。${cityName === '这里' ? '想去哪儿玩？' : `${cityName}是个好地方，你想玩几天？`}`;
+    if (mustText) opening = `好，把「${mustText}」加进必去项。${cityName}你想玩几天？`;
+    addMsg(opening);
+    updateCompleteness();
+    askNext();
+  </script>
+</body>
+</html>

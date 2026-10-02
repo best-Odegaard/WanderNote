@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>行程详情 - WanderNote 行笺</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="page-no-tab" style="padding-bottom:0;">
+    <div class="map-bg">
+      <div class="map-placeholder">
+        <div class="map-placeholder-icon">🗺️</div>
+        <div>应用内地图：酒店 → 景点 → 返回酒店</div>
+      </div>
+    </div>
+
+    <div class="float-btns">
+      <div class="float-btn" data-back>‹</div>
+      <div style="display:flex;gap:10px;">
+        <div class="float-btn" onclick="alert('分享行程开发中')">↗</div>
+        <div class="float-btn" onclick="alert('编辑行程开发中')">⚙</div>
+      </div>
+    </div>
+
+    <div class="stats-bar" style="top:64px;">
+      <span class="stats-tag">2天 · 6个景点</span>
+      <span class="stats-extra-item">❤️ 12</span>
+      <span class="stats-extra-item">📤 3</span>
+    </div>
+
+    <div class="sheet">
+      <div class="sheet-grip">
+        <div class="grip-bar"></div>
+      </div>
+      <div class="sheet-head">
+        <div class="sheet-title">肇庆 2 日亲子游</div>
+        <div class="day-tabs">
+          <div class="day-tab active" data-day="0">12-20（周六）</div>
+          <div class="day-tab" data-day="1">12-21（周日）</div>
+          <div class="day-tab overview-tab">🌐 总览</div>
+        </div>
+      </div>
+      <div class="sheet-body">
+        <div class="timeline" id="timeline"></div>
+      </div>
+      <div class="sheet-footer">
+        <a href="trip-route.html" class="btn btn-outline">🧭 今日路线</a>
+        <a href="trip-today.html" class="btn btn-primary">📍 今日模式</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mapModal">
+    <div class="modal-panel">
+      <div class="modal-title">选择导航地图</div>
+      <div class="map-options">
+        <div class="map-option" onclick="chooseMap('amap')">高德地图</div>
+        <div class="map-option" onclick="chooseMap('baidu')">百度地图</div>
+        <div class="map-option" onclick="chooseMap('tencent')">腾讯地图</div>
+      </div>
+      <button class="btn btn-ghost btn-block" onclick="closeMapModal()">取消</button>
+    </div>
+  </div>
+
+  <script src="assets/mock.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    const trip = MOCK_UTILS.getSampleTrip();
+    let activeDay = 0;
+
+    function renderDay(dayIndex) {
+      activeDay = dayIndex;
+      document.querySelectorAll('.day-tab').forEach((tab, i) => {
+        tab.classList.toggle('active', i === dayIndex);
+      });
+      const schedules = trip.dayPlans[dayIndex].schedules;
+      document.getElementById('timeline').innerHTML = schedules.map((s, i) => `
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-card">
+            <div class="timeline-time">${s.time}</div>
+            <div class="timeline-title">${s.emoji} ${s.title}</div>
+            ${s.type !== 'hotel' ? `<div class="timeline-img">${s.emoji}</div>` : ''}
+            <div class="timeline-meta">
+              <div>📍 ${s.location}</div>
+              ${s.openTime !== '-' ? `<div>🕒 开放时间：${s.openTime}</div>` : ''}
+              ${s.ticket !== '-' ? `<div>💰 ${s.ticket}</div>` : ''}
+            </div>
+            <div class="timeline-ops">
+              ${s.type !== 'hotel' ? `<span class="timeline-op" onclick="openMapModal()">🧭 导航</span>` : ''}
+              ${s.type !== 'hotel' ? `<span class="timeline-op">↑↓ 调序</span>` : ''}
+              ${s.type !== 'hotel' ? `<span class="timeline-op" style="color:var(--danger);">删除</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.querySelectorAll('.day-tab').forEach((tab, i) => {
+      tab.addEventListener('click', () => {
+        if (i < trip.dayPlans.length) renderDay(i);
+      });
+    });
+
+    renderDay(0);
+    window.initSheet();
+  </script>
+</body>
+</html>

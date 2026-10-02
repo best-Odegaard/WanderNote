@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>探索 - WanderNote 行笺</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="page">
+    <div class="navbar">
+      <div class="nav-spacer"></div>
+      <div class="navbar-title">探索</div>
+      <div class="nav-spacer"></div>
+    </div>
+
+    <div class="city-tabs" id="cityTabs"></div>
+
+    <div id="superSpot"></div>
+
+    <div class="category-sections">
+      <div class="section-header">
+        <span class="section-title">这个冬天值得去</span>
+      </div>
+      <div id="quickContents"></div>
+    </div>
+  </div>
+
+  <script src="assets/mock.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    window.mountTabBar(2);
+
+    let currentCity = MOCK.cities[0].id;
+
+    function renderCityTabs() {
+      const container = document.getElementById('cityTabs');
+      container.innerHTML = MOCK.cities.map(c => `
+        <div class="city-tab ${c.id === currentCity ? 'active' : ''}" data-id="${c.id}">
+          ${c.name}
+          <small>${c.hotTag}</small>
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.city-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          currentCity = tab.dataset.id;
+          renderCityTabs();
+          renderSuperSpot();
+          renderQuickContents();
+        });
+      });
+    }
+
+    function renderSuperSpot() {
+      const spot = MOCK.superSpots[currentCity];
+      const city = MOCK_UTILS.getCityById(currentCity);
+      document.getElementById('superSpot').innerHTML = `
+        <div class="super-spot">
+          <div class="super-spot-img" style="display:flex;align-items:center;justify-content:center;font-size:80px;">${spot.emoji}</div>
+          <div class="super-spot-info">
+            <div style="display:flex;gap:8px;margin-bottom:6px;">
+              <span class="tag tag-hot">近期热点 · ${city.hotTag}</span>
+            </div>
+            <div class="super-spot-name">${spot.name}</div>
+            <div class="super-spot-reason">${spot.reason}</div>
+            <a href="explore-city.html?city=${currentCity}" class="btn btn-primary btn-sm" style="display:inline-flex;">就这里，帮我规划</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderQuickContents() {
+      const contents = MOCK_UTILS.getCityContents(currentCity);
+      const container = document.getElementById('quickContents');
+      const merged = [
+        ...contents.food.slice(0, 1).map(i => ({ ...i, cat: '吃' })),
+        ...contents.experience.slice(0, 1).map(i => ({ ...i, cat: '玩' })),
+        ...contents.spot.slice(0, 1).map(i => ({ ...i, cat: '景点' }))
+      ];
+      container.innerHTML = merged.map(item => `
+        <div class="spot-card">
+          <div class="spot-card-img">${item.emoji}</div>
+          <div class="spot-card-body">
+            <div>
+              <span class="tag tag-brand" style="margin-bottom:6px;">${item.cat}</span>
+              <div class="spot-card-title">${item.name}</div>
+            </div>
+            <div class="spot-card-reason">${item.reason}</div>
+          </div>
+          <button class="btn btn-outline btn-sm" style="align-self:center;" onclick="openAddConfirm('${item.name}', '${currentCity}')">加入</button>
+        </div>
+      `).join('');
+    }
+
+    renderCityTabs();
+    renderSuperSpot();
+    renderQuickContents();
+  </script>
+</body>
+</html>

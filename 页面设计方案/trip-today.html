@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>今日模式 - WanderNote 行笺</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="today-page">
+    <div class="navbar" style="position:relative;background:transparent;">
+      <div class="nav-back" data-back style="background:rgba(255,255,255,0.9);">‹</div>
+      <div class="navbar-title">今日模式</div>
+      <div class="nav-spacer"></div>
+    </div>
+
+    <div class="today-header">
+      <div class="today-time">12-20（周六）· 09:15</div>
+      <div class="today-current">当前：前往七星岩落羽杉</div>
+    </div>
+
+    <div class="today-card">
+      <div class="today-emoji">🌲</div>
+      <div class="today-spot">七星岩落羽杉</div>
+      <div class="today-window">09:00 - 11:30 · 建议游玩 2.5 小时</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
+        📍 肇庆市端州区七星岩景区<br>
+        🕒 开放时间：08:00-18:00<br>
+        💰 门票：¥70
+      </div>
+    </div>
+
+    <div class="today-next">
+      <div class="today-next-label">下一站</div>
+      <div class="today-next-name">🐟 岩前村河鲜午餐 · 11:45</div>
+    </div>
+
+    <div class="today-actions">
+      <button class="btn btn-primary btn-block" onclick="openMapModal()" style="margin-bottom:12px;height:52px;font-size:17px;">🧭 导航去这里</button>
+      <a href="trip-detail.html" class="btn btn-ghost btn-block" style="height:48px;">查看全天时间轴</a>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mapModal">
+    <div class="modal-panel">
+      <div class="modal-title">选择导航地图</div>
+      <div class="map-options">
+        <div class="map-option" onclick="chooseMap('amap')">高德地图</div>
+        <div class="map-option" onclick="chooseMap('baidu')">百度地图</div>
+        <div class="map-option" onclick="chooseMap('tencent')">腾讯地图</div>
+      </div>
+      <button class="btn btn-ghost btn-block" onclick="closeMapModal()">取消</button>
+    </div>
+  </div>
+
+  <script src="assets/mock.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
