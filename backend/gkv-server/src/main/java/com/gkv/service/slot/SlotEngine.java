@@ -53,6 +53,77 @@ public class SlotEngine {
     /** 从自由文本里识别天数的模式：支持「3天」「三天」这类常见说法 */
     private static final Pattern DAYS_PATTERN = Pattern.compile("(\\d+)\\s*(天|日)");
 
+    /** 中文数字天数：「玩三天」这种说法 DAYS_PATTERN 认不出来 */
+    private static final Pattern CN_DAYS_PATTERN = Pattern.compile("([一二三四五六七八九十])\\s*(天|日)");
+
+    /**
+     * 自由文本里的时间说法 → dateRange 选项值。
+     *
+     * 实测量级：用户被问「大概什么时候去？」时，很多人不点选项而是打「这个月月底去」。
+     * 旧实现只认选项，这条输入既没被记录、也没被标记「已问过」，
+     * 于是同一道题被无限重复问，chips 一直挂在屏幕上（用户反馈的原话就是这个）。
+     */
+    private static final String[][] DATE_RANGE_PHRASES = {
+            {"这周末", "this_weekend"}, {"这个周末", "this_weekend"}, {"本周末", "this_weekend"},
+            {"周末", "this_weekend"}, {"周六", "this_weekend"}, {"星期日", "this_weekend"},
+            {"下周末", "this_weekend"}, {"下个周末", "this_weekend"},
+            {"下周", "next_week"}, {"下个星期", "next_week"}, {"下礼拜", "next_week"},
+            {"下个月", "next_month"}, {"下月", "next_month"}, {"月底", "next_month"},
+            {"月末", "next_month"}, {"这个月", "next_month"}, {"本月", "next_month"},
+            {"这个月月底", "next_month"}, {"月底去", "next_month"}, {"这个月月底去", "next_month"},
+            {"还没定", "flexible"}, {"没定", "flexible"}, {"不确定", "flexible"},
+            {"再说", "flexible"}, {"待定", "flexible"}, {"看情况", "flexible"},
+            {"随便", "flexible"}, {"随时", "flexible"}, {"都行", "flexible"}
+    };
+
+    /**
+     * 自由文本里「明确回答了某个槽位」的用词 → 选项值。
+     *
+     * 覆盖的是选项语义清楚的槽位。匹配分两种情形（见 inferFromText）：
+     *   · 当前挂着的那道题：命中用词就写值；
+     *   · 别的槽位：只有命中明确用词才写值，不做模糊判断。
+     *
+     * 目的地/出发地不在这里：那两个由城市词典识别（见 applyText），
+     * 城市词典是唯一能分清「从广州去成都」的东西，再加一套关键词只会互相打架。
+     */
+    private static final Map<String, String[][]> SLOT_PHRASES = buildSlotPhrases();
+
+    private static Map<String, String[][]> buildSlotPhrases() {
+        Map<String, String[][]> map = new LinkedHashMap<>();
+        map.put("dateRange", DATE_RANGE_PHRASES);
+        map.put("hotelStyle", new String[][]{
+                {"经济", "经济连锁"}, {"连锁", "经济连锁"}, {"快捷", "经济连锁"},
+                {"舒适", "舒适型"}, {"中档", "舒适型"}, {"中等", "舒适型"},
+                {"高端", "高端度假"}, {"度假", "高端度假"}, {"五星", "高端度假"},
+                {"奢侈", "高端度假"}, {"豪华", "高端度假"},
+                {"民宿", "民宿特色"}, {"特色", "民宿特色"}, {"客栈", "民宿特色"},
+                {"不限", "不限"}, {"随便", "不限"}, {"都行", "不限"}
+        });
+        map.put("budget", new String[][]{
+                {"穷游", "500"}, {"省着", "500"}, {"经济", "500"}, {"便宜", "500"}, {"500", "500"},
+                {"一千", "800"}, {"1000", "800"},
+                {"两千", "1500"}, {"1500", "1500"}, {"2000", "1500"},
+                {"2500", "2500"}, {"不差钱", "2500"}, {"预算充足", "2500"},
+                {"不限", "1500"}, {"随便", "1500"}, {"无所谓", "1500"}
+        });
+        map.put("companion", new String[][]{
+                {"一个人", "solo"}, {"独自", "solo"}, {"自己", "solo"},
+                {"两个人", "couple"}, {"双人", "couple"}, {"情侣", "couple"}, {"对象", "couple"},
+                {"孩子", "family"}, {"亲子", "family"}, {"家人", "family"}, {"带娃", "family"},
+                {"朋友", "friends"}, {"同事", "friends"}, {"同学", "friends"}
+        });
+        map.put("childAge", new String[][]{
+                {"三岁", "0-3"}, {"3岁", "3-6"}, {"5岁", "3-6"}, {"8岁", "7-12"}, {"10岁", "7-12"},
+                {"12岁", "12+"}, {"15岁", "12+"}
+        });
+        map.put("pace", new String[][]{
+                {"轻松", "轻松"}, {"慢", "轻松"}, {"休闲", "轻松"}, {"不想爬山", "轻松"},
+                {"常规", "常规"}, {"正常", "常规"},
+                {"暴走", "暴走"}, {"多打卡", "暴走"}, {"赶", "暴走"}
+        });
+        return map;
+    }
+
     /** 「你想去哪里？」里最多把几个对话提到过的城市提到最前 —— 多了等于没排 */
     private static final int MAX_MENTIONED_CITIES = 3;
     /**
@@ -115,6 +186,16 @@ public class SlotEngine {
         Matcher m = DAYS_PATTERN.matcher(text);
         if (m.find()) {
             putIfAbsent(state, "days", m.group(1), SOURCE_INFERRED);
+        } else {
+            // 「玩三天」：中文数字也要认，否则用户打了完整答案却什么都没记下，
+            // 下一轮还会被问「你想玩几天？」
+            Matcher cn = CN_DAYS_PATTERN.matcher(text);
+            if (cn.find()) {
+                String days = chineseNumber(cn.group(1));
+                if (days != null) {
+                    putIfAbsent(state, "days", days, SOURCE_INFERRED);
+                }
+            }
         }
 
         // 先摘出发地：「从X出发」里的 X 和目的地用的是同一本城市词典，
@@ -147,8 +228,146 @@ public class SlotEngine {
             putIfAbsent(state, "destination", destCity, SOURCE_INFERRED);
         }
 
+        // 自由文本也要能「答完一道题」：否则用户打字回答了当前问题（不是点选项），
+        // 引擎里没有任何记录 —— pickNext 认为这题还没被问过，于是无限重复问同一道，
+        // 前端那排 chips 就一直挂在屏幕上（用户实测反馈）。
+        inferFromText(state, text);
+
         inferDerived(state);
         state.updatedAt = System.currentTimeMillis();
+    }
+
+    /**
+     * 把自由文本当成「槽位问题的回答」。
+     *
+     * 两条分支：
+     *   1) 文本里出现了某个槽位选项的明确说法（如 dateRange 的「月底」）→ 记录成 user 来源的值；
+     *   2) 正在等这道题、且文本看着确实是在答（如日期题里的「五一前后吧」）→ 只标记「已问过」，
+     *      保留用户原话交给模型去理解，既不丢信息、也不再重复追问。
+     *
+     * 为什么允许「答的不是当前挂着的那道题」：用户经常不理会在问的问题，直接把自己关心的
+     * 事说了（刚被问目的地，回「和朋友一起去」）。旧实现因为「只认当前那道题」把这句话
+     * 整条丢掉 —— 同行人没记下，后面还会再问一遍，用户看到的就是"我刚说了它又问"。
+     *
+     * 认得出明确说法才敢跨题记录：模糊判断（「就在这附近」）容易认错，
+     * 宁可只认当前挂着的那道题，也不能瞎写值。
+     */
+    private void inferFromText(SlotState state, String text) {
+        List<String> candidates = new ArrayList<>();
+        String pending = state.lastPickedSlot;
+        if (pending != null && !pending.isEmpty()) {
+            candidates.add(pending);
+        }
+        // 其余还没填的槽位按提问优先级排（越该先问的越优先），保证一句话同时命中多个时取最该问的那个。
+        //
+        // 只收「用词明确」的槽位：这些槽位在 SLOT_PHRASES 里有定义，认得出就是认得，
+        // 目的地/出发地不在此列 —— 那两个由城市词典识别（见 applyText），
+        // 而城市词典是唯一能分清「从广州去成都」的东西，再加一套关键词只会互相打架。
+        List<SlotDef> rest = new ArrayList<>();
+        for (SlotDef def : tree.getDefs()) {
+            if (def.getKey().equals(pending)) continue;
+            if (!def.isAskable() || state.values.containsKey(def.getKey())) continue;
+            if (state.asked.contains(def.getKey())) continue;
+            if (!SLOT_PHRASES.containsKey(def.getKey())) continue;
+            if (!dependsSatisfied(state, def)) continue;
+            rest.add(def);
+        }
+        rest.sort(Comparator.comparingInt(SlotDef::getPriority).reversed());
+        for (SlotDef def : rest) {
+            candidates.add(def.getKey());
+        }
+
+        for (String slot : candidates) {
+            // 已经答过 / 已经问过就不再动，避免覆盖用户点选的明确值
+            if (state.values.containsKey(slot) || state.asked.contains(slot)) continue;
+            SlotDef def = tree.get(slot);
+            if (def == null || !def.isAskable()) continue;
+
+            String[][] phrases = SLOT_PHRASES.get(slot);
+            if (phrases == null) continue;
+            String value = matchValue(text, phrases);
+            if (value != null) {
+                state.values.put(slot, new SlotValue(value, SOURCE_USER));
+                state.asked.add(slot);
+                log.info("[Slot] 自由文本已回答 {}={}（原话：{}）", slot, value, text);
+                return;
+            }
+            // 只有当前挂着的那道题，才允许「认得出在答这题、但认不出具体值」这种模糊消耗；
+            // 其它槽位认不出明确说法就当没提，否则会把随口一句话当成已经答过的题
+            if (slot.equals(pending) && looksLikeAnswer(slot, text)) {
+                state.asked.add(slot);
+                log.info("[Slot] 自由文本视为已答 {}（原话：{}），不再重复追问", slot, text);
+                return;
+            }
+        }
+    }
+
+    /** 在文本里按「出现位置最靠前、同位置取最长」挑一个说法，返回对应选项值；没命中返回 null */
+    private static String matchValue(String text, String[][] phrases) {
+        int bestIdx = Integer.MAX_VALUE;
+        String bestValue = null;
+        int bestLen = 0;
+        for (String[] pair : phrases) {
+            int idx = text.indexOf(pair[0]);
+            if (idx < 0) continue;
+            // 「这个周末」和「周末」都命中时取更长（更具体）的那个说法
+            if (idx < bestIdx || (idx == bestIdx && pair[0].length() > bestLen)) {
+                bestIdx = idx;
+                bestLen = pair[0].length();
+                bestValue = pair[1];
+            }
+        }
+        return bestValue;
+    }
+
+    /**
+     * 判断「用户就是在答这道题」。
+     *
+     * 这里的取舍很明确：宁可少问一题，也不要反复问同一题 ——
+     * 认错只是这一题不再追问（用户的原话仍会进对话历史，模型看得见），
+     * 认不出却会让同一排 chips 一直挂在屏上，用户以为自己的回答被吞了。
+     *
+     * 所以只要文本「看起来像在回答」就消耗掉问题，但**不写值**：
+     * 值的判断必须有明确说法（上表），猜出来的值会污染行程。
+     */
+    private boolean looksLikeAnswer(String slot, String text) {
+        if (text.length() < 2) {
+            return false;
+        }
+        // 时间题：只要说得够具体就当他在定时间（「五一前后吧」这类没有"月/日"字面，
+        // 但显然是在回答这题）；认不出具体值就连值都不写，只把问题消耗掉
+        if ("dateRange".equals(slot)) {
+            return text.length() >= 3
+                    && !containsAny(text, "不知道", "不清楚", "不确定", "没想好", "你说了算");
+        }
+        // 其余槽位：一句话说得够具体（不是「嗯」「随便」这种），就当他是在回答这道题
+        return text.length() >= 4 && !containsAny(text, "不知道", "不清楚", "不确定", "没想好", "你说了算");
+    }
+
+    private static boolean containsAny(String text, String... words) {
+        for (String w : words) {
+            if (text.contains(w)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 中文数字天数（一到十）；认不出来返回 null */
+    private static String chineseNumber(String cn) {
+        switch (cn) {
+            case "一": return "1";
+            case "二": return "2";
+            case "三": return "3";
+            case "四": return "4";
+            case "五": return "5";
+            case "六": return "6";
+            case "七": return "7";
+            case "八": return "8";
+            case "九": return "9";
+            case "十": return "10";
+            default: return null;
+        }
     }
 
     /**
@@ -347,6 +566,8 @@ public class SlotEngine {
         candidates.sort(Comparator.comparingInt(SlotDef::getPriority).reversed());
 
         SlotDef def = candidates.get(0);
+        // 记下这道题正挂着：用户下一轮用自由文本回答时，引擎要知道他答的是哪道题
+        state.lastPickedSlot = def.getKey();
         SlotQuestionVO q = new SlotQuestionVO();
         q.setSlot(def.getKey());
         q.setText(def.getQuestion());
@@ -450,6 +671,15 @@ public class SlotEngine {
          * 每轮覆盖（不累积）：排序要跟着最新一轮的回复走，否则会一直停在很早以前提过的城市。
          */
         volatile List<String> mentionedCities = Collections.emptyList();
+
+        /**
+         * 最近一次下发给用户的问题槽位。
+         *
+         * 用户很可能不打字点选项，而是直接回一句「这个月月底去」——
+         * 不知道他答的是哪道题，就没法把这句话记成答案，
+         * 结果是同一道题被反复问、前端 chips 一直挂着。
+         */
+        volatile String lastPickedSlot;
 
         volatile long updatedAt = System.currentTimeMillis();
     }

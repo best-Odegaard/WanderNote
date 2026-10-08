@@ -39,6 +39,33 @@
       gap: 16px;
     }
     .generating-mask.hidden { display: none; }
+    .nav-new {
+      width: auto;
+      padding: 0 14px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      border-radius: 999px;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--brand-dark);
+      border: 1px solid var(--brand-soft);
+    }
+    .nav-new:active { background: var(--brand-soft); }
+    .sys-hint {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin: 4px 0 16px;
+    }
+    .sys-hint span {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--bg-input);
+      border-radius: 999px;
+    }
     .spinner {
       width: 48px;
       height: 48px;
@@ -55,7 +82,7 @@
     <div class="navbar">
       <div class="nav-back" data-back>‹</div>
       <div class="navbar-title">小笺</div>
-      <div class="nav-spacer"></div>
+      <button class="nav-new" onclick="newSession()">＋ 新会话</button>
     </div>
 
     <div class="chat-list" id="chatList"></div>
@@ -223,13 +250,61 @@
     };
 
     // 开场
-    const cityName = slots.destination || '这里';
-    const mustText = slots.mustVisit;
-    let opening = `嗨，我是小笺。${cityName === '这里' ? '想去哪儿玩？' : `${cityName}是个好地方，你想玩几天？`}`;
-    if (mustText) opening = `好，把「${mustText}」加进必去项。${cityName}你想玩几天？`;
-    addMsg(opening);
-    updateCompleteness();
-    askNext();
+    function addSystemHint(text) {
+      const hint = document.createElement('div');
+      hint.className = 'sys-hint';
+      hint.innerHTML = `<span>${text}</span>`;
+      chatList.appendChild(hint);
+      chatList.scrollTop = chatList.scrollHeight;
+    }
+
+    function buildOpening() {
+      const cityName = slots.destination || '这里';
+      const mustText = slots.mustVisit;
+      let text = `嗨，我是小笺。${cityName === '这里' ? '想去哪儿玩？' : `${cityName}是个好地方，你想玩几天？`}`;
+      if (mustText) text = `好，把「${mustText}」加进必去项。${cityName}你想玩几天？`;
+      return text;
+    }
+
+    function startConversation(openingText) {
+      addMsg(openingText);
+      updateCompleteness();
+      askNext();
+    }
+
+    // 新建会话：清空对话与需求进度，重新开始（有进度时先二次确认）
+    window.newSession = function() {
+      const current = window.loadSlots();
+      const hasProgress = Object.keys(current).some(k => current[k] !== '' && current[k] != null);
+
+      const doReset = function() {
+        window.clearSlots();
+        window.clearMustList();
+        slots = {};
+        askedCount = 0;
+        currentQuestionIndex = 0;
+        chatList.innerHTML = '';
+        completenessBar.style.width = '0%';
+        completenessText.textContent = '0%';
+        completenessBox.style.display = 'none';
+        toolbar.classList.remove('show');
+        addSystemHint('已开启新会话');
+        startConversation('嗨，我是小笺。想去哪儿玩？说一句，或者点下面的选项开始～');
+      };
+
+      if (hasProgress) {
+        window.wnConfirm({
+          title: '新建会话',
+          desc: '将清空当前对话进度与已选需求，重新开始规划。',
+          okText: '重新开始',
+          onOk: doReset
+        });
+      } else {
+        doReset();
+      }
+    };
+
+    startConversation(buildOpening());
   </script>
 </body>
 </html>

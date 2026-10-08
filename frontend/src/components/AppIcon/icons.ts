@@ -107,6 +107,23 @@ export const ICONS: Record<string, IconDef> = {
     paths: ['M9 4 3.5 6.5V20L9 17.5l6 2.5 5.5-2.5V4L15 6.5 9 4z', 'M9 4v13.5', 'M15 6.5V20'],
     fallback: '🗺️'
   },
+  bed: {
+    paths: [
+      'M3 18v-9',
+      'M3 12h13a5 5 0 0 1 5 5v1',
+      'M3 18h18',
+      'M7.5 12V9.5h5V12'
+    ],
+    fallback: '🛏️'
+  },
+  'arrow-up': {
+    paths: ['M12 20V5', 'M6 11l6-6 6 6'],
+    fallback: '↑'
+  },
+  'arrow-down': {
+    paths: ['M12 4v15', 'M6 13l6 6 6-6'],
+    fallback: '↓'
+  },
   eye: {
     paths: ['M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
     fallback: '👁️'

@@ -12,11 +12,11 @@
             精细设置入口。
             旧的表单式规划（wizard）不再出现在主路径上，但仍有用户想自己填具体日期、
             人数、预算，所以留一个入口，而不是把那条路彻底砍掉。
+
+            「生成行程计划」原来挂在顶栏，已按设计稿挪到输入区下方的常驻大按钮
+            （见页脚末尾），这里只留次要入口。
           -->
           <text class="nav-text-btn plain" @tap="goWizard">精细设置</text>
-          <text class="nav-text-btn" :class="{ ready: canDraw }" @tap="onDrawRoute">
-            {{ canDraw ? '✨ 绘制行程' : '绘制行程' }}
-          </text>
         </view>
       </view>
     </view>
@@ -136,7 +136,8 @@
       />
 
       <view :id="'msg-' + messages.length" />
-      <view style="height: 300rpx" />
+      <!-- 底部留白：footer 里除了输入区还多了一个 96rpx 的「生成行程计划」大按钮 -->
+      <view style="height: 460rpx" />
     </scroll-view>
 
       <!-- 生成行程计划进度遮罩（异步任务：检索 → 框架 → 详情，可取消） -->
@@ -215,6 +216,16 @@
           <AppIcon v-if="!loadingAi" name="send" :size="30" color="#ffffff" />
           <view v-else class="stop-icon" />
         </view>
+      </view>
+
+      <!--
+        底部常驻「生成行程计划」（设计稿位置：输入区下方、整行宽）。
+        信息够了（目的地 + 天数已知，与后端 ready.frame 一致）时高亮，提示已经可以点了。
+        动作仍是原来的 onDrawRoute —— 只挪了按钮位置，生成链路没动。
+      -->
+      <view class="gen-btn" :class="{ ready: canDraw }" @tap="onDrawRoute">
+        <AppIcon name="sparkles" :size="32" color="var(--on-brand)" />
+        <text class="gen-btn-text">生成行程计划</text>
       </view>
     </view>
   </view>
@@ -803,20 +814,44 @@ const showEntryOptions = computed(
 )
 
 /** 当前该展示哪一组选项：开场三选一优先，其次是槽位问题 */
-const visibleQuestion = computed<SlotQuestion | null>(() =>
-  showEntryOptions.value ? ENTRY_QUESTION : activeQuestion.value
-)
+const visibleQuestion = computed<SlotQuestion | null>(() => {
+  if (showEntryOptions.value) return ENTRY_QUESTION
+  const q = activeQuestion.value
+  if (!q) return null
+  // 用户已经打字答过这题（本地临时标记，后端快照回来即失效）→ 不再显示，
+  // 否则会出现"我说了这个月月底去，下面却还挂着 这周末/下周/下个月/还没定"
+  if (tripStore.answeredSlots.includes(q.slot)) return null
+  return q
+})
+
+/**
+ * 这段输入算不算「在回答当前这道题」。
+ *
+ * 判定刻意保守：多字、且不是「不知道/随便」这类敷衍话，才认为用户是在作答。
+ * 认错（把无关闲聊当成作答）只是少问一题，认不出则会让同一题反复出现 ——
+ * 后端 SlotEngine.applyText 用的是同一套克制原则：认不出具体值就只消耗问题、不写值。
+ */
+function looksLikeAnswerInput(text: string): boolean {
+  const t = text.trim()
+  if (t.length < 2) return false
+  return !/^(不(知道|清楚|确定)|没(想好|定)|随便|都行|嗯+|哦+|好的?|行)$/.test(t)
+}
+
+/** 用户打字回答当前问题时，立刻把这一排选项收起来（后端随后会给出同一结论） */
+function markCurrentQuestionAnswered() {
+  const q = activeQuestion.value
+  if (q?.slot) tripStore.markSlotAnswered(q.slot)
+}
 
 const ready = computed(() => tripStore.slotState.ready)
 const completeness = computed(() => tripStore.slotState.completeness || 0)
 const answeredCount = computed(() => Object.keys(tripStore.slotState.slots || {}).length)
 
 /**
- * 「绘制行程」是否已经具备条件。
+ * 「生成行程计划」是否已经具备条件。
  *
- * 底部那个「生成行程计划」大按钮已去掉，生成入口只剩顶栏这一个，
- * 所以它必须在可生成时给出明显的视觉信号（高亮 + ✨），否则用户找不到。
- * 条件与后端槽位就绪标记一致：目的地 + 天数已知。
+ * 这个标记只负责给底部常驻大按钮换样式（浅色 → 品牌渐变 + ✨ 图标），
+ * 判定与后端槽位就绪标记一致：目的地 + 天数已知。
  */
 const canDraw = computed(() => !!sessionId.value && ready.value.frame && !finalizing.value)
 
@@ -872,6 +907,8 @@ async function onEntrySelect(value: string) {
   const prompt = ENTRY_PROMPTS[value] || echo
   // 先回显用户点的那句话，messages 长度随即 > 1，选项区自动收起
   messages.value.push({ role: 'user', content: echo })
+  // 开场选项同理立即收起（正常路径由 messages.length > 1 收起，这里兜住异步竞态）
+  tripStore.markSlotAnswered(ENTRY_SLOT)
   scrollToBottom()
   await callAiChat(prompt)
 }
@@ -977,6 +1014,11 @@ async function sendMessage() {
   if (!text) return
   messages.value.push({ role: 'user', content: text })
   inputText.value = ''
+  // 打字作答也要立刻收起这一排选项：不能等后端回复，否则中间那几秒
+  // 屏幕上仍是"用户已经答了、选项还挂着"的矛盾状态（后端随后会给出同一结论）
+  if (looksLikeAnswerInput(text)) {
+    markCurrentQuestionAnswered()
+  }
   scrollToBottom()
 
   // 真实多轮调用：带上本轮 user_input，后端会把历史上下文一并提交给智能体
@@ -1006,36 +1048,40 @@ function goBack() {
 }
 
 /**
- * 绘制行程。
+ * 「生成行程计划」——底部常驻大按钮的点击处理。
  *
  * 取代了原来的「保存草稿」—— 那是个假按钮：点了只弹一句"草稿已保存"，
  * 既没有存草稿接口，也没有任何草稿实体，属于纯粹的误导。
  *
- * 现在的语义是「把行程画出来」：
- *   · 已经生成过行程 → 直接打开「今日路线」看全天闭环路线（分段耗时 + 可逐段导航）
- *   · 生成过但没入库   → 进详情页，用内存里的行程直接画图
- *   · 只是聊过还没生成 → 先触发生成，出结果后自动带去看路线图
+ * 现在的语义是「把行程画出来」，而且**落点与生成完成后的「查看详情 →」完全一致**：
+ *   · 已经生成过行程 → 直接进那趟行程的详情页
+ *   · 生成过但没入库   → 进详情页，用内存里的行程直接渲染
+ *   · 只是聊过还没生成 → 先触发生成，出结果后自动进详情页
  *   · 连一句都没聊     → 提示先和小笺说一句
+ *
+ * 为什么不再跳「今日路线」：那条路只画单日闭环，用户点「生成行程计划」想看的是
+ * 整趟行程（每天安排 + 地图），而详情页里本来就有「地图导航」二级入口进今日路线。
+ * 落点统一成详情页之后，无论从按钮还是从预览卡片进，看到的都是同一个页面。
  */
 async function onDrawRoute() {
   const savedId = currentTrip.value?.id
   if (savedId) {
-    uni.navigateTo({ url: `/pages/trip/route?id=${savedId}&day=0` })
+    goPlanDetail(savedId)
     return
   }
   if (aiPlanData.value) {
-    uni.navigateTo({ url: '/pages/trip/detail' })
+    goPlanDetail('')
     return
   }
   if (!sessionId.value) {
     showToast({ title: '先跟小笺聊一句，我才能画路线', icon: 'none' })
     return
   }
-  // 先生成，生成完直接跳到路线图 —— 用户点「绘制行程」要的就是看到图
+  // 先生成，生成完直接进详情页（与预览卡片「查看详情 →」同一落点）
   await goItinerary()
   const id = currentTrip.value?.id
-  if (id) {
-    uni.navigateTo({ url: `/pages/trip/route?id=${id}&day=0` })
+  if (id || aiPlanData.value) {
+    goPlanDetail(id || '')
   }
 }
 
@@ -1175,9 +1221,11 @@ function cancelGeneration() {
   genMessage.value = '正在取消…'
 }
 
-/** 从生成结果预览卡片进入详情页（含地图路线） */
-function goPlanDetail(tripId: string) {
-  uni.navigateTo({ url: tripId ? `/pages/trip/detail?id=${tripId}` : '/pages/trip/detail' })
+/** 进行程详情页（含地图路线）：生成结果预览与底部大按钮共用同一落点 */
+function goPlanDetail(tripId: string | number) {
+  // 没拿到 id 时退回 currentTrip：详情页无 id 直接用内存里的行程渲染（见 trip/detail onMounted）
+  const id = tripId || currentTrip.value?.id || ''
+  uni.navigateTo({ url: id ? `/pages/trip/detail?id=${id}` : '/pages/trip/detail' })
 }
 
 /** 生成遮罩内地图：点击标记点的回调（暂仅提示，可扩展高亮骨架对应行） */
@@ -1327,7 +1375,7 @@ watch(genFrame, (frame) => {
 
 /* 输入区上移后，滚动区要相应多留底部空白，否则最后一条消息会被输入区挡住 */
 .page.as-tab .chat-scroll {
-  padding-bottom: 200rpx;
+  padding-bottom: 300rpx;
 }
 
 .nav {
@@ -1374,20 +1422,47 @@ watch(genFrame, (frame) => {
   gap: 24rpx;
 }
 
-/* 次要入口：不用主色，避免和「绘制行程」抢注意力 */
+/* 次要入口：不用主色，避免和底部的「生成行程计划」抢注意力 */
 .nav-text-btn.plain {
   color: var(--text-tertiary);
   font-weight: 400;
 }
 
-/* 已具备生成条件：加深+加底色，让「绘制行程」在被需要时跳出来
-   （底部那个生成大按钮去掉后，这里是唯一的生成入口，必须找得到） */
-.nav-text-btn.ready {
-  font-weight: 700;
-  color: #0f6b4a;
-  background: rgba(72, 187, 136, 0.16);
-  padding: 6rpx 18rpx;
+/*
+ * 底部常驻「生成行程计划」。
+ * 默认是"还没聊够"的浅色态，信息够了（canDraw）才切成品牌渐变 ——
+ * 与原来顶栏那枚按钮的 ready 反馈一致，只是位置换到了设计稿指定的输入区下方。
+ */
+.gen-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  height: 96rpx;
   border-radius: 999rpx;
+  background: var(--bg-input);
+  border: 1rpx solid var(--border);
+  transition: all 0.2s ease;
+
+  &.ready {
+    background: var(--brand-grad);
+    border-color: transparent;
+    box-shadow: var(--brand-glow);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.gen-btn-text {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+
+.gen-btn.ready .gen-btn-text {
+  color: var(--on-brand);
 }
 
 /* Mock 模式告警条：黄底，放在消息流最上方，一眼可见 */
@@ -1765,8 +1840,8 @@ watch(genFrame, (frame) => {
   50% { box-shadow: 0 8rpx 32rpx rgba(239, 91, 91, 0.55); }
 }
 
-/* 生成入口已收到顶栏的「绘制行程」，「生成行程」不再单独占一个底部大按钮：
-   对话区的底部只留输入框，视觉上更干净，也避免两个"生成"入口互相抢注意力。 */
+/* 「生成行程计划」按钮的样式见上方 .gen-btn（底部输入区下方）。
+   这里只留生成进度遮罩。 */
 
 /* 生成行程计划：进度遮罩 */
 .gen-overlay {

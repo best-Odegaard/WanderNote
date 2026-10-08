@@ -49,6 +49,20 @@
       }
     },
     {
+      "path": "pages/plan/survey",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "新建行程"
+      }
+    },
+    {
+      "path": "pages/plan/hotel",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "选择酒店"
+      }
+    },
+    {
       "path": "pages/ai/chat",
       "style": {
         "navigationStyle": "custom",

@@ -102,6 +102,7 @@ import TripMap from '@/components/TripMap/TripMap.vue'
 import type { RouteGroup } from '@/components/TripMap/TripMap.vue'
 import AppIcon from '@/components/AppIcon/AppIcon.vue'
 import { useTripStore } from '@/store/trip'
+import type { TripPlan } from '@/api/trip'
 import { MAP_WS_KEY } from '@/utils/constant'
 import type { LatLng } from '@/utils/geo'
 import {
@@ -199,8 +200,7 @@ async function buildRoute() {
   const dayPlan = trip.dayPlans[Math.min(dayIndex.value, trip.dayPlans.length - 1)]
   city.value = trip.toCity || ''
 
-  // 住宿：本批次还没做酒店选择，这里先留出接入点。
-  // 一旦 trip.hotel / trip_hotel 表就绪，把坐标填进来即可自动变成闭环。
+  // 住宿：酒店选择页选中的那家（见 resolveHotel）。有它才闭环成「酒店 → 各站 → 酒店」
   const hotel = resolveHotel(trip)
 
   try {
@@ -223,11 +223,20 @@ async function buildRoute() {
 /**
  * 从行程里解析住宿。
  *
- * 当前行程模型里只有 hotel 名称、没有坐标，所以返回 null（不闭环），
- * 等酒店选择功能把坐标写入后再在这里接上。
+ * 名称取 trip.hotel（后端 TripPlan 本来就有这个字段，酒店选择页会把选中的酒店名写进去），
+ * 坐标取酒店选择页选中的那家店 —— utils/hotels.ts 的候选自带经纬度，所以不必再地理编码。
+ *
+ * 只有「行程里的名字」与「本次选中的酒店」一致时才闭环：
+ *   行程名和选中店对不上（比如打开的是别人的旧行程）就返回 null，
+ *   宁可退回「第一站 → 最后一站」，也不要按另一家酒店的坐标画出一条错路线。
+ * 兜底候选（按城市临时生成的通用酒店）坐标是 0，同样返回 null。
  */
-function resolveHotel(_trip: unknown): RouteHotel | null {
-  return null
+function resolveHotel(trip: TripPlan | null): RouteHotel | null {
+  const picked = tripStore.selectedHotel
+  if (!picked) return null
+  if (trip?.hotel && trip.hotel !== picked.name) return null
+  if (!picked.lat || !picked.lng) return null
+  return { name: picked.name, lat: picked.lat, lng: picked.lng, address: picked.address }
 }
 
 function nodeIcon(node: RouteNode): string {

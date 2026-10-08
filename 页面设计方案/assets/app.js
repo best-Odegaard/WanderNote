@@ -202,6 +202,38 @@
     );
   };
 
+  // 通用二次确认弹窗（用于新建会话等需要防误触的操作）
+  window.wnConfirm = function(opts) {
+    const o = opts || {};
+    const old = document.getElementById('wnConfirmModal');
+    if (old) old.remove();
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask show';
+    mask.id = 'wnConfirmModal';
+    mask.innerHTML = `
+      <div class="modal-panel">
+        <div class="modal-title">${o.title || '确认操作'}</div>
+        ${o.desc ? `<div style="text-align:center;font-size:13px;color:var(--text-secondary);padding:0 8px 20px;line-height:1.6;">${o.desc}</div>` : '<div style="height:12px;"></div>'}
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="closeWnConfirm()">${o.cancelText || '取消'}</button>
+          <button class="btn btn-primary" style="flex:2;" id="wnConfirmOk">${o.okText || '确定'}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(mask);
+    mask.addEventListener('click', (e) => {
+      if (e.target.id === 'wnConfirmModal') window.closeWnConfirm();
+    });
+    mask.querySelector('#wnConfirmOk').addEventListener('click', () => {
+      window.closeWnConfirm();
+      if (typeof o.onOk === 'function') o.onOk();
+    });
+  };
+
+  window.closeWnConfirm = function() {
+    document.getElementById('wnConfirmModal')?.remove();
+  };
+
   // 初始化 sheet 拖拽（简化版：仅支持点击把手切换展开/半屏）
   window.initSheet = function() {
     const grip = document.querySelector('.sheet-grip');

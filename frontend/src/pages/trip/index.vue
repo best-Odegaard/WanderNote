@@ -10,7 +10,7 @@
       <view v-else-if="cards.length === 0" class="empty soft-shadow" @tap="goCreate">
         <AppIcon name="calendar" :size="96" color="var(--text-tertiary)" />
         <text class="empty-title">还没有行程</text>
-        <text class="empty-hint">去首页和 AI 聊一句，就能生成行程</text>
+        <text class="empty-hint">点这里填个问卷，小笺就能开始规划</text>
       </view>
 
       <view v-else class="trip-list">
@@ -27,6 +27,17 @@
 
       <view style="height: 160rpx" />
     </scroll-view>
+
+    <!--
+      右下角悬浮「+」：新建行程（设计稿位置）。
+      自定义 TabBar 中间那颗创建按钮已去掉，新建行程统一从这里进 ——
+      点一下直接到问卷页（pages/plan/survey），比先弹一层菜单少一步。
+      放在本页而不是首页：首页是全屏对话，底部被输入框和「生成行程计划」占满，
+      悬浮按钮只能压在消息上；这里是「我的行程」，新建按钮落在这里也更顺。
+    -->
+    <view class="fab" @tap="goCreate">
+      <AppIcon name="plus" :size="52" color="var(--on-brand)" :stroke-width="2.6" />
+    </view>
 
     <!-- #ifndef MP-WEIXIN -->
     <AppTabBar />
@@ -92,9 +103,9 @@ function openTripChat(trip: TripPlan) {
   uni.navigateTo({ url: `/pages/ai/chat?tripId=${encodeURIComponent(String(trip.id))}` })
 }
 
-/** 新建行程的入口现在是首页的对话：引导用户切到首页说一句 */
+/** 新建行程：走问卷 → 选酒店 → 对话这条主链路（与首页悬浮「+」同一个入口） */
 function goCreate() {
-  uni.switchTab({ url: '/pages/home/index' })
+  uni.navigateTo({ url: '/pages/plan/survey' })
 }
 </script>
 
@@ -169,5 +180,27 @@ function goCreate() {
 
 .trip-list {
   padding-top: 16rpx;
+}
+
+/* 右下角悬浮「+ 新建行程」：抬起一个 TabBar 的高度（约 160rpx），避免被底栏压住 */
+.fab {
+  position: fixed;
+  right: 32rpx;
+  bottom: calc(200rpx + env(safe-area-inset-bottom));
+  z-index: 900;
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  background: var(--brand-grad);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid var(--glass-border);
+  box-shadow: var(--brand-glow), var(--shadow-md);
+  transition: transform 0.2s ease;
+
+  &:active {
+    transform: scale(0.92);
+  }
 }
 </style>

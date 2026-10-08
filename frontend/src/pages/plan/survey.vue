@@ -1,9 +1,11 @@
 <template>
   <view class="page">
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-inner">
-        <text class="back" @tap="goBack">‹</text>
-        <text class="nav-title">生成专属攻略</text>
+      <view class="nav-inner" :style="{ height: navHeight + 'px' }">
+        <view class="back" @tap="goBack">
+          <AppIcon name="chevron-left" :size="34" color="var(--text-body)" />
+        </view>
+        <text class="nav-title">新建行程</text>
       </view>
     </view>
 
@@ -12,74 +14,125 @@
       class="body"
       :style="{ paddingTop: navHeight + 'px' }"
     >
-      <!-- 三步进度 -->
-      <view class="steps">
-        <view
-          v-for="(step, index) in flowSteps"
-          :key="step.key"
-          class="step-item"
-          :class="{ active: index === 0, done: index < 0 }"
-        >
-          <view class="step-dot">{{ index + 1 }}</view>
-          <text class="step-label">{{ step.label }}</text>
+      <!-- 步骤指示器 + 进度条（设计稿位置：标题下方、表单上方） -->
+      <view class="step-head">
+        <text class="step-indicator">{{ step }} / {{ TOTAL_STEPS }} {{ stepLabels[step - 1] }}</text>
+        <view class="step-track">
+          <view class="step-fill" :style="{ width: stepPercent + '%' }" />
         </view>
-        <view class="step-line" />
       </view>
 
       <text class="ai-hint">小笺正在确认您的旅行需求</text>
 
-      <!-- 问题列表 -->
-      <view
-        v-for="(q, qIndex) in questions"
-        :key="q.id"
-        class="question-block"
-      >
-        <text class="question-text">
-          {{ q.text }}{{ q.emoji ? ` ${q.emoji}` : '' }}
-        </text>
-        <view class="options">
-          <view
-            v-for="opt in q.options"
-            :key="opt"
-            class="option"
-            :class="{ selected: answers[q.id] === opt }"
-            @tap="selectOption(q.id, opt)"
-          >{{ opt }}</view>
+      <!-- ============ 1/3 基础信息 ============ -->
+      <view v-if="step === 1" class="step-body">
+        <view class="field">
+          <text class="field-label">目的地</text>
+          <picker mode="selector" :range="CITY_OPTIONS" :value="cityIndex" @change="onCityChange">
+            <view class="pick">{{ destination }}</view>
+          </picker>
         </view>
+
+        <view class="field">
+          <text class="field-label">出行天数</text>
+          <picker mode="selector" :range="DAY_OPTIONS_TEXT" :value="daysIndex" @change="onDaysChange">
+            <view class="pick">{{ days }}</view>
+          </picker>
+        </view>
+
+        <view class="field">
+          <text class="field-label">出行日期</text>
+          <picker mode="date" :value="startDate" @change="onDateChange">
+            <view class="pick">{{ startDate }}</view>
+          </picker>
+        </view>
+      </view>
+
+      <!-- ============ 2/3 偏好设置 ============ -->
+      <view v-else-if="step === 2" class="step-body">
         <view
-          v-if="qIndex === 0"
-          class="add-custom"
-          @tap="openCustomInput"
+          v-for="q in questions"
+          :key="q.id"
+          class="question-block"
         >
+          <text class="question-text">
+            {{ q.text }}{{ q.emoji ? ` ${q.emoji}` : '' }}
+          </text>
+          <view class="options">
+            <view
+              v-for="opt in q.options"
+              :key="opt"
+              class="option"
+              :class="{ selected: answers[q.id] === opt }"
+              @tap="selectOption(q.id, opt)"
+            >{{ opt }}</view>
+          </view>
+        </view>
+
+        <view class="add-custom" @tap="openCustomInput">
           <text>手动添加需求</text>
           <text class="plus">+</text>
         </view>
-      </view>
 
-      <!-- 手动添加的需求 -->
-      <view v-if="customNeeds.length" class="custom-list">
-        <view
-          v-for="(item, i) in customNeeds"
-          :key="i"
-          class="custom-tag"
-        >
-          <text>{{ item }}</text>
-          <text class="remove" @tap="removeCustom(i)">×</text>
+        <view v-if="customNeeds.length" class="custom-list">
+          <view
+            v-for="(item, i) in customNeeds"
+            :key="i"
+            class="custom-tag"
+          >
+            <text>{{ item }}</text>
+            <text class="remove" @tap="removeCustom(i)">×</text>
+          </view>
         </view>
       </view>
 
-      <view style="height: 200rpx" />
+      <!-- ============ 3/3 住宿偏好 ============ -->
+      <view v-else class="step-body">
+        <text class="question-text">住宿想住哪种？🏨</text>
+        <text class="question-hint">选一个档次，下一步按它筛酒店；也可以选「无要求」自己挑。</text>
+        <view class="options">
+          <view
+            v-for="level in HOTEL_LEVEL_CHOICES"
+            :key="level"
+            class="option"
+            :class="{ selected: hotelPreference === level }"
+            @tap="hotelPreference = level"
+          >{{ level }}</view>
+        </view>
+      </view>
+
+      <view style="height: 260rpx" />
     </scroll-view>
 
+    <!-- 底部按钮：上一步（第 1 步隐藏）+ 下一步/选酒店，位置与设计稿一致 -->
     <view class="footer safe-bottom">
-      <button class="btn-submit" @tap="submitRequirements">提交需求</button>
+      <button class="btn-prev" :class="{ hidden: step === 1 }" @tap="prevStep">上一步</button>
+      <button class="btn-next" @tap="nextStep">
+        {{ step === TOTAL_STEPS ? '选择酒店' : '下一步' }}
+      </button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+/**
+ * 问卷页（新建行程的第 1 步）。
+ *
+ * 跳转链路（与设计稿一致）：
+ *   首页悬浮「+」 → 本页 → 选择酒店页（pages/plan/hotel） → AI 对话页（pages/ai/chat）
+ *
+ * 改造点：
+ *   · 原来是一整页平铺所有问题 + 单个「提交需求」按钮，现在按设计稿拆成 3 步，
+ *     底部固定「上一步 / 下一步」，降低一次性填完的心理负担。
+ *   · 目的地/天数/出行日期改成可选（原来只能靠外部页面带 query 进来，
+ *     而首页悬浮按钮进来是没有参数的，默认会变成「重庆 3 天」）。
+ *   · 新增「住宿偏好」，它是酒店选择页的默认筛选条件。
+ *
+ * 未改动：槽位引擎、AI 对话、接口调用 —— 本页只负责组装 currentTrip 并把用户交给下一步。
+ */
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AppIcon from '@/components/AppIcon/AppIcon.vue'
 import { useTripStore } from '@/store/trip'
 import {
   buildSurveyQuestions,
@@ -94,28 +147,74 @@ const systemInfo = uni.getSystemInfoSync()
 const statusBarHeight = systemInfo.statusBarHeight || 20
 const navHeight = statusBarHeight + 48
 
-const flowSteps = [
-  { key: 'understand', label: '理解需求' },
-  { key: 'research', label: '深度研究' },
-  { key: 'generate', label: '生成攻略' }
-]
+const TOTAL_STEPS = 3
+const stepLabels = ['基础信息', '偏好设置', '住宿偏好']
+const step = ref(1)
+const stepPercent = computed(() => Math.round((step.value / TOTAL_STEPS) * 100))
 
-const destination = ref('重庆')
-const days = ref('3天')
+/** 目的地候选（与设计稿问卷下拉一致，另补上对话里常见的几个城市） */
+const CITY_OPTIONS = ['肇庆', '广州', '桂林', '深圳', '厦门', '成都', '重庆', '杭州']
+const DAY_OPTIONS = [1, 2, 3, 4, 5]
+const DAY_OPTIONS_TEXT = DAY_OPTIONS.map((d) => `${d}天`)
+
+/** 住宿档次 + 「无要求」：与 hotels.ts 的 HotelLevel 对应 */
+const HOTEL_LEVEL_CHOICES = ['经济型', '舒适型', '高档型', '特色民宿', '无要求']
+
+const destination = ref(CITY_OPTIONS[0])
+const cityIndex = ref(0)
+const days = ref('1天')
+const daysIndex = ref(0)
+const startDate = ref(formatDate(new Date()))
+
 const answers = reactive<Record<string, string>>({})
 const customNeeds = ref<string[]>([])
+/** 住宿偏好：默认「无要求」，避免用户没想法时被卡在第 3 步 */
+const hotelPreference = ref('无要求')
 
 const questions = computed(() => buildSurveyQuestions(destination.value, days.value))
 
 onLoad((query) => {
   if (query?.city) {
-    destination.value = decodeURIComponent(String(query.city))
+    const city = decodeURIComponent(String(query.city))
+    destination.value = city
+    const i = CITY_OPTIONS.indexOf(city)
+    // 外部带进来的城市不在候选里时，临时插到第一位，别把它悄悄换成肇庆
+    if (i >= 0) {
+      cityIndex.value = i
+    } else {
+      CITY_OPTIONS.unshift(city)
+      cityIndex.value = 0
+    }
   }
   if (query?.days) {
-    const d = decodeURIComponent(String(query.days))
-    days.value = d.includes('天') ? d : `${d}天`
+    const d = parseInt(decodeURIComponent(String(query.days)), 10)
+    if (Number.isFinite(d) && d > 0) {
+      const clamped = Math.min(Math.max(d, DAY_OPTIONS[0]), DAY_OPTIONS[DAY_OPTIONS.length - 1])
+      days.value = `${clamped}天`
+      daysIndex.value = DAY_OPTIONS.indexOf(clamped)
+    }
   }
 })
+
+function formatDate(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
+
+function onCityChange(e: { detail: { value: string | number } }) {
+  cityIndex.value = Number(e.detail.value) || 0
+  destination.value = CITY_OPTIONS[cityIndex.value]
+}
+
+function onDaysChange(e: { detail: { value: string | number } }) {
+  daysIndex.value = Number(e.detail.value) || 0
+  days.value = DAY_OPTIONS_TEXT[daysIndex.value]
+}
+
+function onDateChange(e: { detail: { value: string | number } }) {
+  startDate.value = String(e.detail.value)
+}
 
 function selectOption(questionId: string, option: string) {
   answers[questionId] = option
@@ -142,16 +241,42 @@ function removeCustom(index: number) {
 }
 
 function goBack() {
-  uni.navigateBack()
+  uni.navigateBack({
+    fail: () => uni.switchTab({ url: '/pages/home/index' })
+  })
 }
 
-function submitRequirements() {
-  const missing = questions.value.find((q) => !answers[q.id])
-  if (missing) {
-    showToast({ title: '请完成所有问题', icon: 'none' })
+function prevStep() {
+  if (step.value > 1) step.value--
+}
+
+function nextStep() {
+  if (step.value === 1) {
+    if (!days.value) {
+      showToast({ title: '请选择出行天数', icon: 'none' })
+      return
+    }
+    step.value = 2
     return
   }
+  if (step.value === 2) {
+    const missing = questions.value.find((q) => !answers[q.id])
+    if (missing) {
+      showToast({ title: '请完成所有问题', icon: 'none' })
+      return
+    }
+    step.value = 3
+    return
+  }
+  submitRequirements()
+}
 
+/**
+ * 组装 currentTrip 并进入酒店选择页。
+ *
+ * 注意 resetForNewTrip 会清掉住宿偏好，所以 hotelPreference / currentTrip 的写入都放在它之后。
+ */
+function submitRequirements() {
   const tags = [
     paceToTag(answers.pace),
     answers.interest,
@@ -160,11 +285,16 @@ function submitRequirements() {
   ]
 
   tripStore.resetForNewTrip()
+  tripStore.setHotelPreference(hotelPreference.value)
+
+  const dayCount = parseInt(days.value, 10) || 1
   tripStore.currentTrip = {
-    title: `${destination.value}${days.value.replace('天', '')}日游`,
+    title: `${destination.value}${dayCount}日游`,
     fromCity: '当前城市',
     toCity: destination.value,
-    days: parseInt(days.value, 10) || 3,
+    days: dayCount,
+    startDate: startDate.value,
+    endDate: addDays(startDate.value, dayCount - 1),
     budget: budgetToAmount(answers.budget),
     people: answers.companion.includes('独自') ? 1
       : answers.companion.includes('双人') ? 2
@@ -174,7 +304,18 @@ function submitRequirements() {
     dayPlans: []
   }
 
-  uni.navigateTo({ url: '/pages/ai/chat' })
+  uni.navigateTo({
+    url: `/pages/plan/hotel?city=${encodeURIComponent(destination.value)}`
+      + `&level=${encodeURIComponent(hotelPreference.value)}`
+  })
+}
+
+/** 起始日 + n 天 → 'YYYY-MM-DD'（endDate 含当天，所以传 days-1） */
+function addDays(start: string, offset: number): string {
+  const d = new Date(`${start}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return start
+  d.setDate(d.getDate() + offset)
+  return formatDate(d)
 }
 </script>
 
@@ -198,15 +339,14 @@ function submitRequirements() {
 .nav-inner {
   display: flex;
   align-items: center;
-  height: 96rpx;
   padding: 0 32rpx;
 }
 
 .back {
-  font-size: 56rpx;
-  color: var(--text-main);
+  display: flex;
+  align-items: center;
   margin-right: 16rpx;
-  line-height: 1;
+  padding: 8rpx;
 }
 
 .nav-title {
@@ -221,61 +361,32 @@ function submitRequirements() {
   box-sizing: border-box;
 }
 
-.steps {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  position: relative;
-  padding: 24rpx 16rpx 32rpx;
+/* ── 步骤指示器 ── */
+.step-head {
+  padding: 24rpx 0 20rpx;
 }
 
-.step-line {
-  position: absolute;
-  top: 44rpx;
-  left: 80rpx;
-  right: 80rpx;
-  height: 4rpx;
-  background: var(--border);
-  z-index: 0;
+.step-indicator {
+  display: block;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--primary-strong);
+  margin-bottom: 16rpx;
 }
 
-.step-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12rpx;
-  z-index: 1;
-  flex: 1;
+.step-track {
+  width: 100%;
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--bg-input);
+  overflow: hidden;
+}
 
-  .step-dot {
-    width: 48rpx;
-    height: 48rpx;
-    border-radius: 50%;
-    background: var(--bg-input);
-    color: var(--text-tertiary);
-    font-size: var(--fs-meta);
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .step-label {
-    font-size: var(--fs-meta);
-    color: var(--text-tertiary);
-  }
-
-  &.active {
-    .step-dot {
-      background: #4a9ef5;
-      color: #fff;
-    }
-
-    .step-label {
-      color: #4a9ef5;
-      font-weight: 600;
-    }
-  }
+.step-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--brand-grad);
+  transition: width 0.3s ease;
 }
 
 .ai-hint {
@@ -283,11 +394,39 @@ function submitRequirements() {
   text-align: center;
   font-size: var(--fs-meta);
   color: var(--text-tertiary);
-  margin-bottom: 40rpx;
+  margin-bottom: 32rpx;
+}
+
+.step-body {
+  padding-bottom: 24rpx;
+}
+
+/* ── 表单 ── */
+.field {
+  margin-bottom: 32rpx;
+}
+
+.field-label {
+  display: block;
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 16rpx;
+}
+
+.pick {
+  height: 88rpx;
+  line-height: 88rpx;
+  padding: 0 32rpx;
+  background: var(--bg-card);
+  border: 1rpx solid var(--border);
+  border-radius: 24rpx;
+  font-size: var(--fs-body);
+  color: var(--text-main);
 }
 
 .question-block {
-  margin-bottom: 48rpx;
+  margin-bottom: 40rpx;
 }
 
 .question-text {
@@ -297,6 +436,14 @@ function submitRequirements() {
   line-height: 1.5;
   display: block;
   margin-bottom: 24rpx;
+}
+
+.question-hint {
+  display: block;
+  font-size: var(--fs-meta);
+  color: var(--text-tertiary);
+  line-height: 1.6;
+  margin: -12rpx 0 24rpx;
 }
 
 .options {
@@ -316,9 +463,10 @@ function submitRequirements() {
   transition: all 0.2s;
 
   &.selected {
-    background: var(--primary-soft);
-    border-color: #4a9ef5;
-    color: var(--primary-strong);
+    background: var(--brand-soft);
+    border-color: var(--brand);
+    color: var(--brand-deep);
+    font-weight: 600;
   }
 }
 
@@ -327,25 +475,24 @@ function submitRequirements() {
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  margin-top: 20rpx;
   padding: 20rpx;
   background: var(--bg-card);
   border-radius: 16rpx;
   font-size: var(--fs-body);
   color: var(--text-secondary);
-  border: 1rpx solid var(--border);
+  border: 1rpx dashed var(--border-strong);
 }
 
 .plus {
   font-size: var(--fs-title);
-  color: #4a9ef5;
+  color: var(--brand-ink);
 }
 
 .custom-list {
   display: flex;
   flex-wrap: wrap;
   gap: 12rpx;
-  margin-bottom: 24rpx;
+  margin-top: 24rpx;
 }
 
 .custom-tag {
@@ -354,10 +501,10 @@ function submitRequirements() {
   gap: 8rpx;
   padding: 12rpx 20rpx;
   background: var(--bg-card);
-  border: 1rpx solid #4a9ef5;
+  border: 1rpx solid var(--brand);
   border-radius: 999rpx;
   font-size: var(--fs-meta);
-  color: var(--primary-strong);
+  color: var(--brand-deep);
 }
 
 .remove {
@@ -366,28 +513,47 @@ function submitRequirements() {
   padding-left: 4rpx;
 }
 
+/* ── 底部按钮（设计稿：上一步 flex-1 描边，下一步 flex-2 渐变）── */
 .footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20rpx 32rpx;
-  background: transparent;
+  display: flex;
+  gap: 24rpx;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: var(--bg-card);
+  border-top: 1rpx solid var(--border);
 }
 
-.btn-submit {
-  width: 100%;
+.btn-prev,
+.btn-next {
   height: 96rpx;
   line-height: 96rpx;
-  background: #4a9ef5;
-  color: #fff;
   border-radius: 48rpx;
   font-size: var(--fs-title);
-  font-weight: 600;
   border: none;
 
   &::after {
     border: none;
   }
+}
+
+.btn-prev {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1rpx solid var(--border-strong);
+  color: var(--text-main);
+
+  &.hidden {
+    visibility: hidden;
+  }
+}
+
+.btn-next {
+  flex: 2;
+  background: var(--brand-grad);
+  color: var(--on-brand);
+  font-weight: 700;
 }
 </style>

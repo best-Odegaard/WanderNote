@@ -114,6 +114,30 @@
             <view class="schedule-card soft-shadow">
               <view class="schedule-head">
                 <text class="time">{{ s.timeStart }}-{{ s.timeEnd }} {{ s.title }}</text>
+                <!--
+                  调序 / 删除：按设计稿挪到卡片右上角（原来挤在卡片底部的操作行里，
+                  和「导航」混在一起，一列四个文字按钮不好按也不好认）。
+                  精选行程是别人的内容，只读：不提供调序/删除。
+                -->
+                <view v-if="!isFeaturedPreview" class="card-tools">
+                  <view
+                    class="tool"
+                    :class="{ disabled: i === 0 }"
+                    @tap.stop="moveUp(i)"
+                  >
+                    <AppIcon name="arrow-up" :size="28" color="var(--brand-ink)" />
+                  </view>
+                  <view
+                    class="tool"
+                    :class="{ disabled: i >= currentSchedules.length - 1 }"
+                    @tap.stop="moveDown(i)"
+                  >
+                    <AppIcon name="arrow-down" :size="28" color="var(--brand-ink)" />
+                  </view>
+                  <view class="tool" @tap.stop="removeSchedule(i)">
+                    <AppIcon name="delete" :size="28" color="var(--danger)" />
+                  </view>
+                </view>
               </view>
               <view class="schedule-body">
                 <image v-if="s.image" class="thumb-img" :src="s.image" mode="aspectFill" />
@@ -135,11 +159,6 @@
               </view>
               <view class="card-ops">
                 <text class="op" @tap.stop="onNavigate(s)">🧭 导航</text>
-                <!-- 精选行程是别人的内容，只读：不提供调序/删除 -->
-                <template v-if="!isFeaturedPreview">
-                  <text class="op" @tap.stop="moveUp(i)">↑↓调整顺序</text>
-                  <text class="op del" @tap.stop="removeSchedule(i)">删除</text>
-                </template>
               </view>
             </view>
           </view>
@@ -156,7 +175,7 @@
           <button class="btn-black footer-main" @tap="openDateSheet">添加到我的行程</button>
         </view>
         <view v-else class="sheet-footer safe-bottom">
-          <button class="btn-mint-outline" @tap="onMapRoute">今日路线</button>
+          <button class="btn-mint-outline" @tap="onMapRoute">生成地图路线</button>
           <button class="btn-black footer-main" @tap="onSave">保存行程</button>
         </view>
         <!-- 删除行程：破坏性操作，独立成行放在主操作下方，避免误触。
@@ -755,6 +774,14 @@ function moveUp(index: number) {
   reassignTimeSlots(activeDayIndex.value)
 }
 
+/** 下移一位：与 moveUp 对称，时间同样重排（设计稿卡片右上角的 ↓） */
+function moveDown(index: number) {
+  const list = detailSchedules.value[activeDayIndex.value]
+  if (!list || index >= list.length - 1) return
+  ;[list[index], list[index + 1]] = [list[index + 1], list[index]]
+  reassignTimeSlots(activeDayIndex.value)
+}
+
 function removeSchedule(index: number) {
   detailSchedules.value[activeDayIndex.value]?.splice(index, 1)
   // 删除后剩余项时间段重新分配，保持时间轴连续
@@ -771,7 +798,7 @@ function onNavigate(s: DetailSchedule) {
 }
 
 /**
- * 进入「今日路线」：把当天行程变成一条可照着走的闭环路线（分段耗时 + 接续导航）。
+ * 「生成地图路线」：把当天行程变成一条可照着走的闭环路线（分段耗时 + 接续导航）。
  *
  * 原来是「导航到当天第一个景点」，只解决了一个点 —— 用户走完第一个点就没了下文。
  * 现在整天的移动交给路线页：起点终点一致、每段都能一键唤起地图。
@@ -821,8 +848,9 @@ async function onSave() {
   } catch {
     showToast({ title: '行程已保存', icon: 'success' })
   }
-  // 保存后退出详情界面（重新进入时地图按需重绘）
-  setTimeout(() => uni.switchTab({ url: '/pages/trip/index' }), 600)
+  // 保存后回首页（设计稿里 itinerary 的「保存行程」就是回首页），
+  // 顺带离开详情页，重新进入时地图按需重绘
+  setTimeout(() => uni.switchTab({ url: '/pages/home/index' }), 600)
 }
 
 /** 删除行程：不可恢复，必须二次确认；成功后回行程列表 */
@@ -1340,10 +1368,39 @@ function onChatModify() {
 }
 
 .schedule-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
   margin-bottom: 16rpx;
 }
 
+/* 卡片右上角的调序/删除按钮（设计稿位置） */
+.card-tools {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+
+.tool {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-muted);
+
+  /* 首项不能再上移、末项不能再下移：置灰且不响应点击 */
+  &.disabled {
+    opacity: 0.3;
+  }
+}
+
 .time {
+  flex: 1;
+  min-width: 0;
   font-size: 28rpx;
   font-weight: 700;
   color: var(--text-main);
@@ -1426,7 +1483,7 @@ function onChatModify() {
 
 .card-ops {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-top: 20rpx;
   padding-top: 16rpx;
   border-top: 1rpx solid var(--border);

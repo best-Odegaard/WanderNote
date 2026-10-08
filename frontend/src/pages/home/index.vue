@@ -21,6 +21,11 @@
  * 迁移去向：
  *   · 原来的「我的行程」卡片 → 行程 tab（pages/trip/index）
  *   · 原来的轮播图 → 以卡片形式放到探索 tab（pages/coming/index）
+ *
+ * 新建行程的入口（设计稿的右下角悬浮「+」→ 问卷页）：放在「我的行程」页，
+ * 见 pages/trip/index.vue 的空状态与悬浮按钮。
+ * 首页不放 —— 首页本身是全屏对话，底部被输入框与「生成行程计划」占满，
+ * 悬浮按钮只能压到消息上面，反而挡住内容。
  */
 import ChatPlanner from '@/components/ChatPlanner/ChatPlanner.vue'
 import AppTabBar from '@/components/AppTabBar/AppTabBar.vue'

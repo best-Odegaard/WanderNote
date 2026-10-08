@@ -4,6 +4,7 @@ import * as tripApi from '@/api/trip'
 import { clearActiveChatSession } from '@/utils/chatSession'
 import { emptySlotState } from '@/api/trip'
 import type { TripPlan, PlanResponse, SlotState } from '@/api/trip'
+import type { HotelOption } from '@/utils/hotels'
 
 export const useTripStore = defineStore('trip', () => {
   const currentTrip = ref<TripPlan | null>(null)
@@ -22,9 +23,60 @@ export const useTripStore = defineStore('trip', () => {
    */
   const slotState = ref<SlotState>(emptySlotState())
 
+  /**
+   * 已经用打字回答掉的槽位（本地即时收起 chips 用）。
+   *
+   * 为什么需要它：后端槽位引擎要等这一轮 /travel/chat 回来才知道「用户已经答过这题」，
+   * 而用户点发送之后到回复到达之间有一段时间 —— 那排选项如果还挂在屏幕上，
+   * 看起来就像「我说了它没听见」，用户会以为得再点一次选项。
+   *
+   * 只负责这一小段空窗，不写值：真实值仍由后端从用户输入里抽
+   * （见 SlotEngine.applyText），前端不猜用户的答案。
+   */
+  const answeredSlots = ref<string[]>([])
+
+  function markSlotAnswered(slot: string) {
+    if (!slot || answeredSlots.value.includes(slot)) return
+    answeredSlots.value = [...answeredSlots.value, slot]
+  }
+
   /** 用后端返回的快照整体覆盖（后端是唯一事实来源，前端不做增量合并） */
   function setSlotState(next?: SlotState | null) {
     slotState.value = next ?? emptySlotState()
+    // 后端快照一到就以它为准：本地「已答过」的临时标记完成使命
+    answeredSlots.value = []
+  }
+
+  /**
+   * 住宿偏好（问卷里选的档次：经济型/舒适型/高档型/特色民宿/无要求）。
+   * 只作为酒店选择页的默认筛选条件，不进后端槽位 —— 槽位里的 hotelStyle 由后端引擎管，
+   * 这里是问卷这条链路自己的入参。
+   */
+  const hotelPreference = ref('')
+
+  /**
+   * 用户选中的酒店。
+   *
+   * 为什么要放 store：酒店选择页、行程详情、路线页要读同一份数据，
+   * 而且路线页需要它的坐标才能把行程补成「酒店 → 各站 → 酒店」的闭环
+   * （见 utils/routeBuild.ts 的 RouteHotel）。
+   */
+  const selectedHotel = ref<HotelOption | null>(null)
+
+  function setHotelPreference(level: string) {
+    hotelPreference.value = level || ''
+  }
+
+  /**
+   * 选中一家酒店。
+   * 同时把名称写回 currentTrip.hotel —— 后端 TripPlan 本来就有这个字段（无需改后端），
+   * 保存行程时它能一起落库，这样「下次打开行程还记得住哪」。
+   */
+  function setSelectedHotel(hotel: HotelOption | null) {
+    selectedHotel.value = hotel
+    if (currentTrip.value) {
+      currentTrip.value.hotel = hotel?.name || ''
+    }
   }
 
   /** 取某个槽位的值（没有则返回空串），模板里比链式可选取值清爽 */
@@ -37,6 +89,8 @@ export const useTripStore = defineStore('trip', () => {
     currentTrip.value = null
     currentAiResponse.value = null
     slotState.value = emptySlotState()
+    hotelPreference.value = ''
+    selectedHotel.value = null
     clearActiveChatSession()
   }
 
@@ -80,7 +134,13 @@ export const useTripStore = defineStore('trip', () => {
     pendingTripContext,
     slotState,
     setSlotState,
+    answeredSlots,
+    markSlotAnswered,
     slotValue,
+    hotelPreference,
+    selectedHotel,
+    setHotelPreference,
+    setSelectedHotel,
     resetForNewTrip,
     saveTrip,
     deleteTrip,

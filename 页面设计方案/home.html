@@ -8,21 +8,25 @@
 </head>
 <body>
   <div class="page">
-    <section class="hero">
-      <div class="hero-title">对话即行程</div>
-      <div class="hero-subtitle">想去哪儿，跟小笺聊几句就出发</div>
-      <div class="hero-pills">
-        <span class="hero-pill">🧭 决策</span>
-        <span class="hero-pill">📋 编排</span>
-        <span class="hero-pill">🚗 执行</span>
-      </div>
-    </section>
-
     <div class="hero-input-wrap">
       <form class="hero-input" onsubmit="startChat(event)">
         <input type="text" id="heroInput" placeholder="例如：肇庆 2 天，亲子，想看落羽杉" autocomplete="off">
         <button type="submit" class="send-btn">➤</button>
       </form>
+    </div>
+
+    <div class="quick-trips">
+      <div class="section-header">
+        <span class="section-title">灵感推荐</span>
+        <a href="explore.html" class="section-more">探索 ›</a>
+      </div>
+      <a href="explore-city.html?city=zq" class="card" style="display:flex; margin:0 16px 16px; overflow:hidden;">
+        <div style="width:100px;height:100px;background:linear-gradient(135deg,#a7f3d0,#5eead4);display:flex;align-items:center;justify-content:center;font-size:48px;">🏞️</div>
+        <div style="flex:1;padding:14px;display:flex;flex-direction:column;justify-content:center;">
+          <div style="font-size:16px;font-weight:700;color:var(--text-main);margin-bottom:4px;">肇庆 · 落羽杉季</div>
+          <div style="font-size:13px;color:var(--text-secondary);">全国最大溶洞群，冬季恒温 20℃</div>
+        </div>
+      </a>
     </div>
 
     <div class="quick-trips">
@@ -42,20 +46,6 @@
         <div class="list-body">
           <div class="list-title">重庆 3 天 2 夜</div>
           <div class="list-meta">规划中 · 火锅 · 夜景 · 轻轨穿楼</div>
-        </div>
-      </a>
-    </div>
-
-    <div class="quick-trips">
-      <div class="section-header">
-        <span class="section-title">灵感推荐</span>
-        <a href="explore.html" class="section-more">探索 ›</a>
-      </div>
-      <a href="explore-city.html?city=zq" class="card" style="display:flex; margin:0 16px 16px; overflow:hidden;">
-        <div style="width:100px;height:100px;background:linear-gradient(135deg,#a7f3d0,#5eead4);display:flex;align-items:center;justify-content:center;font-size:48px;">🏞️</div>
-        <div style="flex:1;padding:14px;display:flex;flex-direction:column;justify-content:center;">
-          <div style="font-size:16px;font-weight:700;color:var(--text-main);margin-bottom:4px;">肇庆 · 落羽杉季</div>
-          <div style="font-size:13px;color:var(--text-secondary);">全国最大溶洞群，冬季恒温 20℃</div>
         </div>
       </a>
     </div>

@@ -3,7 +3,7 @@
     <view class="tab-bar safe-bottom">
       <view class="tab-bar-inner">
         <view
-          v-for="(tab, index) in leftTabs"
+          v-for="(tab, index) in tabs"
           :key="tab.path"
           class="tab-item"
           :class="{ active: selected === index }"
@@ -21,52 +21,22 @@
           </view>
           <text class="tab-text">{{ tab.text }}</text>
         </view>
-
-        <view class="tab-create" @tap="onCreate">
-          <view class="create-btn">
-            <view class="create-sheen" />
-            <AppIcon
-              name="plus"
-              :size="52"
-              color="var(--on-brand)"
-              :stroke-width="2.6"
-              class="create-icon"
-            />
-          </view>
-          <text class="create-text">创建行程</text>
-        </view>
-
-        <view
-          v-for="(tab, index) in rightTabs"
-          :key="tab.path"
-          class="tab-item"
-          :class="{ active: selected === index + 2 }"
-          @tap="switchTab(index + 2)"
-        >
-          <view class="tab-icon-wrap">
-            <view class="tab-indicator" />
-            <AppIcon
-              :name="tab.icon"
-              :size="44"
-              :color="selected === index + 2 ? tab.activeColor : tab.color"
-              :stroke-width="selected === index + 2 ? 2.4 : 2"
-              class="tab-icon"
-            />
-          </view>
-          <text class="tab-text">{{ tab.text }}</text>
-        </view>
       </view>
     </view>
-
-    <CreatePlanMenu />
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+/**
+ * 自定义 TabBar（四格：首页 / 行程 / 探索 / 我的）。
+ *
+ * 中间那颗「+ 创建行程」按钮已按设计稿去掉：
+ * 新建行程的入口改为「我的行程」页右下角的悬浮「+」（见 pages/trip/index.vue），
+ * 点一下直接进问卷页，比先弹一层菜单少一步。
+ * 组件 CreatePlanMenu 保留在 components 下，「智能导入 / 采集识别」上线时可直接复用。
+ */
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/store/app'
-import CreatePlanMenu from '@/components/CreatePlanMenu/CreatePlanMenu.vue'
 import AppIcon from '@/components/AppIcon/AppIcon.vue'
 
 const appStore = useAppStore()
@@ -79,18 +49,10 @@ const tabs = [
   { path: '/pages/profile/index', text: '我的', icon: 'user', color: 'var(--text-tertiary)', activeColor: 'var(--brand-ink)' }
 ]
 
-const leftTabs = computed(() => tabs.slice(0, 2))
-const rightTabs = computed(() => tabs.slice(2))
-
 function switchTab(index: number) {
   if (selected.value === index) return
-  appStore.closeCreateMenu()
   appStore.setTabbarIndex(index)
   uni.switchTab({ url: tabs[index].path })
-}
-
-function onCreate() {
-  appStore.toggleCreateMenu()
 }
 </script>
 
@@ -189,62 +151,5 @@ function onCreate() {
   color: var(--text-tertiary);
   margin-top: 4rpx;
   transition: color $dur-base $ease-out;
-}
-
-.tab-create {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  justify-content: flex-end;
-  padding-bottom: 8rpx;
-}
-
-.create-btn {
-  position: relative;
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: 50%;
-  background: var(--brand-grad);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  // 用玻璃高光描边替代原来的粗白圈，更贴合 B 方案
-  border: 2rpx solid var(--glass-border);
-  box-shadow: var(--brand-glow), var(--shadow-md);
-  // 上浮突出，压住 TabBar 上沿
-  margin-top: -46rpx;
-  transition: transform $dur-base $ease-spring, box-shadow $dur-base $ease-out;
-  overflow: hidden;
-
-  &:active {
-    transform: scale(0.92);
-    box-shadow: var(--shadow-sm);
-  }
-}
-
-/* 顶部弧形高光，让圆形按钮有玻璃球的质感 */
-.create-sheen {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 52%;
-  background: var(--sheen);
-  pointer-events: none;
-}
-
-.create-icon {
-  position: relative;
-  z-index: 1;
-  line-height: 1;
-}
-
-.create-text {
-  font-size: 20rpx;
-  color: var(--text-secondary);
-  margin-top: 6rpx;
-  font-weight: 500;
 }
 </style>
