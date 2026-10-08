@@ -35,7 +35,10 @@ REMOTE_BACKEND_LOG="$REMOTE_BACKEND_DIR/backend.log"
 LOCAL_BACKEND="$PROJECT_ROOT/backend"
 LOCAL_JAR="$LOCAL_BACKEND/gkv-server/target/gkv-server-1.0-SNAPSHOT.jar"
 LOCAL_H5="$PROJECT_ROOT/frontend/dist/build/h5"
-LOCAL_SQL_DIR="$LOCAL_BACKEND/sql"
+# SQL 脚本目录：仓库里一直是「部署表结构/」，而这里以前写的是 backend/sql（不存在）——
+# 于是 SQL 分支永远走「目录无脚本」，新表（如 V2.6 trip_hotel / V2.7 hotel_candidate）
+# 只能靠人手 scp，部署脚本等于少了一条腿。注意：本脚本只**上传**脚本，从不自动执行。
+LOCAL_SQL_DIR="$PROJECT_ROOT/部署表结构"
 
 # 部署标记文件（记录上次部署时间，用于自动判断改动）
 MARKER="$PROJECT_ROOT/.deploy_marker"
