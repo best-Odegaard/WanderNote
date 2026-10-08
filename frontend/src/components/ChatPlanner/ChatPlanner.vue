@@ -666,6 +666,70 @@ function buildPlanPreview(response: PlanResponse): PlanPreview {
 }
 
 /**
+ * 「信息够了，可以生成行程」这句状态提示的文案。
+ *
+ * 它本质上是当前状态的一个后缀说明，不是一轮独立对话 ——
+ * 所以两种输入路径都把它**接在最后一条 AI 消息的正文末尾**，而不是单开一条气泡
+ * （单开一条只有这句话的气泡看起来像答非所问，实测反馈的就是这个）。
+ */
+function readyHintText(): string {
+  return currentTrip.value?.id
+    ? '需求已经够了，点下方按钮可以按最新对话重新生成行程。'
+    : '基本信息够了，点下方按钮就能生成行程。'
+}
+
+/** AI 正文里是不是已经表达了「可以生成行程」，避免同一句说两遍 */
+function mentionsGenerateHint(text: string): boolean {
+  return /生成行程|生成计划|点下方按钮|绘制行程/.test(text || '')
+}
+
+/** 整段对话里是否已经出现过这句提示（同一次会话只提示一次，避免每条回复都挂一遍） */
+function hasReadyHintAnywhere(): boolean {
+  return messages.value.some((m) => m.role === 'assistant' && mentionsGenerateHint(m.content))
+}
+
+/**
+ * 把状态提示接到最后一条 AI 消息的正文里。
+ *
+ * 只改屏幕上的气泡（messages），**不改 chatHistory**：
+ * 这句话是「当前状态的后缀说明」，不是 AI 真说过的一轮话，
+ * 塞进历史会让模型下一轮看到「你想玩几天？\n\n基本信息够了…」这种奇怪的上下文。
+ * 对话历史的轮次交替由原来的逻辑保证（槽位问题本来就会入历史）。
+ *
+ * @returns 是否真的追加了（已提示过 / 没有可接的 AI 气泡 → false，由调用方决定兜底）
+ */
+function appendReadyHintToLastAssistant(): boolean {
+  if (hasReadyHintAnywhere()) return false
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    const msg = messages.value[i]
+    if (msg.role !== 'assistant') continue
+    // 空白占位/已停止的气泡不接这段话：它们不是「AI 在跟你说话」
+    if (!msg.content?.trim() || msg.content.includes('⏸')) return false
+    msg.content = `${msg.content.trim()}\n\n${readyHintText()}`
+    return true
+  }
+  return false
+}
+
+/**
+ * 打字（/travel/chat）链路的收尾：后端说「框架信息够了」就把提示接进正文。
+ *
+ * 为什么放在这里：点选项的槽位链路会自己判断「没有下一问 = 信息够了」，
+ * 而打字链路以前**什么都不提示** —— 同一个状态，点选能看到提示、打字看不到，
+ * 用户不知道可以生成行程了。
+ */
+function maybeAppendReadyHint() {
+  if (!tripStore.slotState.ready?.frame) return
+  if (appendReadyHintToLastAssistant()) return
+  // 走到这里只有两种可能：已经提示过（什么都不用做），或还没有任何 AI 气泡可接。
+  // 后者兜底单开一条 —— 这时它确实是本轮唯一的 AI 回复，会同时进历史保证轮次交替。
+  if (hasReadyHintAnywhere()) return
+  const hint = readyHintText()
+  messages.value.push({ role: 'assistant', content: hint })
+  chatHistory.value.push({ role: 'assistant', content: hint })
+}
+
+/**
  * 多轮对话：优先走 SSE 流式，不可用时回落到整包接口。
  * @param userInput 本轮用户输入
  */
@@ -691,6 +755,7 @@ async function callAiChat(userInput: string) {
     // 流式优先：先逐字显示，首字几百毫秒就能看到。
     // 任一环节不可用（小程序端、SSE 建连失败、后端没起流式端点）都回落整包，保证对话永远能用。
     if (canStreamChat() && (await tryStreamChat(params))) {
+      maybeAppendReadyHint()
       return
     }
     const response: AiChatResponse = await chatWithAi(params)
@@ -699,6 +764,7 @@ async function callAiChat(userInput: string) {
       role: 'assistant',
       content: response.reply || '（AI 暂无回复）'
     })
+    maybeAppendReadyHint()
   } catch (err: any) {
     console.error('AI 对话失败:', err)
     // 用户点击暂停中止请求：不算错误，提示"已停止"并恢复输入
@@ -1203,9 +1269,6 @@ async function answerSlot(slot: string, value: string, skipped: boolean, echo: s
   try {
     const next = await submitSlotAnswer({ sessionId: sessionId.value, slot, value, skipped })
     tripStore.setSlotState(next)
-    const q = next.nextQuestion
-    const reply = q ? q.text : '基本信息够了，点下方按钮就能生成行程。'
-    messages.value.push({ role: 'assistant', content: reply })
 
     // [F] 把这一轮「点选项」的问答补进对话历史，让模型看得见用户点过什么。
     //
@@ -1218,8 +1281,23 @@ async function answerSlot(slot: string, value: string, skipped: boolean, echo: s
     //
     // 只补内存里的 chatHistory、**不落库**：chat_history 表仍只存模型回合，
     // 后端统计轮次（round）用的也是模型回合数，语义不变。
+    // 顺序必须是 user → assistant，否则模型看到的轮次是反的。
     chatHistory.value.push({ role: 'user', content: echo })
-    chatHistory.value.push({ role: 'assistant', content: reply })
+
+    const q = next.nextQuestion
+    if (q) {
+      // 还有下一问：它就是这一轮的 AI 回复，正常单开一条
+      messages.value.push({ role: 'assistant', content: q.text })
+      chatHistory.value.push({ role: 'assistant', content: q.text })
+    } else if (!appendReadyHintToLastAssistant()) {
+      // 没有下一问 = 信息够了：把「可以生成行程」接进上一条 AI 正文，不单开气泡。
+      // 只有确实没提示过、且没有 AI 气泡可接时才兜底单开一条。
+      if (!hasReadyHintAnywhere()) {
+        const hint = readyHintText()
+        messages.value.push({ role: 'assistant', content: hint })
+        chatHistory.value.push({ role: 'assistant', content: hint })
+      }
+    }
 
     scrollToBottom()
   } catch (e) {
