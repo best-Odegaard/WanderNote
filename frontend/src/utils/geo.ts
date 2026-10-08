@@ -42,37 +42,110 @@ function cacheKey(address: string, city?: string): string {
 }
 
 // ===== 通用 JSONP（H5，绕过 CORS） =====
+
+/**
+ * 腾讯 WebService 的调用节流（全局串行 + 最小间隔）。
+ *
+ * 为什么必须限流 —— 实测该 Key 的限额（响应头 `X-Limit`）：
+ *   `current_qps=1; limit_qps=5; current_pv=13; limit_pv=6000`
+ * 即 **5 次/秒、6000 次/天**。而「一天 4 个点」的行程在页面里几乎是同时发出请求的：
+ * 每个点的地理编码 + 每一段的驾车路线 + 整天路线，一次并发就超过 5 QPS，
+ * 超额时腾讯返回 `status=120 此key每秒请求量已达上限`，表现出来就是
+ * 「每一段都没能规划出路线」（实测第 6 个并发请求就命中 120）。
+ *
+ * 处理方式：把 WebService 请求串起来，两次之间至少间隔 250ms（≈4 QPS，留余量），
+ * 命中限流再退避重试一次。代价是一天的路线规划慢几百毫秒，换来的是能规划出来。
+ */
+const WS_MIN_INTERVAL_MS = 250
+let wsNextAt = 0
+let wsChain: Promise<unknown> = Promise.resolve()
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function withWsLimit<T>(task: () => Promise<T>): Promise<T> {
+  const run = wsChain.then(async () => {
+    const wait = wsNextAt - Date.now()
+    if (wait > 0) await sleep(wait)
+    wsNextAt = Date.now() + WS_MIN_INTERVAL_MS
+    return task()
+  })
+  // 链上不保留失败：一次请求失败不能把后面的请求全卡住
+  wsChain = run.then(
+    () => undefined,
+    () => undefined
+  )
+  return run as Promise<T>
+}
+
+/** 限流/超额的状态码（120=每秒超额，121=当日超额） */
+function isRateLimited(data: any): boolean {
+  return data?.status === 120 || data?.status === 121
+}
+
 // #ifdef H5
-function jsonpRequest(url: string, timeoutMs = 12000): Promise<any> {
+function jsonpRequest(url: string, timeoutMs = 20000): Promise<any> {
   return new Promise((resolve) => {
     const cb = `__qq_jsonp_${Date.now()}_${Math.floor(Math.random() * 1e6)}`
     let timer: ReturnType<typeof setTimeout> | null = null
+    let settled = false
     const win = window as any
-    win[cb] = (data: any) => {
-      if (timer) clearTimeout(timer)
-      cleanup()
-      resolve(data)
-    }
-    function cleanup() {
+
+    const cleanup = () => {
       delete win[cb]
       if (s.parentNode) s.parentNode.removeChild(s)
     }
+
+    const settle = (val: any) => {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
+      resolve(val)
+    }
+
+    win[cb] = (data: any) => {
+      settle(data)
+      cleanup()
+    }
+
     const s = document.createElement('script')
     s.src = `${url}&output=jsonp&callback=${cb}`
     s.async = true
     s.onerror = () => {
-      if (timer) clearTimeout(timer)
-      cleanup()
       console.warn('[geo] JSONP 请求失败:', url.slice(0, 120))
-      resolve(null)
+      settle(null)
+      cleanup()
     }
     document.head.appendChild(s)
+
     timer = setTimeout(() => {
-      cleanup()
       console.warn('[geo] JSONP 请求超时:', url.slice(0, 120))
-      resolve(null)
+      settle(null)
+      // 关键：**不要在超时那一刻就把回调删掉**。
+      // 被限流/排队时响应可能晚到，此时浏览器仍会执行 `cb(...)`，
+      // 而回调已经不存在 → 控制台抛 `Uncaught ReferenceError: __qq_jsonp_xxx is not defined`
+      // （实测就是这个报错）。留一个宽限期把晚到的响应安静地吞掉，再清理。
+      setTimeout(cleanup, 60000)
     }, timeoutMs)
   })
+}
+
+/** 带限流退避的 JSONP 请求：命中 120/121 时退避 1.2s 重试一次 */
+async function tencentJsonp(url: string): Promise<any> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const data = await jsonpRequest(url)
+    if (data && isRateLimited(data) && attempt === 1) {
+      console.warn('[geo] 地图服务限流，退避后重试一次:', data.message)
+      await sleep(1200)
+      continue
+    }
+    if (data && isRateLimited(data)) {
+      console.warn('[geo] 地图服务仍在限流，放弃本次请求:', data.message)
+    }
+    return data
+  }
+  return null
 }
 // #endif
 
@@ -87,26 +160,30 @@ function geocodeByRequest(query: string, city?: string): Promise<LatLng | null> 
     `&key=${encodeURIComponent(MAP_WS_KEY)}` +
     (city ? `&city=${encodeURIComponent(city)}` : '')
 
-  return new Promise<LatLng | null>((resolve) => {
-    uni.request({
-      url,
-      method: 'GET',
-      timeout: 8000,
-      success: (res) => {
-        const data = res.data as any
-        if (data && data.status === 0 && data.result?.location) {
-          resolve({ lat: data.result.location.lat, lng: data.result.location.lng })
-        } else {
-          console.warn('[geo] 地理编码失败:', query, data?.message || data?.status)
-          resolve(null)
-        }
-      },
-      fail: (err) => {
-        console.warn('[geo] 地理编码请求失败:', query, err)
-        resolve(null)
-      }
-    })
-  })
+  // 同样走节流闸门：App/小程序端的 Key 限额与 H5 是同一套（5 QPS / 6000 次每天）
+  return withWsLimit(
+    () =>
+      new Promise<LatLng | null>((resolve) => {
+        uni.request({
+          url,
+          method: 'GET',
+          timeout: 8000,
+          success: (res) => {
+            const data = res.data as any
+            if (data && data.status === 0 && data.result?.location) {
+              resolve({ lat: data.result.location.lat, lng: data.result.location.lng })
+            } else {
+              console.warn('[geo] 地理编码失败:', query, data?.message || data?.status)
+              resolve(null)
+            }
+          },
+          fail: (err) => {
+            console.warn('[geo] 地理编码请求失败:', query, err)
+            resolve(null)
+          }
+        })
+      })
+  )
 }
 
 /** 方式二（H5）：WebService geocoder 的 JSONP 调用 */
@@ -119,7 +196,7 @@ function geocodeByJsonp(query: string, city?: string): Promise<LatLng | null> {
     `&key=${encodeURIComponent(MAP_WS_KEY)}` +
     (city ? `&city=${encodeURIComponent(city)}` : '')
 
-  return jsonpRequest(url).then((data: any) => {
+  return withWsLimit(() => tencentJsonp(url)).then((data: any) => {
     if (data && data.status === 0 && data.result?.location) {
       return { lat: data.result.location.lat, lng: data.result.location.lng }
     }
@@ -214,7 +291,7 @@ function reverseGeocodeByJsonp(lat: number, lng: number): Promise<string | null>
     `https://apis.map.qq.com/ws/geocoder/v1/?location=${lat},${lng}` +
     `&key=${encodeURIComponent(MAP_WS_KEY)}`
 
-  return jsonpRequest(url).then((data: any) => pickCityFromReverse(data))
+  return withWsLimit(() => tencentJsonp(url)).then((data: any) => pickCityFromReverse(data))
 }
 // #endif
 
@@ -385,23 +462,27 @@ function fetchDrivingRoute(
     (waypoints.length ? `&waypoints=${waypoints.map((p) => `${p.lat},${p.lng}`).join(';')}` : '') +
     `&key=${encodeURIComponent(MAP_WS_KEY)}`
 
-  // #ifdef H5
-  return jsonpRequest(base).then(pickRoute)
-  // #endif
-  // #ifndef H5
-  return new Promise((resolve) => {
-    uni.request({
-      url: base,
-      method: 'GET',
-      timeout: 12000,
-      success: (res) => resolve(pickRoute(res.data)),
-      fail: (err) => {
-        console.warn('[geo] 驾车路线规划请求失败:', err)
-        resolve(null)
-      }
+  // 所有腾讯 WebService 请求都走同一个节流闸门（见 withWsLimit 的注释）：
+  // 一次并发超过 5 QPS 就会被腾讯判 120，表现成「每段都规划不出路线」。
+  return withWsLimit(() => {
+    // #ifdef H5
+    return tencentJsonp(base).then(pickRoute)
+    // #endif
+    // #ifndef H5
+    return new Promise<TencentRoute | null>((resolve) => {
+      uni.request({
+        url: base,
+        method: 'GET',
+        timeout: 20000,
+        success: (res) => resolve(pickRoute(res.data)),
+        fail: (err) => {
+          console.warn('[geo] 驾车路线规划请求失败:', err)
+          resolve(null)
+        }
+      })
     })
+    // #endif
   })
-  // #endif
 }
 
 /**

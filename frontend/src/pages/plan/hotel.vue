@@ -148,6 +148,7 @@ import {
   type HotelOption
 } from '@/utils/hotels'
 import { openCtripHotel } from '@/utils/deeplink'
+import { geocode } from '@/utils/geo'
 import { showToast } from '@/utils/feedback'
 
 const tripStore = useTripStore()
@@ -300,6 +301,36 @@ function pick(hotel: HotelOption) {
   picked.value = picked.value?.id === hotel.id ? null : hotel
 }
 
+/**
+ * 确保选中的酒店有坐标。
+ *
+ * 为什么需要：候选库只收录了 6 个城市，其他城市走的是前端兜底候选（`lat/lng = 0`）。
+ * 没有坐标，路线页就无法形成「酒店出发 → 各站 → 返回酒店」的闭环 ——
+ * 用户看到的是「行程里记录了住宿，但缺少它的坐标」（实测厦门就是这么出现的）。
+ * 这里在选中时尽力补一次：
+ *   1) 先按「酒店名」定位；
+ *   2) 失败再按「城市」定位（兜底候选都是「XX市中心便捷酒店」这类通用名，
+ *      落到城市中心点比彻底没有坐标更接近真实，闭环也能成立）。
+ * 两步都失败就如实保留无坐标状态，路线页会给出对应提示，不假装成功。
+ */
+async function ensurePickedCoords(hotel: HotelOption): Promise<HotelOption> {
+  if (hotel.lat && hotel.lng) return hotel
+
+  const byName = await geocode(hotel.name, hotel.city || city.value, hotel.name)
+  if (byName) return { ...hotel, lat: byName.lat, lng: byName.lng }
+
+  const cityName = hotel.city || city.value
+  if (cityName) {
+    const byCity = await geocode(cityName, cityName, cityName)
+    if (byCity) {
+      console.info('[hotel] 兜底候选无坐标，已按城市中心点定位：', cityName)
+      return { ...hotel, lat: byCity.lat, lng: byCity.lng }
+    }
+  }
+  console.warn('[hotel] 该候选没有坐标且定位失败，路线不会形成住宿闭环:', hotel.name)
+  return hotel
+}
+
 /** 携程预订：后端给的深链优先，没有就按同一套模板现场拼（见 utils/deeplink.ts） */
 function onBook(hotel: HotelOption) {
   openCtripHotel(hotel.ctripUrl, {
@@ -329,11 +360,15 @@ async function confirm(skip: boolean) {
     gotoChat()
     return
   }
-  const hotel = picked.value
-  if (!hotel) {
+  const chosen = picked.value
+  if (!chosen) {
     showToast({ title: '先选一家酒店', icon: 'none' })
     return
   }
+
+  // 兜底候选（未收录城市）没有坐标：选中时尽力定位一次，让路线闭环能成立
+  const hotel = await ensurePickedCoords(chosen)
+  picked.value = hotel
 
   tripStore.setSelectedHotel(hotel)
 

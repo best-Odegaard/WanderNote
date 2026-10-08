@@ -39,6 +39,16 @@
         <text v-if="noMapKey" class="summary-tip warn">
           未配置腾讯地图 Key（VITE_MAP_WS_KEY），无法定位与规划真实路线
         </text>
+        <!--
+          全部路段都没规划出来：绝大多数是被腾讯 WebService 限流（该 Key 实测 5 QPS / 6000 次每天，
+          响应头 X-Limit 可查），而不是「今天没有路线」。
+          这时必须说清原因并给重试入口，否则用户只会看到每段都是「—」而不知道该干什么。
+        -->
+        <text v-if="allLegsFailed" class="summary-tip warn">
+          路段规划都没成功（多为地图服务限流或网络波动），点这里
+          <text class="link" @tap="retry">重试</text>
+          ；也可以直接用底部「导航这一段」唤起外部地图
+        </text>
       </view>
 
       <scroll-view scroll-y class="body">
@@ -202,6 +212,16 @@ const canRetry = computed(
 
 /** 当前段是否规划成功：失败时要点明「导航这一段」是兜底路径（P2-12） */
 const currentLegPlanned = computed(() => !!legs.value[currentLegIndex.value])
+
+/**
+ * 是否所有路段都没规划出来（且确实有路段）。
+ *
+ * 用来区分「地图服务限流/网络问题」和「这一天本来就没有可走的路线」：
+ * 前者要提示原因并给重试，后者不该反复劝用户重试。
+ */
+const allLegsFailed = computed(
+  () => !noMapKey.value && legs.value.length > 0 && legs.value.every((l) => !l)
+)
 const navButtonLabel = computed(() => {
   const total = legs.value.length
   const idx = Math.min(currentLegIndex.value + 1, total)
