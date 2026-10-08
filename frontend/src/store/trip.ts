@@ -155,6 +155,11 @@ export const useTripStore = defineStore('trip', () => {
   async function saveTrip(trip?: TripPlan) {
     const data = trip || currentTrip.value
     if (!data) throw new Error('无行程数据')
+    // 选酒店可能发生在行程生成之前：那时 setSelectedHotel 写的是「旧的」currentTrip，
+    // 生成出来的新行程没有 hotel 名。保存前补一次，保证 trip_plan.hotel 落库有值。
+    if (selectedHotel.value?.name) {
+      data.hotel = selectedHotel.value.name
+    }
     const saved = await tripApi.saveTrip(data)
     currentTrip.value = saved
     // 行程第一次保存拿到 id 后，把之前选好的酒店补写进 trip_hotel

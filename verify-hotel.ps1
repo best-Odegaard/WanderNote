@@ -87,7 +87,30 @@ if ($r.data.Count -gt 0) {
     Check '深链关键词含酒店名' ($first.ctripUrl -match [uri]::EscapeDataString($first.name))
     Check '候选带坐标（路线闭环要用）' ($first.lng -ne 0 -and $first.lat -ne 0)
     Check '价格是参考价语义（接口无库存字段）' ($first.PSObject.Properties.Name -notcontains 'stock')
+
+    # 前端 utils/hotels.ts 的 toHotelOption 会逐字段读这些值，
+    # 少一个就表现为「列表空白 / 价格 0 / 点不动携程」——在接口层先卡住
+    $need = @('id', 'name', 'city', 'level', 'rating', 'price', 'address', 'nearbyLandmark',
+        'distanceKm', 'tags', 'cover', 'lng', 'lat', 'desc', 'ctripUrl')
+    $missing = @()
+    foreach ($f in $need) {
+        if ($first.PSObject.Properties.Name -notcontains $f) { $missing += $f }
+    }
+    Check '响应字段齐全（前端逐字段读取）' ($missing.Count -eq 0) "missing=$($missing -join ',')"
+
+    $allowed = @('经济型', '舒适型', '高档型', '特色民宿')
+    $levels = @($r.data | ForEach-Object { $_.level } | Select-Object -Unique)
+    Check '档次取值都在前端枚举内' (@($levels | Where-Object { $allowed -notcontains $_ }).Count -eq 0) "levels=$($levels -join ',')"
+    Check 'tags 是数组（页面 v-for 读它）' ($first.tags -is [array]) "type=$($first.tags.GetType().Name)"
+    Check '深链是绝对 https 地址' ($first.ctripUrl -match '^https://')
+    Check '附近地标非空（深链关键词要用）' (-not [string]::IsNullOrWhiteSpace($first.nearbyLandmark))
 }
+
+# ── 1.5 先选酒店、后保存行程（前端 store.persistSelectedHotel 的两步链路） ──
+$preTrip = Post-Json "$Backend/hotel/select" @{
+    hotelCode = 'zq-jj-1'; city = '肇庆'; checkin = '2026-10-20'; checkout = '2026-10-21'
+} $hdr
+Check '行程未保存时选定只回结果、不落库' ($preTrip.code -eq 1 -and $null -eq $preTrip.data.tripId -and $preTrip.data.ctripUrl) "msg=$($preTrip.msg)"
 
 # ── 2. 筛选与放宽 ──
 $lv = [uri]::EscapeDataString('高档型')
@@ -123,6 +146,8 @@ Check '选定后深链带酒店名+地标' ($sel.data.ctripUrl -match [uri]::Esc
 $got = Get-Json "$Backend/hotel/trip/$tripId" $hdr
 Check '读回已保存住宿' ($null -ne $got.data -and $got.data.name -eq '星湖景畔酒店')
 Check '读回带坐标' ($null -ne $got.data -and $got.data.lng -ne 0 -and $got.data.lat -ne 0)
+# 坐标必须与候选库一致：路线页用它做闭环起点/终点，偏了就画出错误路线
+Check '坐标与候选库一致（闭环不画偏）' ($null -ne $got.data -and [math]::Abs([double]$got.data.lng - 112.4688) -lt 0.0001 -and [math]::Abs([double]$got.data.lat - 23.0588) -lt 0.0001) "lng=$($got.data.lng) lat=$($got.data.lat)"
 
 $tripAfter = Get-Json "$Backend/trip/$tripId" $hdr
 Check '回写 trip_plan.hotel 名称' ($tripAfter.data.hotel -eq '星湖景畔酒店') "hotel=$($tripAfter.data.hotel)"

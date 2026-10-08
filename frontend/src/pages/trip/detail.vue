@@ -564,8 +564,10 @@ onMounted(async () => {
   buildSchedules()
   loading.value = false
   // 恢复已保存的住宿（trip_hotel 里存着坐标）：
-  // 用户杀进程/换设备再打开行程时，内存里的选择没了，这里把闭环坐标读回来
-  if (!isFeaturedPreview.value && trip.value.id && trip.value.hotel) {
+  // 用户杀进程/换设备再打开行程时，内存里的选择没了，这里把闭环坐标读回来。
+  // 不按 trip.hotel 是否有值来判：老行程可能只有 trip_hotel 记录、trip_plan.hotel 为空
+  // （比如酒店是在行程生成前选的），那时更该读一次 —— 接口没有住宿记录就返回 null，代价很小。
+  if (!isFeaturedPreview.value && trip.value.id) {
     await tripStore.loadTripHotel(trip.value.id)
   }
   // 初始绘制第 0 天路线
@@ -866,7 +868,12 @@ function onBookHotel() {
 function onChangeHotel() {
   const city = trip.value?.toCity || tripHotel.value?.city || ''
   const level = tripStore.hotelPreference || '无要求'
-  const params = [`city=${encodeURIComponent(city)}`, `level=${encodeURIComponent(level)}`]
+  const params = [
+    `city=${encodeURIComponent(city)}`,
+    `level=${encodeURIComponent(level)}`,
+    // 从行程详情进来：确认后回本页（酒店页据此选择 navigateBack 而不是 push 对话页）
+    'from=detail'
+  ]
   uni.navigateTo({ url: `/pages/plan/hotel?${params.join('&')}` })
 }
 

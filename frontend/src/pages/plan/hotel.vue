@@ -164,6 +164,12 @@ const city = ref('')
 const activeLevel = ref<string>(HOTEL_LEVEL_ANY)
 const activePrice = ref(PRICE_BUCKETS[0].label)
 const activeArea = ref(AREA_ANY)
+/**
+ * 从哪来的：'chat'（对话页工具条）/ 'detail'（行程详情更换住宿）/ 空（问卷链路）。
+ * 前两者确认后应该 navigateBack 回原页，而不是再 push 一个对话页（否则返回栈越堆越深，
+ * 用户连按两次返回还在酒店页）。
+ */
+const fromPage = ref('')
 /** 接口/本地兜底返回的候选（不带位置过滤），用来生成位置 chips */
 const sourceList = ref<HotelOption[]>([])
 const loading = ref(false)
@@ -204,6 +210,7 @@ onLoad(async (query) => {
     : tripStore.currentTrip?.toCity || ''
   const level = query?.level ? decodeURIComponent(String(query.level)) : ''
   activeLevel.value = !level || level === '无要求' ? HOTEL_LEVEL_ANY : level
+  fromPage.value = query?.from ? String(query.from) : ''
 
   // 从对话页再进来时回显上次的选择
   const last = tripStore.selectedHotel
@@ -310,6 +317,13 @@ async function confirm(skip: boolean) {
 }
 
 function gotoChat() {
+  // 从对话页/行程详情进来的，确认后回原页；问卷链路进来的才 push 对话页
+  if (fromPage.value === 'chat' || fromPage.value === 'detail') {
+    uni.navigateBack({
+      fail: () => uni.navigateTo({ url: '/pages/ai/chat' })
+    })
+    return
+  }
   uni.navigateTo({ url: '/pages/ai/chat' })
 }
 

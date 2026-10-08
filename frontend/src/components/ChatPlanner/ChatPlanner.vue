@@ -196,6 +196,19 @@
       </view>
 
       <!--
+        完整度浮出工具条（设计稿 3.3）：≥50% 出「选酒店」，≥60% 且已知住宿偏好出「生成完整路线」。
+        为什么必须有这个入口：底部只有一个「生成行程计划」，用户生成完行程就再也找不到
+        「晚上住哪」这一步，而住宿决定了当天路线能不能闭环（见 pages/trip/route.vue 的 resolveHotel）——
+        后端 ready.hotel 早就把这个能力位留好了（SlotReadyVO.hotel），前端一直没用。
+      -->
+      <view v-if="showToolbar" class="chat-toolbar">
+        <view v-if="hotelEntryReady" class="tool-btn" @tap="onPickHotel">
+          🏨 {{ hotelEntryLabel }}
+        </view>
+        <view v-if="routeEntryReady" class="tool-btn primary" @tap="onFullRoute">🗺️ 生成完整路线</view>
+      </view>
+
+      <!--
         底部输入区。
         原来这里有一个「使用 AI 记住的偏好」开关，现已按产品要求隐藏并停用：
         画像回灌由后端 sky.profile.inject-enabled 控制（默认 false），
@@ -855,6 +868,56 @@ const answeredCount = computed(() => Object.keys(tripStore.slotState.slots || {}
  */
 const canDraw = computed(() => !!sessionId.value && ready.value.frame && !finalizing.value)
 
+/**
+ * 浮出工具条的显示条件（与后端 ready 标记一一对应，前端不自己算完整度）。
+ *   ready.hotel     = 完整度 ≥ 阈值 且已知住宿偏好
+ *   ready.fullRoute = 完整度 ≥ 路线阈值 且已知住宿偏好
+ */
+const hotelEntryReady = computed(() => !!sessionId.value && ready.value.hotel)
+const routeEntryReady = computed(() => !!sessionId.value && ready.value.fullRoute)
+const showToolbar = computed(() => hotelEntryReady.value || routeEntryReady.value)
+
+/** 「选酒店」已经选过就把店名带出来，用户一眼知道这步做完了 */
+const hotelEntryLabel = computed(() => {
+  const picked = tripStore.selectedHotel
+  return picked?.name ? `已选：${picked.name}` : '选酒店'
+})
+
+/**
+ * 进酒店选择页。
+ *
+ * 城市优先用当前行程的目的地，其次用槽位里的 destination（行程还没生成时只有槽位）；
+ * 档次用槽位 hotelStyle，退到问卷里的住宿偏好 —— 两个都可能为空，酒店页会显示「不限」。
+ * 带 from=chat：酒店页确认后要 navigateBack 回对话，而不是再 push 一个对话页（否则栈越堆越深）。
+ */
+function onPickHotel() {
+  const city = tripStore.currentTrip?.toCity || slotValue('destination') || ''
+  const level = slotValue('hotelStyle') || tripStore.hotelPreference || ''
+  const params = [`city=${encodeURIComponent(city)}`, `level=${encodeURIComponent(level)}`, 'from=chat']
+  uni.navigateTo({ url: `/pages/plan/hotel?${params.join('&')}` })
+}
+
+/**
+ * 进完整路线页。
+ *
+ * 路线是基于「已生成的行程」画的（酒店 → 各站 → 酒店），所以没有行程时先提示生成，
+ * 不要跳过去给用户一个空页面。
+ */
+function onFullRoute() {
+  const trip = tripStore.currentTrip
+  if (!trip?.dayPlans?.length) {
+    showToast({ title: '先生成行程，再排完整路线', icon: 'none' })
+    return
+  }
+  const parts = [trip.id ? `id=${trip.id}` : '', 'day=0'].filter(Boolean)
+  uni.navigateTo({ url: `/pages/trip/route?${parts.join('&')}` })
+}
+
+/** 读槽位值（没有则空串），与 store 里的 slotValue 等价，模板外调用更方便 */
+function slotValue(key: string): string {
+  return tripStore.slotState.slots?.[key]?.value ?? ''
+}
+
 // 信息刚够生成完整方案时给一次反馈（只在 false→true 的那一次提示，避免反复打扰）
 watch(
   () => ready.value.hotel || ready.value.transport || ready.value.fullRoute,
@@ -1452,6 +1515,52 @@ watch(genFrame, (frame) => {
 
   &:active {
     transform: scale(0.98);
+  }
+}
+
+/* 浮出工具条：完整度够了才出现，给「选酒店 / 生成完整路线」两个下一步入口 */
+.chat-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  padding: 0 0 16rpx;
+  animation: toolbar-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes toolbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(16rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  max-width: 100%;
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  background: var(--bg-card);
+  border: 1rpx solid var(--border);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-main);
+
+  &.primary {
+    background: var(--brand-grad);
+    border-color: transparent;
+    color: var(--on-brand);
+    box-shadow: var(--brand-glow);
+  }
+
+  &:active {
+    transform: scale(0.97);
   }
 }
 
