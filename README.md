@@ -340,6 +340,16 @@ export SSH_KEY=~/.ssh/your-key.pem
 
 Nginx 配置见 `deploy/admin-nginx.conf`：静态托管 + SPA 路由回退 + API 反向代理。详细步骤见 `deploy/部署说明.md`。
 
+### 部署前后自测
+
+```powershell
+.\verify-e2e.ps1        # 主链路：登录 → 对话 → 槽位 → 猜你想问
+.\verify-hotel.ps1      # 酒店链路：候选 → 筛选 → 携程深链 → 选定落库 → 读回（23 项）
+```
+
+两个脚本都会自建探针账号并在结束时清理；`verify-hotel.ps1` 的 MySQL 明细校验需要
+`MYSQL_EXE / MYSQL_USER / MYSQL_PASSWORD / MYSQL_DB` 环境变量，缺失时自动跳过该项。
+
 ---
 
 ## 项目规模

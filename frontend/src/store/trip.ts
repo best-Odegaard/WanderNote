@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as tripApi from '@/api/trip'
+import { selectHotel, getTripHotel } from '@/api/hotel'
 import { clearActiveChatSession } from '@/utils/chatSession'
 import { emptySlotState } from '@/api/trip'
 import type { TripPlan, PlanResponse, SlotState } from '@/api/trip'
-import type { HotelOption } from '@/utils/hotels'
+import { toHotelOption, type HotelOption } from '@/utils/hotels'
 
 export const useTripStore = defineStore('trip', () => {
   const currentTrip = ref<TripPlan | null>(null)
@@ -79,6 +80,62 @@ export const useTripStore = defineStore('trip', () => {
     }
   }
 
+  /**
+   * 把当前选中的酒店落到行程上（trip_hotel + trip_plan.hotel）。
+   *
+   * 为什么单独一个函数：用户选酒店时行程可能还没保存（没有 id）。
+   * 选了之后才生成/保存行程的话，那次选择就得在这里补写一次 ——
+   * 否则行程里只有名字、没有坐标，路线页的闭环会悄悄退化成「第一站 → 最后一站」。
+   *
+   * 失败不抛：住宿落库是增强项，接口挂了不能把「保存行程」这件事一起带崩。
+   */
+  async function persistSelectedHotel(tripId: number | string) {
+    const hotel = selectedHotel.value
+    if (!tripId || !hotel) return
+    try {
+      await selectHotel({
+        tripId,
+        hotelCode: hotel.id,
+        name: hotel.name,
+        city: hotel.city,
+        level: hotel.level,
+        address: hotel.address,
+        nearbyLandmark: hotel.nearbyLandmark,
+        lng: hotel.lng,
+        lat: hotel.lat,
+        price: hotel.price,
+        checkin: currentTrip.value?.startDate,
+        checkout: currentTrip.value?.endDate
+      })
+    } catch (e) {
+      console.warn('[trip] 住宿未能随行程落库:', e)
+    }
+  }
+
+  /**
+   * 读行程已保存的住宿，恢复 selectedHotel。
+   *
+   * 场景：用户杀进程/换设备重新打开一条旧行程 —— 内存里的选择没了，
+   * 但 trip_hotel 里存着坐标，读回来后路线页才能继续画闭环。
+   */
+  async function loadTripHotel(tripId: number | string) {
+    if (!tripId) return null
+    try {
+      const item = await getTripHotel(tripId)
+      if (!item || !item.name) {
+        selectedHotel.value = null
+        return null
+      }
+      const option = toHotelOption(item)
+      selectedHotel.value = option
+      return option
+    } catch (e) {
+      // 旧行程本来就可能没有住宿记录；接口异常也不该挡住行程详情
+      console.warn('[trip] 住宿信息读取失败:', e)
+      return null
+    }
+  }
+
   /** 取某个槽位的值（没有则返回空串），模板里比链式可选取值清爽 */
   function slotValue(key: string): string {
     return slotState.value.slots?.[key]?.value ?? ''
@@ -100,6 +157,10 @@ export const useTripStore = defineStore('trip', () => {
     if (!data) throw new Error('无行程数据')
     const saved = await tripApi.saveTrip(data)
     currentTrip.value = saved
+    // 行程第一次保存拿到 id 后，把之前选好的酒店补写进 trip_hotel
+    if (saved.id != null) {
+      await persistSelectedHotel(saved.id)
+    }
     await loadHistory()
     return saved
   }
@@ -141,6 +202,8 @@ export const useTripStore = defineStore('trip', () => {
     selectedHotel,
     setHotelPreference,
     setSelectedHotel,
+    persistSelectedHotel,
+    loadTripHotel,
     resetForNewTrip,
     saveTrip,
     deleteTrip,

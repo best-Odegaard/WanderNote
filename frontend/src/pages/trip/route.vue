@@ -188,6 +188,16 @@ async function loadTrip(id: string) {
       console.warn('[trip/route] 行程加载失败:', e)
     }
   }
+  // 恢复住宿：直接从行程进路线页（没经过详情页）时，内存里没有选中的酒店。
+  // 行程有住宿名但 store 里没有对应坐标，就去 trip_hotel 读一次 ——
+  // 否则闭环会悄悄退化成「第一站 → 最后一站」，用户看到的路线少了一段。
+  const trip = tripStore.currentTrip
+  if (trip?.id && trip.hotel) {
+    const picked = tripStore.selectedHotel
+    if (!picked || picked.name !== trip.hotel || !picked.lat || !picked.lng) {
+      await tripStore.loadTripHotel(trip.id)
+    }
+  }
 }
 
 /** 建路线：定位 → 闭环补点 → 分段规划（大部分时间花在这里） */

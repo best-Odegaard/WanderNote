@@ -108,6 +108,20 @@
         </view>
 
         <scroll-view scroll-y class="sheet-body" :scroll-into-view="scrollIntoView" scroll-with-animation>
+          <!-- 住宿：当天闭环的起点与终点。价格是参考价，预订跳携程（本站不做站内下单） -->
+          <view v-if="tripHotel" class="stay-card soft-shadow">
+            <view class="stay-head">
+              <text class="stay-title">🏨 {{ tripHotel.name }}</text>
+              <text v-if="tripHotel.price" class="stay-price">¥{{ tripHotel.price }}/晚</text>
+            </view>
+            <text v-if="tripHotel.address" class="stay-address">📍{{ tripHotel.address }}</text>
+            <view class="stay-ops">
+              <text v-if="!isFeaturedPreview" class="stay-op" @tap.stop="onChangeHotel">更换住宿</text>
+              <text class="stay-op primary" @tap.stop="onBookHotel">携程预订 →</text>
+            </view>
+            <text class="stay-note">参考价，以携程为准</text>
+          </view>
+
           <view v-for="(s, i) in currentSchedules" :key="i" :id="`timeline-item-${i}`" class="timeline-item">
             <view class="timeline-dot" />
             <view v-if="i < currentSchedules.length - 1" class="timeline-line" />
@@ -257,6 +271,8 @@ import { useLogin } from '@/hooks/useLogin'
 import { getFeaturedDetail, copyFeaturedToMine } from '@/api/featured'
 import type { TripPlan } from '@/api/trip'
 import { showModal, showToast } from '@/utils/feedback'
+import { openCtripHotel } from '@/utils/deeplink'
+import type { HotelOption } from '@/utils/hotels'
 
 /** 每天路线颜色色板（总览模式按天分配，循环使用） */
 const ROUTE_COLORS = [
@@ -302,6 +318,34 @@ const loading = ref(true)
 const featuredTripId = ref('')
 /** 是否处于精选行程预览（只读）模式 */
 const isFeaturedPreview = computed(() => !!featuredTripId.value)
+
+/**
+ * 住宿信息（行程闭环的起点与终点）。
+ *
+ * 优先用 store 里已保存/已选的酒店 —— 它带坐标与携程深链；
+ * 退化到 trip.hotel（只有名字）：老行程还没有 trip_hotel 记录时，
+ * 至少把「住哪」显示出来，但不能据此闭环（没有坐标，见 route.vue 的 resolveHotel）。
+ */
+const tripHotel = computed<HotelOption | null>(() => {
+  const picked = tripStore.selectedHotel
+  if (picked && picked.name) return picked
+  if (!trip.value?.hotel) return null
+  return {
+    id: '',
+    name: trip.value.hotel,
+    city: trip.value.toCity || '',
+    level: '舒适型',
+    rating: 0,
+    price: 0,
+    address: '',
+    distanceKm: 0,
+    tags: [],
+    cover: '',
+    lat: 0,
+    lng: 0,
+    desc: ''
+  }
+})
 const activeDayIndex = ref(0)
 /** 地图视图：day=只显示当天路线；overview=总览全部天路线（每天一色） */
 const viewMode = ref<'day' | 'overview'>('day')
@@ -519,6 +563,11 @@ onMounted(async () => {
   }
   buildSchedules()
   loading.value = false
+  // 恢复已保存的住宿（trip_hotel 里存着坐标）：
+  // 用户杀进程/换设备再打开行程时，内存里的选择没了，这里把闭环坐标读回来
+  if (!isFeaturedPreview.value && trip.value.id && trip.value.hotel) {
+    await tripStore.loadTripHotel(trip.value.id)
+  }
   // 初始绘制第 0 天路线
   buildMapSpotsForDay(0)
 })
@@ -795,6 +844,30 @@ function onAddSpot() {
 /** 单个景点卡片：弹出导航选项（复制地址 / 高德 / 腾讯） */
 function onNavigate(s: DetailSchedule) {
   showNaviOptions({ title: s.title, address: s.location || '', lat: s.lat, lng: s.lng })
+}
+
+/**
+ * 携程预订：跳外部 H5，本站不做站内下单（没有库存/房价数据）。
+ * 后端给了深链就用它，没有就按同一套模板现拼（utils/deeplink.ts）。
+ */
+function onBookHotel() {
+  const hotel = tripHotel.value
+  if (!hotel) return
+  openCtripHotel(hotel.ctripUrl, {
+    city: hotel.city || trip.value?.toCity || '',
+    checkin: trip.value?.startDate,
+    checkout: trip.value?.endDate,
+    hotelName: hotel.name,
+    landmark: hotel.nearbyLandmark
+  })
+}
+
+/** 换一家住宿：带着目的地与问卷里的住宿偏好进选择页 */
+function onChangeHotel() {
+  const city = trip.value?.toCity || tripHotel.value?.city || ''
+  const level = tripStore.hotelPreference || '无要求'
+  const params = [`city=${encodeURIComponent(city)}`, `level=${encodeURIComponent(level)}`]
+  uni.navigateTo({ url: `/pages/plan/hotel?${params.join('&')}` })
 }
 
 /**
@@ -1125,6 +1198,71 @@ function onChatModify() {
 .map-redraw-text {
   font-size: 24rpx;
   color: var(--text-secondary);
+}
+
+/* ── 住宿卡片（上拉框内，时间轴顶部） ── */
+.stay-card {
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  background: var(--bg-card);
+  border-radius: 24rpx;
+  border: 1rpx solid var(--border);
+}
+
+.stay-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.stay-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.stay-price {
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  color: var(--brand-ink);
+}
+
+.stay-address {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+  margin-top: 8rpx;
+  line-height: 1.5;
+}
+
+.stay-ops {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.stay-op {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  padding: 10rpx 24rpx;
+  border-radius: 999rpx;
+  background: var(--bg-muted);
+
+  &.primary {
+    background: var(--brand-grad);
+    color: var(--on-brand);
+    font-weight: 600;
+  }
+}
+
+.stay-note {
+  display: block;
+  font-size: 20rpx;
+  color: var(--text-tertiary);
+  margin-top: 10rpx;
 }
 
 /* 空状态：行程/路线数据不存在时的提示 */
