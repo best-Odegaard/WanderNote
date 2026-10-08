@@ -13,7 +13,7 @@
     <view class="map-wrap">
       <TripMap v-if="!loading && hasRoute" ref="mapRef" :route-groups="mapGroups" :city="city" height="100%" />
       <view v-else class="map-placeholder">
-        <text class="ph-text">{{ loading ? '正在规划路线…' : emptyText }}</text>
+        <text class="ph-text">{{ emptyText }}</text>
       </view>
     </view>
 
@@ -24,8 +24,14 @@
         <text class="summary-main">
           {{ dayLabel }} · {{ nodes.length }} 个点 · {{ formatDistance(totalKm) }} · 驾车约 {{ formatDuration(totalMin) }}
         </text>
-        <text v-if="!closed" class="summary-tip">
-          还没有住宿信息：当前路线是「第一站 → 最后一站」，设置酒店后才会变成「酒店出发 → 返回酒店」的闭环
+        <!--
+          住宿：分「没有住宿记录」「有名字没坐标」「名字与已选不一致」三种说明。
+          原来只要闭环不成立就说「还没有住宿信息」，可住宿卡上明明写着酒店名，
+          用户按提示重选也未必能解决（P2-11）。
+        -->
+        <text v-if="!closed" class="summary-tip">{{ hotelTip }}</text>
+        <text v-if="!closed && hotelState !== 'none'" class="summary-tip link" @tap="onRechooseHotel">
+          重新选择住宿 ›
         </text>
         <text v-if="dropped.length" class="summary-tip">
           有 {{ dropped.length }} 个地点没定位到，已从路线里跳过：{{ dropped.join('、') }}
@@ -54,15 +60,28 @@
             @tap="selectLeg(i)"
           >
             <view class="leg-line" />
-            <text class="leg-text">
+            <!--
+              该段规划失败：原来只显示「驾车 — · —」，用户不知道是没数据还是坏了，
+              也没有替代动作（P2-12）。这里说清原因，并指向下面的「导航这一段」兜底。
+            -->
+            <text v-if="legs[i]" class="leg-text">
               驾车 {{ formatDuration(legDuration(i)) }} · {{ formatDistance(legDistance(i)) }}
+            </text>
+            <text v-else class="leg-text warn">
+              这一段没能规划出路线，可点下方「导航这一段」直接唤起外部地图
             </text>
             <text v-if="currentLegIndex === i" class="leg-flag">当前段</text>
           </view>
         </view>
 
+        <!--
+          无路线时的空态：必须区分「行程没加载出来」和「当天确实没安排」。
+          原来无论哪种情况都只说「这一天还没有可导航的行程节点」，用户被误导为今天没行程，
+          也没有重试入口（P1-23）。
+        -->
         <view v-if="!loading && !hasRoute" class="empty">
           <text class="empty-text">{{ emptyText }}</text>
+          <view v-if="canRetry" class="retry-btn" @tap="retry">重试</view>
         </view>
         <view style="height: 40rpx" />
       </scroll-view>
@@ -77,8 +96,8 @@
           >下一段</view>
           <view class="seg-chip" @tap="onCopyAll">复制全部地址</view>
         </view>
-        <button class="btn-main" @tap="onNavigateLeg">
-          🧭 导航第 {{ Math.min(currentLegIndex + 1, legs.length) }}/{{ legs.length }} 段
+        <button class="btn-main" :class="{ fallback: !currentLegPlanned }" @tap="onNavigateLeg">
+          {{ navButtonLabel }}
         </button>
       </view>
     </view>
@@ -96,8 +115,8 @@
  * 关于「一次把全天导入高德」：做不到。高德 URI 的 via 最多 1 个途经点且仅驾车模式，
  * 所以这里走的是「应用内画完整路线 + 逐段唤起外部地图」的方案。
  */
-import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import TripMap from '@/components/TripMap/TripMap.vue'
 import type { RouteGroup } from '@/components/TripMap/TripMap.vue'
 import AppIcon from '@/components/AppIcon/AppIcon.vue'
@@ -105,6 +124,7 @@ import { useTripStore } from '@/store/trip'
 import type { TripPlan } from '@/api/trip'
 import { MAP_WS_KEY } from '@/utils/constant'
 import type { LatLng } from '@/utils/geo'
+import { installBackGuard } from '@/utils/backGuard'
 import {
   buildDayRoute,
   formatDistance,
@@ -141,16 +161,53 @@ const closed = ref(false)
 const dropped = ref<string[]>([])
 const currentLegIndex = ref(0)
 const provider = ref<NaviProvider>(getPreferredProvider())
+/** 页面参数里的行程 id：重试时要按它重新拉一次详情 */
+const tripId = ref('')
+/** 带 id 却拉不到详情：不能用 store 里残留的别的行程兜底，标记为失败态（P1-23） */
+const loadError = ref(false)
+/** 首次构建是否结束：onShow 在首次进入时也会触发，用它区分「回到本页」与「刚进来」 */
+const ready = ref(false)
 
 /** 未配置地图 Key 时给出明确指引，而不是留一个空页面让人猜 */
 const noMapKey = ref(!MAP_WS_KEY)
 
+/**
+ * 空态原因。原实现只有一句「这一天还没有可导航的行程节点」，
+ * 但真实原因可能是「行程压根没加载出来」——用户被误导为今天没行程，也没有重试入口（P1-23）。
+ */
+type EmptyKind = 'loading' | 'error' | 'no-trip' | 'no-node' | 'no-locate'
+const emptyKind = ref<EmptyKind>('loading')
+
 const hasRoute = computed(() => nodes.value.length >= 2)
 const providerLabel = computed(() => NAVI_PROVIDER_LABEL[provider.value])
 const dayLabel = computed(() => `第 ${dayIndex.value + 1} 天`)
-const emptyText = computed(() =>
-  loading.value ? '正在规划路线…' : '这一天还没有可导航的行程节点'
+const emptyText = computed(() => {
+  switch (emptyKind.value) {
+    case 'loading':
+      return '正在规划路线…'
+    case 'error':
+      return '行程加载失败，请检查网络后重试'
+    case 'no-trip':
+      return '没有可用的行程数据，请先从「我的行程」里打开一条行程'
+    case 'no-locate':
+      return '当天的地点都没能定位到（可能是未配置地图 Key 或网络不通）'
+    default:
+      return '这一天还没有可导航的行程节点'
+  }
+})
+/** 只有「可能靠重试解决」的原因才给重试按钮，当天确实没安排时重试没有意义 */
+const canRetry = computed(
+  () => emptyKind.value === 'error' || emptyKind.value === 'no-trip' || emptyKind.value === 'no-locate'
 )
+
+/** 当前段是否规划成功：失败时要点明「导航这一段」是兜底路径（P2-12） */
+const currentLegPlanned = computed(() => !!legs.value[currentLegIndex.value])
+const navButtonLabel = computed(() => {
+  const total = legs.value.length
+  const idx = Math.min(currentLegIndex.value + 1, total)
+  // 没有规划结果时不再报「第 x/y 段」，直接说明改用外部地图导航这一段
+  return currentLegPlanned.value ? `🧭 导航第 ${idx}/${total} 段` : '🧭 导航这一段（改用外部地图）'
+})
 
 const mapGroups = computed<RouteGroup[]>(() => {
   const spots = nodes.value.map((n) => ({
@@ -174,10 +231,75 @@ const mapGroups = computed<RouteGroup[]>(() => {
   ]
 })
 
+/**
+ * 已用于构建路线的住宿标识。回到本页时用它判断住宿是否被改过，
+ * 没变就不重复规划（否则每次 onShow 都要重跑一遍地理编码 + 分段规划）。
+ */
+let builtHotelKey = ''
+
+function hotelKey(): string {
+  const picked = tripStore.selectedHotel
+  return picked ? `${picked.name}|${picked.lat}|${picked.lng}` : ''
+}
+
+/**
+ * 住宿状态（P2-11）：区分「没有住宿记录」「有名字没坐标」「名字与已选不一致」。
+ * 三种情况都表现为闭环不成立，但用户该做的事完全不同 —— 统一说「还没有住宿信息」
+ * 会让住宿卡上明明写着酒店名的人一头雾水。
+ */
+const hotelState = computed<'none' | 'no-coord' | 'mismatch'>(() => {
+  const trip = tripStore.currentTrip
+  const picked = tripStore.selectedHotel
+  const name = trip?.hotel || ''
+  if (name && picked?.name && name !== picked.name) return 'mismatch'
+  // 只有名字（没读到坐标）或选中项坐标为 0：都属于「有名字无坐标」
+  if (picked && (!picked.lat || !picked.lng)) return 'no-coord'
+  if (name && !picked) return 'no-coord'
+  return 'none'
+})
+
+const hotelTip = computed(() => {
+  const trip = tripStore.currentTrip
+  const picked = tripStore.selectedHotel
+  if (hotelState.value === 'mismatch') {
+    return `行程里记录的住宿是「${trip?.hotel}」，与当前选中的「${picked?.name}」不是同一家，因此没有按它规划闭环`
+  }
+  if (hotelState.value === 'no-coord') {
+    const name = picked?.name || trip?.hotel || '住宿'
+    return `行程里记录了住宿「${name}」，但缺少它的坐标，无法规划「酒店出发 → 返回酒店」的闭环`
+  }
+  return '还没有住宿信息：当前路线是「第一站 → 最后一站」，设置酒店后才会变成「酒店出发 → 返回酒店」的闭环'
+})
+
 onLoad(async (options?: Record<string, string>) => {
   dayIndex.value = Math.max(0, Number(options?.day ?? 0) || 0)
-  await loadTrip(options?.id ? String(options.id) : '')
+  tripId.value = options?.id ? String(options.id) : ''
+  await loadTrip(tripId.value)
   await buildRoute()
+  ready.value = true
+})
+
+/**
+ * 回到本页时重算路线。
+ *
+ * 场景：从这里点「重新选择住宿」去酒店页，选完 navigateBack 回来 —— 本页不会重挂载，
+ * 不重算就还是「第一站 → 最后一站」的旧路线（P2-11）。
+ * 只在住宿确实变了时才重跑，避免每次切走再回来都重新请求一遍地图接口。
+ */
+onShow(() => {
+  if (!ready.value || loading.value) return
+  if (hotelKey() === builtHotelKey) return
+  retry()
+})
+
+/** 防误退（与详情页同一套兜底）：本页也可能成为 WebView 历史的第一条，见 utils/backGuard.ts */
+let uninstallBackGuard: (() => void) | null = null
+onMounted(() => {
+  uninstallBackGuard = installBackGuard()
+})
+onUnmounted(() => {
+  uninstallBackGuard?.()
+  uninstallBackGuard = null
 })
 
 async function loadTrip(id: string) {
@@ -186,6 +308,10 @@ async function loadTrip(id: string) {
       await tripStore.getTripDetail(id)
     } catch (e) {
       console.warn('[trip/route] 行程加载失败:', e)
+      // 带 id 进来却拉不到：store 里可能还留着上一次打开的行程，
+      // 拿它兜底会画出别人的路线，比空态更糟。记失败态，让用户自己重试（P1-23）。
+      loadError.value = true
+      return
     }
   }
   // 恢复住宿：直接从行程进路线页（没经过详情页）时，内存里没有选中的酒店。
@@ -200,15 +326,48 @@ async function loadTrip(id: string) {
   }
 }
 
+/** 重试：重新拉一次行程详情并重算路线（P1-23 里给用户的出口） */
+async function retry() {
+  if (loading.value) return
+  loading.value = true
+  emptyKind.value = 'loading'
+  loadError.value = false
+  await loadTrip(tripId.value)
+  await buildRoute()
+}
+
+/** 去酒店选择页重选住宿；回来时 onShow 会按新的选择重算闭环（P2-11） */
+function onRechooseHotel() {
+  const trip = tripStore.currentTrip
+  const params = [
+    `city=${encodeURIComponent(trip?.toCity || city.value || '')}`,
+    `level=${encodeURIComponent(tripStore.hotelPreference || '无要求')}`,
+    // from=detail：酒店页据此选择 navigateBack，直接回到本页而不是 push 对话页
+    'from=detail'
+  ]
+  uni.navigateTo({ url: `/pages/plan/hotel?${params.join('&')}` })
+}
+
 /** 建路线：定位 → 闭环补点 → 分段规划（大部分时间花在这里） */
 async function buildRoute() {
+  loading.value = true
+  emptyKind.value = 'loading'
   const trip = tripStore.currentTrip
+  if (loadError.value) {
+    // 带 id 却加载失败：先说清是加载失败，而不是「今天没安排」（P1-23）
+    emptyKind.value = 'error'
+    loading.value = false
+    return
+  }
   if (!trip?.dayPlans?.length) {
+    // 前置条件不满足（冷启动直接进本页、或详情页没能写回 store）：这是「没有行程数据」
+    emptyKind.value = 'no-trip'
     loading.value = false
     return
   }
   const dayPlan = trip.dayPlans[Math.min(dayIndex.value, trip.dayPlans.length - 1)]
   city.value = trip.toCity || ''
+  const scheduleCount = dayPlan?.schedules?.length || 0
 
   // 住宿：酒店选择页选中的那家（见 resolveHotel）。有它才闭环成「酒店 → 各站 → 酒店」
   const hotel = resolveHotel(trip)
@@ -222,8 +381,14 @@ async function buildRoute() {
     closed.value = route.closed
     dropped.value = route.dropped
     currentLegIndex.value = 0
+    // 空态原因要按「当天到底有没有安排」来定：
+    // 有安排但一个点都没定位到 → 是定位问题（可重试）；本来就没安排 → 是当天没节点。
+    if (!scheduleCount) emptyKind.value = 'no-node'
+    else if (route.nodes.length < 2) emptyKind.value = 'no-locate'
+    builtHotelKey = hotelKey()
   } catch (e) {
     console.warn('[trip/route] 路线构建失败:', e)
+    emptyKind.value = 'error'
     showToast({ title: '路线规划失败，请检查网络', icon: 'none' })
   } finally {
     loading.value = false
@@ -311,7 +476,16 @@ function onCopyAll() {
 }
 
 function goBack() {
-  uni.navigateBack()
+  // 原来是无兜底的裸 navigateBack：冷启动 / 外链直达本页时没有上一页，
+  // 点返回毫无反应（P2-13）。退回首页而不是停在原地。
+  uni.navigateBack({
+    fail: () => {
+      uni.switchTab({
+        url: '/pages/home/index',
+        fail: () => uni.reLaunch({ url: '/pages/home/index' })
+      })
+    }
+  })
 }
 </script>
 
@@ -424,6 +598,11 @@ function goBack() {
   &.warn {
     color: var(--danger, #ef4444);
   }
+
+  /* 可点的说明（如「重新选择住宿」）：用主色和 › 表明这里能操作 */
+  &.link {
+    color: var(--primary-strong, #4a9ef5);
+  }
 }
 
 .body {
@@ -488,6 +667,13 @@ function goBack() {
   color: var(--text-secondary);
 }
 
+/* 该段没规划出路线：用警示色说清原因，而不是显示「—」 */
+.leg-text.warn {
+  flex: 1;
+  color: var(--danger, #ef4444);
+  line-height: 1.5;
+}
+
 .leg-flag {
   font-size: var(--fs-meta);
   color: var(--primary-strong, #4a9ef5);
@@ -502,6 +688,17 @@ function goBack() {
 .empty-text {
   font-size: var(--fs-meta);
   color: var(--text-tertiary);
+}
+
+/* 空态的「重试」：失败/无数据时给一条自助出口，不必退出去重进（P1-23） */
+.retry-btn {
+  display: inline-block;
+  margin-top: 24rpx;
+  padding: 12rpx 48rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid var(--primary-strong, #4a9ef5);
+  color: var(--primary-strong, #4a9ef5);
+  font-size: var(--fs-meta);
 }
 
 .footer {
@@ -543,6 +740,11 @@ function goBack() {
 
   &::after {
     border: none;
+  }
+
+  /* 当前段没规划出路线时按钮是唯一兜底路径：加描边让它更醒目（P2-12） */
+  &.fallback {
+    box-shadow: 0 0 0 4rpx rgba(74, 158, 245, 0.28);
   }
 }
 </style>

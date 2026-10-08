@@ -81,14 +81,30 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { COMMUNITY_TAG_GROUPS, CUSTOM_TAG_LIMIT } from '@/utils/constant'
 import { publishPost } from '@/api/community'
 import { useUpload } from '@/hooks/useUpload'
 import type { ImageItem } from '@/hooks/useUpload'
+import { isLoggedIn, redirectToLogin } from '@/utils/auth'
 import { showToast } from '@/utils/feedback'
 
 const { uploading, progress, chooseImages } = useUpload()
 const publishing = ref(false)
+
+/**
+ * 进页就校验登录（P2-03 发布页部分）。
+ *
+ * 原来这个页面未登录也能进、能填完整篇游记，直到点「发布」才被 401 弹去登录 ——
+ * 用户白填一遍。这里在页面加载时就用 isLoggedIn() + redirectToLogin() 拦下：
+ * redirectToLogin 会带上当前页路径回跳，登录完回到发布页继续填。
+ * （草稿保护未做：返回/退出仍会丢内容，需要落盘的话属于后续任务。）
+ */
+onLoad(() => {
+  if (isLoggedIn()) return
+  showToast({ title: '请先登录', icon: 'none' })
+  setTimeout(() => redirectToLogin(), 300)
+})
 
 /** 图片列表（本地预览 + 上传状态） */
 const imageItems = ref<ImageItem[]>([])

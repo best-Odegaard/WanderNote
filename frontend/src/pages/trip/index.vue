@@ -7,6 +7,17 @@
     <scroll-view scroll-y class="scroll-body" :style="{ paddingTop: headerHeight + 'px' }">
       <LoadingView v-if="loading" />
 
+      <!--
+        未登录：明确说清「我的行程要登录」，并给一个去登录的按钮。
+        以前这里什么判断都没有：匿名进来看空态写着「还没有行程，点这里填问卷」，
+        用户填完问卷才在最后一步被弹去登录（P1-02 的另一半）。
+      -->
+      <view v-else-if="!isLogin" class="empty soft-shadow" @tap="goLogin">
+        <AppIcon name="user" :size="96" color="var(--text-tertiary)" />
+        <text class="empty-title">登录后查看我的行程</text>
+        <text class="empty-hint">点这里登录，行程会自动同步到账号里</text>
+      </view>
+
       <view v-else-if="cards.length === 0" class="empty soft-shadow" @tap="goCreate">
         <AppIcon name="calendar" :size="96" color="var(--text-tertiary)" />
         <text class="empty-title">还没有行程</text>
@@ -54,16 +65,21 @@
  * 「进入行程对话」入口合并进了 MyPlanCard（showChatEntry），迁移不丢能力。
  */
 import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import MyPlanCard from '@/components/MyPlanCard/MyPlanCard.vue'
 import LoadingView from '@/components/LoadingView/LoadingView.vue'
 import AppIcon from '@/components/AppIcon/AppIcon.vue'
 import AppTabBar from '@/components/AppTabBar/AppTabBar.vue'
 import { useTabBarPage } from '@/hooks/useTabBarPage'
 import { useTripStore } from '@/store/trip'
+import { useUserStore } from '@/store/user'
+import { redirectToLogin } from '@/utils/auth'
 import { toMyPlanItem } from '@/utils/tripCard'
 import type { TripPlan } from '@/api/trip'
 
 const tripStore = useTripStore()
+// 用 store 里的响应式登录态：登录/退出后本页无需重进就能切换空态
+const { isLogin } = storeToRefs(useUserStore())
 
 const systemInfo = uni.getSystemInfoSync()
 const statusBarHeight = systemInfo.statusBarHeight || 20
@@ -107,6 +123,11 @@ function openTripChat(trip: TripPlan) {
 /** 新建行程：走问卷 → 选酒店 → 对话这条主链路（与首页悬浮「+」同一个入口） */
 function goCreate() {
   uni.navigateTo({ url: '/pages/plan/survey' })
+}
+
+/** 未登录空态的入口：带 redirect 回本页（行程 tab 不能作为回跳目标，用首页兜底） */
+function goLogin() {
+  redirectToLogin()
 }
 </script>
 

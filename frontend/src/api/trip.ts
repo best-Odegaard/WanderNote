@@ -1,4 +1,5 @@
 import http from '@/utils/request'
+import type { RequestConfig } from '@/utils/request'
 import { API_BASE_URL, USE_MOCK } from '@/utils/constant'
 import { getToken } from '@/utils/auth'
 import * as mock from '@/api/mock/handlers'
@@ -84,10 +85,19 @@ export interface TripPlan {
   createdAt?: string
 }
 
-/** 根据链接导入行程 — POST /trip/import/link */
-export function importTripFromLink(data: ImportTripLinkParams) {
+/**
+ * 根据链接导入行程 — POST /trip/import/link
+ *
+ * config 透传：AI 解析外部链接（小红书/游记）经常超过默认 30s 超时，
+ * 调用方需要能把 timeout 调大（见 pages/plan/import.vue 传的 120000）。
+ */
+export function importTripFromLink(data: ImportTripLinkParams, config?: Partial<RequestConfig>) {
   if (USE_MOCK) return mock.mockImportTripFromLink(data)
-  return http.post<TripPlan>('/trip/import/link', data, { showLoading: true, loadingText: '正在识别链接...' })
+  return http.post<TripPlan>('/trip/import/link', data, {
+    showLoading: true,
+    loadingText: '正在识别链接...',
+    ...config
+  })
 }
 
 /** 保存行程 — POST /trip/save */
@@ -425,6 +435,15 @@ export interface StreamChatHandlers {
 }
 
 /**
+ * 流式读数据的空闲超时（毫秒）。
+ *
+ * 为什么需要：fetch 本身没有超时，网关/代理把连接挂住时 `reader.read()` 会一直等，
+ * 而发送按钮在生成期间是「停止」图标且不可发送 —— 用户就永远卡在那里（只能切页）。
+ * 这里是**空闲**超时而不是总时长超时：模型吐字慢没关系，只要一直在吐就不能掐断。
+ */
+const STREAM_IDLE_TIMEOUT_MS = 60_000
+
+/**
  * 流式对话 — POST /travel/chat/stream（SSE）
  *
  * 事件协议见后端 TravelController.chatStream：
@@ -434,14 +453,18 @@ export interface StreamChatHandlers {
  *
  * 不用 EventSource：它只能发 GET、也不能带 Authentication 头，
  * 而后端这条链路是要鉴权的 POST。所以用 fetch 拿裸流自己解析 SSE 帧。
+ *
+ * @param signal 外部中止信号（「停止生成」按钮用）
  */
 export async function chatWithAiStream(
   data: ChatRequestParams,
-  handlers: StreamChatHandlers
+  handlers: StreamChatHandlers,
+  signal?: AbortSignal
 ): Promise<void> {
   const token = getToken()
   const res = await fetch(`${API_BASE_URL}/travel/chat/stream`, {
     method: 'POST',
+    signal,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authentication: token } : {})
@@ -466,7 +489,7 @@ export async function chatWithAiStream(
 
   try {
     for (;;) {
-      const { value, done } = await reader.read()
+      const { value, done } = await readWithIdleTimeout(reader)
       if (done) break
       buffer += decoder.decode(value, { stream: true })
 
@@ -488,6 +511,28 @@ export async function chatWithAiStream(
       /* 已关闭，忽略 */
     }
   }
+}
+
+/**
+ * 带空闲超时的读（Web Streams 的 reader 本身没有超时选项）。
+ *
+ * 为什么要 Promise.race 包一层：网关挂住连接时 `reader.read()` 会一直 pending，
+ * 而生成期间发送按钮是「停止」图标且不可发送 —— 用户就彻底卡住了。
+ * 只做**空闲**超时：模型吐字慢没关系，只要还在吐就不能掐断。
+ */
+function readWithIdleTimeout(reader: {
+  read: () => Promise<{ value?: Uint8Array; done: boolean }>
+}): Promise<{ value?: Uint8Array; done: boolean }> {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error('流式响应超时（长时间没有数据），请重试')),
+      STREAM_IDLE_TIMEOUT_MS
+    )
+  })
+  return Promise.race([reader.read(), timeout]).finally(() => {
+    if (timer) clearTimeout(timer)
+  }) as Promise<{ value?: Uint8Array; done: boolean }>
 }
 
 /** 解析一条 SSE 事件帧并分发 */

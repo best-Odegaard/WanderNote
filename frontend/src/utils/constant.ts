@@ -1,7 +1,24 @@
 /** 全局常量配置 */
 
-/** API 基础地址 */
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+/**
+ * API 基础地址。
+ *
+ * 正常路径：`vite.config.ts` 在构建期就校验 `VITE_API_BASE_URL`，缺失或还是
+ * `your-server-ip` 占位值会直接让构建失败 —— 所以**生产产物里这个值一定存在**。
+ *
+ * 这里的 localhost 兜底只服务「本地开发漏配 .env」这一种情况，
+ * 但必须吵：以前是静默回落到本机，真机/小程序上表现为「网络异常」，
+ * 排查时完全看不出是配置问题（明文 http + localhost 在 iOS ATS / Android cleartext /
+ * 微信小程序合法域名下都必然失败）。
+ */
+const ENV_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim()
+if (!ENV_API_BASE_URL) {
+  console.error(
+    '[config] 未配置 VITE_API_BASE_URL，已回落到 http://localhost:8080（仅本地开发可用）。' +
+      '真机/小程序请配置 https 地址；生产构建会因 vite.config.ts 的环境校验直接失败。'
+  )
+}
+export const API_BASE_URL = ENV_API_BASE_URL || 'http://localhost:8080'
 
 /**
  * 腾讯地图配置
@@ -158,14 +175,10 @@ export const SCENIC_CATEGORIES = ['全部', '自然风光', '历史文化', '主
 /** 活动分类 */
 export const ACTIVITY_CATEGORIES = ['全部', '音乐节', '展览', '户外', '美食节', '文化体验'] as const
 
-/** Banner 轮播数据 */
-export const BANNERS = [
-  { id: 1, title: '探索杭州西湖', image: 'https://picsum.photos/seed/banner1/750/360', link: '/pages/scenic/list?city=杭州' },
-  { id: 2, title: '成都美食之旅', image: 'https://picsum.photos/seed/banner2/750/360', link: '/pages/plan/wizard' },
-  { id: 3, title: '周末CityWalk', image: 'https://picsum.photos/seed/banner3/750/360', link: '/pages/coming/index' }
-] as const
-
-/** 首页 Banner（页面初步预设） */
+/**
+ * 首页 Banner（页面初步预设）—— **仅 mock 模式使用**（见 utils/mock.ts）。
+ * 真实数据走 `/featured/list`（探索页）与 `/home/index`（首页）。
+ */
 export const HOME_BANNERS = [
   { id: 1, title: '广州塔', subtitle: '璀璨夜景 · 城市地标', emoji: '🗼', imgSrc: 'https://geek003-1348546854.cos.ap-guangzhou.myqcloud.com/AI文旅/图片/adc7ede837b047cda97938dc0ea9a492广州塔7.jpg' },
   { id: 2, title: '桂林山水', subtitle: '山水甲天下', emoji: '🏞️', imgSrc: 'https://geek003-1348546854.cos.ap-guangzhou.myqcloud.com/AI文旅/图片/ea98655cd449495f97e126937c2a09db桂林山水2.jpg' },

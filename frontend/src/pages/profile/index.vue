@@ -31,20 +31,32 @@
           <text class="stat-num">{{ journalCount }}</text>
           <text class="stat-label">游记</text>
         </view>
-        <view class="stat-item">
-          <text class="stat-num">0</text>
+        <!-- P2-02：「关注」既没有接口也没有 @tap，原来写死 0 且按下去有缩放反馈，
+             看着能点其实没反应。未接入前不展示真实数值，用「—」表示暂不可用，
+             并去掉按压反馈（stat-item--muted），避免假可点。 -->
+        <view class="stat-item stat-item--muted">
+          <text class="stat-num">—</text>
           <text class="stat-label">关注</text>
         </view>
       </view>
 
       <!-- 功能菜单 -->
       <view class="menu card-lg">
-        <view v-for="item in menuItems" :key="item.label" class="menu-item" @tap="goPage(item.path)">
+        <view
+          v-for="item in menuItems"
+          :key="item.label"
+          class="menu-item"
+          :class="{ 'menu-item--muted': !item.path }"
+          @tap="goPage(item.path)"
+        >
           <view class="menu-icon" :style="{ background: item.bg }">
             <AppIcon :name="item.icon" :size="32" :color="item.color" />
           </view>
           <text class="menu-label">{{ item.label }}</text>
-          <AppIcon name="chevron-right" :size="28" color="var(--text-tertiary)" class="menu-arrow" />
+          <!-- P2-02：path 为空 = 未实现的项。原来照样渲染右箭头（暗示可进入）却只弹「开发中」，
+               现在去掉箭头并标注「敬请期待」，如实告诉用户没做完。 -->
+          <text v-if="!item.path" class="menu-tag">敬请期待</text>
+          <AppIcon v-else name="chevron-right" :size="28" color="var(--text-tertiary)" class="menu-arrow" />
         </view>
       </view>
 
@@ -60,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/store/app'
 import AppTabBar from '@/components/AppTabBar/AppTabBar.vue'
@@ -92,32 +104,44 @@ const menuItems = [
   { icon: 'edit', color: '#0E9A85', bg: 'rgba(14, 154, 133, 0.12)', label: '我的游记', path: '/pages/profile/journals?type=mine' },
   { icon: 'map', color: '#2F80ED', bg: 'rgba(47, 128, 237, 0.12)', label: '我的行程', path: '/pages/trip/index' },
   { icon: 'eye', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)', label: '浏览历史', path: '' },
+  // P1-08：智能导入（pages/plan/import）此前全仓无 UI 入口，功能形同隐藏，
+  // 这里补一个真实入口（图标用 AppIcon 已有的 link，小程序端回退成 🔗）。
+  { icon: 'link', color: '#2FA8A0', bg: 'rgba(47, 168, 160, 0.12)', label: '智能导入', path: '/pages/plan/import' },
   { icon: 'message', color: '#F0708C', bg: 'rgba(240, 112, 140, 0.12)', label: '意见反馈', path: '/pages/profile/feedback' },
   { icon: 'info', color: '#E8894A', bg: 'rgba(232, 137, 74, 0.12)', label: '关于我们', path: '' },
   { icon: 'settings', color: '#7A93A8', bg: 'rgba(122, 147, 168, 0.14)', label: '设置中心', path: '/pages/profile/setting' }
 ]
 
-useTabBarPage(3)
+// P1-28：原来 useTabBarPage(3) 没回调 + 统计只写在 onMounted —— 而 onMounted 一辈子只跑一次，
+// 所以切回「我的」tab 计数永远是旧值（新建/删除行程、收藏游记后数字不变；登录后也还是 0）。
+// 改成和 trip/index.vue 一样的写法：统计抽成函数交给 useTabBarPage 的 onShow 回调。
+// 不再需要 onMounted（onShow 首次进入也会触发），避免照 trip/index 那样重复请求一次（P2-07）。
+useTabBarPage(3, loadStats)
 
-onMounted(async () => {
-  if (isLogin.value) {
-    try {
-      const list = await tripStore.loadHistory()
-      tripCount.value = list.length
-    } catch {
-      tripCount.value = 0
-    }
-    // 收藏数 / 游记数
-    try {
-      const [collects, journals] = await Promise.all([getMyCollects(), getMyJournals()])
-      collectCount.value = (collects || []).length
-      journalCount.value = (journals || []).length
-    } catch {
-      collectCount.value = 0
-      journalCount.value = 0
-    }
+async function loadStats() {
+  if (!isLogin.value) {
+    // 未登录要清零：否则退出登录后仍显示上一个账号的数字，看着像"数据还在"
+    tripCount.value = 0
+    collectCount.value = 0
+    journalCount.value = 0
+    return
   }
-})
+  try {
+    const list = await tripStore.loadHistory()
+    tripCount.value = list.length
+  } catch {
+    tripCount.value = 0
+  }
+  // 收藏数 / 游记数
+  try {
+    const [collects, journals] = await Promise.all([getMyCollects(), getMyJournals()])
+    collectCount.value = (collects || []).length
+    journalCount.value = (journals || []).length
+  } catch {
+    collectCount.value = 0
+    journalCount.value = 0
+  }
+}
 
 function handleUserTap() {
   if (isLogin.value) {
@@ -285,6 +309,15 @@ function handleLogout() {
   line-height: 1.2;
 }
 
+/* 未接入的统计项（关注）：去掉按压缩放，避免看着像可点 */
+.stat-item--muted:active {
+  transform: none;
+}
+
+.stat-item--muted .stat-num {
+  color: var(--text-tertiary);
+}
+
 .stat-label {
   font-size: 24rpx;
   color: var(--text-secondary);
@@ -328,6 +361,24 @@ function handleLogout() {
   font-size: 30rpx;
   font-weight: 500;
   color: var(--text-main);
+}
+
+/* 未实现菜单项：文字降权 + 去掉按压反馈，配合右侧「敬请期待」标签 */
+.menu-item--muted .menu-label {
+  color: var(--text-secondary);
+}
+
+.menu-item--muted:active {
+  transform: none;
+}
+
+.menu-tag {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  background: var(--bg-input);
+  border-radius: 999rpx;
+  padding: 4rpx 16rpx;
+  flex-shrink: 0;
 }
 
 .menu-arrow {

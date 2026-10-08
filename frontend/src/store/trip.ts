@@ -141,14 +141,31 @@ export const useTripStore = defineStore('trip', () => {
     return slotState.value.slots?.[key]?.value ?? ''
   }
 
+  /**
+   * 会话版本号：`resetForNewTrip()` 每次调用递增。
+   *
+   * 为什么需要它：对话状态里有一半在 store（槽位/完整度/选中的酒店），另一半在
+   * ChatPlanner **实例本地**（sessionId / messages / chatHistory）。
+   * store 被清空时本地那份不会跟着变：
+   *   首页实例还在聊，用户去「行程 → + → 问卷」提交（会 resetForNewTrip），
+   *   回到首页时进度条与浮出工具条突然消失，但对话气泡还在，
+   *   下一轮请求又按旧 sessionId 走 —— 界面上像「聊到一半的记录没了」。
+   * 各实例监听这个版本号，发现变化就重置自己的本地会话。
+   */
+  const sessionVersion = ref(0)
+
   /** 开始新的行程规划，避免沿用上一行程的临时数据和活动聊天会话 */
   function resetForNewTrip() {
     currentTrip.value = null
     currentAiResponse.value = null
     slotState.value = emptySlotState()
+    // 「打字答过」的本地标记也要清：它只在一次会话里有效，
+    // 不清的话新会话里那道题的选项会因为 answeredSlots 命中而永远不显示。
+    answeredSlots.value = []
     hotelPreference.value = ''
     selectedHotel.value = null
     clearActiveChatSession()
+    sessionVersion.value++
   }
 
   /** 保存行程 */
@@ -209,6 +226,7 @@ export const useTripStore = defineStore('trip', () => {
     setSelectedHotel,
     persistSelectedHotel,
     loadTripHotel,
+    sessionVersion,
     resetForNewTrip,
     saveTrip,
     deleteTrip,

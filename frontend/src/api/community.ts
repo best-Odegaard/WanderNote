@@ -167,7 +167,14 @@ export async function getMyCollects(): Promise<CommunityPost[]> {
   return (res || []).map(normalizeJournalVO)
 }
 
-/** 关注作者 — POST /journal/follow/:authorId（后端暂未实现） */
+/**
+ * 关注作者 — POST /journal/follow/:authorId
+ *
+ * ⚠️ 后端**没有**这个接口（`TravelJournalController` 里没有 follow 映射），
+ * 之前详情页直接本地置位 + 提示「关注成功」= 假成功（P1-26）。
+ * 现在 UI 已下线该入口，这里保留函数仅为兼容旧引用，
+ * **在没有后端接口之前不要再接线**，否则又会造出「作者端看不到粉丝」的假动作。
+ */
 export function followAuthor(authorId: number) {
   if (USE_MOCK) return mock.mockFollowAuthor(authorId)
   return http.post<void>(`/journal/follow/${authorId}`)
@@ -179,8 +186,50 @@ export function getHotPosts(limit = 10) {
   return http.get<CommunityPost[]>('/journal/hot', { limit })
 }
 
-/** 发表评论 — POST /journal/:postId/comment（后端暂未实现） */
-export function addComment(postId: number, content: string) {
-  if (USE_MOCK) return mock.mockCommentPost(postId, content)
-  return http.post<void>(`/journal/${postId}/comment`, { content })
+/**
+ * 评论（对齐后端 CommentVO）
+ * 后端字段：id, journalId, userId, username, nickname, content, avatar,
+ *          parentCommentIds, parentUsername, createTime
+ */
+export interface JournalComment {
+  id: number
+  journalId: number
+  userId: number
+  username?: string
+  nickname?: string
+  content: string
+  avatar?: string
+  parentCommentIds?: number
+  parentUsername?: string
+  createTime?: string
+}
+
+/**
+ * 查询评论列表 — GET /journal/comment/list/{journalId}
+ *
+ * 为什么单独抽出来：评论能力后端早就有了（列表/发表/删除齐全），
+ * 前端却一直没有入口，评论数也就永远看不到（P1-27）。
+ */
+export async function getCommentList(journalId: number): Promise<JournalComment[]> {
+  const res = await http.get<JournalComment[]>(`/journal/comment/list/${journalId}`)
+  return res || []
+}
+
+/**
+ * 发表评论 — POST /journal/comment
+ *
+ * body 必须按后端 `CommentDTO`：{ journalId, content, parentCommentId? }。
+ * 原来的 URL 是 `/journal/${postId}/comment`，后端根本没有这个映射，接上就 404；
+ * 后端也**不返回**新评论对象（Result.success() 无 data），所以调用方发表成功后
+ * 需要重新拉一次列表，不能靠本地拼接假装有服务端数据。
+ */
+export function addComment(journalId: number, content: string, parentCommentId?: number) {
+  const body: Record<string, unknown> = { journalId, content }
+  if (parentCommentId) body.parentCommentId = parentCommentId
+  return http.post<void>('/journal/comment', body)
+}
+
+/** 删除评论 — DELETE /journal/comment/{commentId}（后端校验仅本人可删） */
+export function deleteComment(commentId: number) {
+  return http.delete<void>(`/journal/comment/${commentId}`)
 }

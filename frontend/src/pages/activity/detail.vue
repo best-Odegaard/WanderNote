@@ -1,6 +1,13 @@
 <template>
   <view class="page">
     <LoadingView v-if="loading" />
+    <!-- 取不到就明确说「不存在或已结束」，并给重试：原来没有任何失败分支，页面会永远转圈 -->
+    <view v-else-if="!detail" class="empty-state">
+      <text class="empty-emoji">🎪</text>
+      <text class="empty-title">活动不存在或已结束</text>
+      <text class="empty-hint">{{ loadError || '可以返回看看其他活动' }}</text>
+      <view class="empty-btn" @tap="loadDetail">重试</view>
+    </view>
     <view v-else-if="detail">
       <image class="cover" :src="detail.cover" mode="aspectFill" />
       <view class="content">
@@ -42,14 +49,43 @@ const detail = ref<ActivityItem | null>(null)
 const collecting = ref(false)
 /** 报名请求进行中：报名是真实动作，必须防重复提交 */
 const enrolling = ref(false)
+/** 详情加载失败的原因（用于空态文案；空串表示只是没有这条数据） */
+const loadError = ref('')
 
-onMounted(async () => {
-  const pages = getCurrentPages()
-  const page = pages[pages.length - 1] as { options?: { id?: string } }
-  const id = Number(page.options?.id || 0)
-  detail.value = await getActivityDetail(id)
-  loading.value = false
-})
+/**
+ * 加载活动详情。
+ *
+ * 原来这里是裸 `await getActivityDetail(id); loading=false`：活动下架、id 传错、
+ * 断网或 401 时异常直接冒出去，`loading` 永远是 true —— 页面无限转圈，
+ * 既没有错误提示也没有重试入口（同时留下一个未捕获的 Promise）。
+ */
+async function loadDetail() {
+  loading.value = true
+  loadError.value = ''
+  try {
+    const pages = getCurrentPages()
+    const page = pages[pages.length - 1] as { options?: { id?: string } }
+    const id = Number(page.options?.id || 0)
+    if (!id) {
+      loadError.value = '缺少活动 id，请从活动列表进入'
+      detail.value = null
+      return
+    }
+    detail.value = await getActivityDetail(id)
+    if (!detail.value) {
+      loadError.value = '没有找到这个活动'
+    }
+  } catch (e: any) {
+    console.warn('[activity/detail] 加载失败:', e)
+    detail.value = null
+    loadError.value = e?.data?.msg || e?.message || '加载失败，请检查网络后重试'
+  } finally {
+    // 无论成功失败都必须复位，否则失败时页面停在 loading 上
+    loading.value = false
+  }
+}
+
+onMounted(loadDetail)
 
 /** 需要登录才能做的动作：未登录先跳登录（带 redirect 回跳，回来还能接着点） */
 function ensureLogin(): boolean {
@@ -122,6 +158,43 @@ async function enroll() {
 
 <style lang="scss" scoped>
 @import '@/styles/variables.scss';
+
+/* ── 详情加载失败/活动不存在 ── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  padding: 160rpx 48rpx;
+}
+
+.empty-emoji {
+  font-size: 88rpx;
+}
+
+.empty-title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.empty-hint {
+  font-size: var(--fs-meta);
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.empty-btn {
+  margin-top: 16rpx;
+  padding: 16rpx 48rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--brand);
+  color: var(--brand-ink);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
 
 .cover { width: 100%; height: 400rpx; }
 

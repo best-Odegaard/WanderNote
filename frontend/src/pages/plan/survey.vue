@@ -139,6 +139,7 @@ import {
   budgetToAmount,
   paceToTag
 } from '@/utils/surveyQuestions'
+import { isLoggedIn, redirectToLogin } from '@/utils/auth'
 import { showModal, showToast } from '@/utils/feedback'
 
 const tripStore = useTripStore()
@@ -277,6 +278,15 @@ function nextStep() {
  * 注意 resetForNewTrip 会清掉住宿偏好，所以 hotelPreference / currentTrip 的写入都放在它之后。
  */
 function submitRequirements() {
+  // 前置登录校验：这条链路后面是「选酒店 → 对话生成」，两处都要登录态。
+  // 原来没有校验，未登录用户能填完 3 步问卷 + 选完酒店，直到对话页才被弹去登录 ——
+  // 前面的输入时间白费，酒店页还会因 401 反复跳登录。
+  if (!isLoggedIn()) {
+    showToast({ title: '先登录才能保存你的规划', icon: 'none' })
+    setTimeout(() => redirectToLogin(), 300)
+    return
+  }
+
   const tags = [
     paceToTag(answers.pace),
     answers.interest,
@@ -290,7 +300,10 @@ function submitRequirements() {
   const dayCount = parseInt(days.value, 10) || 1
   tripStore.currentTrip = {
     title: `${destination.value}${dayCount}日游`,
-    fromCity: '当前城市',
+    // 出发地留空，交给对话链路的槽位（departCity）去收集 ——
+    // 原来写死 '当前城市'，会被当成真实城市透传给 /travel/chat
+    // （后端没有对这个字符串做任何特判，大交通/首日路线都会拿到这四个字）。
+    fromCity: '',
     toCity: destination.value,
     days: dayCount,
     startDate: startDate.value,

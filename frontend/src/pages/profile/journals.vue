@@ -25,8 +25,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { computed, ref } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import CustomNavbar from '@/components/CustomNavbar/CustomNavbar.vue'
 import CommunityCard from '@/components/CommunityCard/CommunityCard.vue'
 import LoadingView from '@/components/LoadingView/LoadingView.vue'
@@ -42,10 +42,16 @@ const systemInfo = uni.getSystemInfoSync()
 const navHeight = (systemInfo.statusBarHeight || 20) + 44
 
 // 页面参数：type=mine 我的游记 / type=collect 我的收藏
-const pages = getCurrentPages()
-const page = pages[pages.length - 1] as { options?: { type?: string } }
-const type = page.options?.type || 'mine'
-const title = type === 'collect' ? '我的收藏' : '我的游记'
+// P2-08：原来在 <script setup> 顶层同步读 getCurrentPages().options —— setup 的执行
+// 早于页面拿到 query（见 ChatPlanner.vue:422-427 的说明），options 可能还没就绪，
+// type 会恒为 'mine'，于是「我的收藏」入口打开的是「我的游记」。
+// 改到 onLoad 里取参数，此时 options 一定已就绪。
+const type = ref<'mine' | 'collect'>('mine')
+const title = computed(() => (type.value === 'collect' ? '我的收藏' : '我的游记'))
+
+onLoad((options?: Record<string, string>) => {
+  type.value = options?.type === 'collect' ? 'collect' : 'mine'
+})
 
 const posts = ref<CommunityPost[]>([])
 const loading = ref(true)
@@ -54,7 +60,7 @@ async function load() {
   if (!checkLogin()) return
   loading.value = true
   try {
-    const list = type === 'collect' ? await getMyCollects() : await getMyJournals()
+    const list = type.value === 'collect' ? await getMyCollects() : await getMyJournals()
     posts.value = Array.isArray(list) ? list : []
   } catch (e) {
     console.warn('加载列表失败:', e)

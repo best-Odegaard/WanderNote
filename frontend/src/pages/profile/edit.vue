@@ -18,7 +18,7 @@
         <textarea v-model="form.bio" class="textarea" placeholder="介绍一下自己吧" />
       </view>
     </view>
-    <button class="btn-primary" :loading="saving" @tap="handleSave">保存</button>
+    <button class="btn-primary" :loading="saving" :disabled="saving" @tap="handleSave">保存</button>
   </view>
 </template>
 
@@ -67,14 +67,20 @@ async function changeAvatar() {
 }
 
 async function handleSave() {
+  // 防重兜底：按钮已有 :disabled="saving"，但禁用态生效前的一帧仍可能被连点，
+  // 重复提交会打出两次 PUT /user/info（并发覆盖，后到的旧数据可能盖掉新数据）。
+  if (saving.value) return
   saving.value = true
   try {
     await userStore.updateUserInfo({ ...form })
     showToast({ title: '保存成功', icon: 'success' })
-    setTimeout(() => uni.navigateBack(), 1000)
+    // 原来成功后 setTimeout(() => navigateBack(), 1000)：这 1 秒里 finally 已经把
+    // saving 复位，按钮重新可点，用户能再点一次「保存」。现在立即返回，
+    // 且成功路径不复位 saving（保持按钮禁用直到页面退出）。
+    uni.navigateBack()
   } catch (e: any) {
     showToast({ title: e?.data?.msg || e?.message || '保存失败，请重试', icon: 'none' })
-  } finally {
+    // 失败必须解锁，否则用户再也点不了保存
     saving.value = false
   }
 }

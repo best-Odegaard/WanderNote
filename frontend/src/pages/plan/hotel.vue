@@ -59,6 +59,15 @@
         <text v-if="!fromApi && !loading" class="offline-hint">（当前为离线候选）</text>
       </text>
 
+      <!--
+        筛完没有结果：给一条明确的出路。
+        以前这里只有一行「0 家候选」，用户不知道是哪个条件把结果筛没了，也没有重置入口。
+      -->
+      <view v-if="!loading && list.length === 0" class="empty-filter">
+        <text class="empty-filter-text">当前筛选条件下没有候选酒店</text>
+        <view class="empty-filter-btn" @tap="resetFilters">重置筛选</view>
+      </view>
+
       <view class="hotel-list">
         <view
           v-for="hotel in list"
@@ -177,18 +186,15 @@ const loading = ref(false)
 const fromApi = ref(true)
 const picked = ref<HotelOption | null>(null)
 
+/** 请求序号：并发筛选时只认最后一次的结果（见 load 的注释） */
+let loadSeq = 0
+/** 位置候选池：只在「不限位置」的结果里更新，避免按地标筛完 chip 自己消失 */
+const landmarkPool = ref<string[]>([])
+
 const tripDays = computed(() => tripStore.currentTrip?.days || 1)
 
-/** 位置 chips：从候选里取地标去重，最多 6 个 + 「不限位置」 */
-const areaChoices = computed(() => {
-  const seen: string[] = []
-  for (const h of sourceList.value) {
-    const lm = (h.nearbyLandmark || '').trim()
-    if (lm && !seen.includes(lm)) seen.push(lm)
-    if (seen.length >= 6) break
-  }
-  return [AREA_ANY, ...seen]
-})
+/** 位置 chips：来自稳定的候选池 + 「不限位置」，任何时候都能切回来 */
+const areaChoices = computed(() => [AREA_ANY, ...landmarkPool.value])
 
 /** 展示列表：在候选基础上做价位 + 位置过滤 */
 const list = computed(() => {
@@ -224,9 +230,13 @@ onLoad(async (query) => {
  *
  * 位置切换时把 area 也带给后端（/hotel/search 支持位置筛选，命不中会自动放宽到全城），
  * 这样「运营改了候选库 → 位置筛选结果跟着变」不需要前端同步改逻辑。
+ *
+ * 并发处理：用户可能在一次请求还没回来时又点了别的筛选。
+ * 这里不用「loading 中就 return」把它丢掉（那会让高亮变了、列表没变，见 P1-18），
+ * 而是给每次请求编号，只认最后发起的那次结果（过期响应直接丢弃）。
  */
 async function load() {
-  if (loading.value) return
+  const seq = ++loadSeq
   loading.value = true
   try {
     const result = await fetchHotelOptions({
@@ -236,14 +246,40 @@ async function load() {
       checkin: tripStore.currentTrip?.startDate,
       checkout: tripStore.currentTrip?.endDate
     })
+    // 期间又发起了新的筛选：这次结果已经过期，丢弃
+    if (seq !== loadSeq) return
     sourceList.value = result.list
     fromApi.value = result.fromApi
+    // 位置候选只在「不限位置」的结果里收集：
+    // 否则按某个地标筛完，候选集变小、chips 跟着变少甚至整行消失，用户看不到也取消不了当前筛选。
+    if (activeArea.value === AREA_ANY) {
+      landmarkPool.value = collectLandmarks(result.list)
+    }
     if (result.list.length === 0) {
       showToast({ title: '这个城市暂时没有候选酒店', icon: 'none' })
     }
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
+}
+
+/** 从候选里收集去重后的地标（最多 6 个，够用且不挤） */
+function collectLandmarks(list: HotelOption[]): string[] {
+  const seen: string[] = []
+  for (const h of list) {
+    const lm = (h.nearbyLandmark || '').trim()
+    if (lm && !seen.includes(lm)) seen.push(lm)
+    if (seen.length >= 6) break
+  }
+  return seen
+}
+
+/** 重置全部筛选条件（空结果时的唯一出路：至少让用户能把条件收回来） */
+async function resetFilters() {
+  activeLevel.value = HOTEL_LEVEL_ANY
+  activePrice.value = PRICE_BUCKETS[0].label
+  activeArea.value = AREA_ANY
+  await load()
 }
 
 async function pickLevel(level: string) {
@@ -275,10 +311,21 @@ function onBook(hotel: HotelOption) {
   })
 }
 
-/** @param skip true = 暂不选择（清掉已选，直接进对话） */
+/**
+ * @param skip true = 暂不选择
+ *
+ * 「暂不选择」的语义是「这次不新建选择」，不是「取消已有住宿」。
+ * 之前无条件 `setSelectedHotel(null)`：从行程详情点「更换住宿」进来再点暂不选择，
+ * 会把内存里的 selectedHotel 和 currentTrip.hotel 一起清空，而 trip_hotel 表里的记录还在 ——
+ * 于是详情页的住宿卡消失、路线页却仍然从酒店出发，两处对不上。
+ * 现在只在「本来就还没有住宿」时才清空。
+ */
 async function confirm(skip: boolean) {
   if (skip) {
-    tripStore.setSelectedHotel(null)
+    const hadSaved = !!tripStore.selectedHotel || !!tripStore.currentTrip?.hotel
+    if (!hadSaved) {
+      tripStore.setSelectedHotel(null)
+    }
     gotoChat()
     return
   }
@@ -575,6 +622,34 @@ function goBack() {
 /* 离线候选提示：候选来自本地兜底表，不是接口数据 */
 .offline-hint {
   color: var(--text-tertiary);
+}
+
+/* 筛完没有结果：说明 + 重置筛选 */
+.empty-filter {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  border-radius: 24rpx;
+  background: var(--bg-card);
+  border: 1rpx solid var(--border);
+}
+
+.empty-filter-text {
+  flex: 1;
+  font-size: var(--fs-meta);
+  color: var(--text-secondary);
+}
+
+.empty-filter-btn {
+  flex-shrink: 0;
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--brand);
+  color: var(--brand-deep);
+  font-size: var(--fs-caption);
+  font-weight: 600;
 }
 
 /* ── 底部按钮 ── */

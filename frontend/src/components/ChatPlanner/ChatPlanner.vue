@@ -9,6 +9,17 @@
         <text class="nav-title">小笺</text>
         <view class="nav-actions">
           <!--
+            新对话：显式入口。
+            原来只在组件 onMounted 里清一次状态，注释却写着「每次进入都开一个新对话」——
+            tab 页切回来只触发 onShow、不会重新挂载，于是用户切走再切回，上一轮对话原样还在，
+            既没有「新对话」可点，也没有任何提示，想规划下一趟只能接着旧上下文说。
+            这里补一个显式按钮（不做成「切回 tab 自动清空」：那会在误触 tab 时直接抹掉聊到一半的内容），
+            有进度时先二次确认。
+          -->
+          <text v-if="hasOngoingConversation" class="nav-text-btn plain" @tap="onNewConversation">
+            新对话
+          </text>
+          <!--
             精细设置入口。
             旧的表单式规划（wizard）不再出现在主路径上，但仍有用户想自己填具体日期、
             人数、预算，所以留一个入口，而不是把那条路彻底砍掉。
@@ -101,11 +112,18 @@
         </view>
       </view>
 
-      <!-- 错误提示（位于消息流下方） -->
+      <!--
+        错误提示（位于消息流下方）。
+        鉴权类错误（令牌过期）不给「重新生成」——点了必然再失败、再被弹一次登录页，
+        改为引导去登录（redirectToLogin 带回跳，回来还能接着用）。
+      -->
       <view v-if="aiError" class="error-card">
         <AppIcon name="alert" :size="32" color="var(--danger)" class="error-icon" />
         <text class="error-text">{{ aiError }}</text>
-        <view class="retry-btn" @tap="retryAiCall">
+        <view v-if="isAuthError" class="retry-btn" @tap="goLoginAgain">
+          <text>去登录</text>
+        </view>
+        <view v-else class="retry-btn" @tap="retryAiCall">
           <text>重新生成</text>
         </view>
       </view>
@@ -232,13 +250,14 @@
       </view>
 
       <!--
-        底部常驻「生成行程计划」（设计稿位置：输入区下方、整行宽）。
-        信息够了（目的地 + 天数已知，与后端 ready.frame 一致）时高亮，提示已经可以点了。
-        动作仍是原来的 onDrawRoute —— 只挪了按钮位置，生成链路没动。
+        底部常驻主按钮（设计稿位置：输入区下方、整行宽）。
+        信息够了（目的地 + 天数已知，与后端 ready.frame 一致）时高亮。
+        文案跟随后端状态与实际行为：首次=「生成行程计划」；已生成且又聊了新内容=
+        「按最新对话重新生成」；已生成且没新内容=「查看行程详情」。
       -->
       <view class="gen-btn" :class="{ ready: canDraw }" @tap="onDrawRoute">
         <AppIcon name="sparkles" :size="32" color="var(--on-brand)" />
-        <text class="gen-btn-text">生成行程计划</text>
+        <text class="gen-btn-text">{{ drawBtnLabel }}</text>
       </view>
     </view>
   </view>
@@ -280,7 +299,7 @@ import {
   getActiveChatSession,
   setActiveChatSession
 } from '@/utils/chatSession'
-import { showToast } from '@/utils/feedback'
+import { showToast, showModal } from '@/utils/feedback'
 
 interface PlanPreview {
   title: string
@@ -473,22 +492,23 @@ async function initPlanner() {
 /**
  * 首页（tab 模式）每次进入都开一个新对话。
  *
- * 用户切回首页就是想规划新的行程，如果接着上一轮继续聊，
- * 会让人以为"怎么还没清空"，与「首页=开新对话」的心智不符。
+ * 用户切回首页通常是想规划新的行程，所以首页**首次挂载**时清空一次。
  * 带 tripId 的独立对话页不走这条分支（见 initPlanner）。
+ *
+ * 注意这里只发生在 onMounted：tab 页被 switchTab 切走再切回来只会触发 onShow，
+ * 不会重新挂载 —— 所以「每次进入都开新对话」这个说法是不成立的（原注释如此宣称过）。
+ * 之所以不去监听 onShow 自动清空：用户只是去「行程」tab 看了一眼、或误触底部 tab，
+ * 就把聊到一半的内容抹掉，代价太大。改为在顶栏提供显式的「新对话」按钮
+ * （见 onNewConversation，有进度时二次确认）。
  */
 onMounted(async () => {
   if (!props.tabMode) {
     await initPlanner()
     return
   }
+  // store + 组件本地一起复位（两处都清才不会出现「进度条没了但气泡还在」）
   tripStore.resetForNewTrip()
-  selectedTripId.value = ''
-  sessionId.value = ''
-  chatHistory.value = []
-  tripStore.setSlotState(null)
-  messages.value = [getIntroMessage()]
-  suggestedQuestions.value = []
+  resetLocalConversation()
 })
 
 function getIntroMessage(): ChatMessage {
@@ -512,6 +532,62 @@ function getIntroMessage(): ChatMessage {
   }
 }
 
+/**
+ * 只重置**组件本地**的会话状态（store 由调用方负责）。
+ *
+ * 为什么需要单独一个函数：对话状态有一半在 store（槽位/完整度/选中酒店）、
+ * 一半在本实例（sessionId/messages/chatHistory）。两处必须一起复位，
+ * 否则会出现「进度条没了但气泡还在」「旧 sessionId 把旧快照又写回来」。
+ */
+function resetLocalConversation() {
+  sessionId.value = ''
+  chatHistory.value = []
+  selectedTripId.value = ''
+  messages.value = [getIntroMessage()]
+  suggestedQuestions.value = []
+  aiPlanData.value = null
+  aiError.value = ''
+  lastGeneratedTurn.value = 0
+}
+
+/**
+ * store 里的会话被别处重置时（问卷提交、精细设置新建、显式新对话），
+ * 本实例的本地状态跟着重置 —— 见 store/trip.ts 的 sessionVersion 注释。
+ */
+watch(
+  () => tripStore.sessionVersion,
+  () => {
+    resetLocalConversation()
+  }
+)
+
+/**
+ * 「新对话」：首页/对话页右上角的显式入口。
+ *
+ * 为什么不做成「切回首页 tab 就自动清空」：那会在用户只是去「行程」tab 看了一眼、
+ * 或误触底部 tab 时，把聊到一半的内容直接抹掉 —— 数据丢失的代价大于「新对话」的便利。
+ * 想重新开始时，点这个按钮，且有进度时先二次确认。
+ */
+function onNewConversation() {
+  const hasProgress =
+    hasOngoingConversation.value || answeredCount.value > 0 || !!tripStore.selectedHotel
+  if (!hasProgress) {
+    tripStore.resetForNewTrip()
+    return
+  }
+  showModal({
+    title: '开始新对话',
+    content: '当前对话的进度会被清空（已生成的行程仍然保留在「我的行程」里），确定吗？',
+    confirmText: '开始新对话',
+    success: (res) => {
+      if (res.confirm) {
+        tripStore.resetForNewTrip()
+        showToast({ title: '已开启新对话', icon: 'none' })
+      }
+    }
+  })
+}
+
 /** 从槽位快照里取一个值（没有则空串），用于冷启动时拼 base_info */
 function slotText(key: string): string {
   return tripStore.slotState.slots?.[key]?.value || ''
@@ -526,15 +602,25 @@ function slotText(key: string): string {
 function buildBaseInfo(): BaseInfoParams {
   const t = currentTrip.value
   const slotDays = Number(slotText('days'))
+  // 槽位优先、currentTrip 兜底。
+  //
+  // 为什么不能反过来：槽位快照来自后端引擎，是**当前会话**的唯一事实来源；
+  // currentTrip 可能是上一趟已经生成并保存的行程（要等下次生成成功才会被替换）。
+  // 原来写的是 `t?.toCity || slotText('destination')`，于是用户改口「算了去桂林玩 5 天」后，
+  // 界面上 chips 已经是桂林，发给模型的却还是旧行程的成都 / 3 天 ——
+  // 模型看到的和用户说的不是一回事，追问与推荐全跑偏。
+  const slotCity = slotText('destination')
+  const slotPeople = slotText('people')
+  const slotBudget = slotText('budget')
   return {
-    departure_city: t?.fromCity || slotText('departCity') || '',
-    destination_city: t?.toCity || slotText('destination') || '',
+    departure_city: slotText('departCity') || t?.fromCity || '',
+    destination_city: slotCity || t?.toCity || '',
     start_day: t?.startDate || '',
     end_date: t?.endDate || '',
-    days: t?.days || (Number.isFinite(slotDays) && slotDays > 0 ? slotDays : 0),
+    days: Number.isFinite(slotDays) && slotDays > 0 ? slotDays : t?.days || 0,
     hobby: t?.tags || [],
-    people_num: t?.people ? String(t.people) : slotText('people'),
-    budget: t?.budget ? String(t.budget) : slotText('budget'),
+    people_num: slotPeople || (t?.people ? String(t.people) : ''),
+    budget: slotBudget || (t?.budget ? String(t.budget) : ''),
     // 外部带入的行程上下文（如游记/景点），透传给智能体作为首轮提示词
     context_note: t?.contextNote || ''
   }
@@ -616,10 +702,19 @@ async function callAiChat(userInput: string) {
   } catch (err: any) {
     console.error('AI 对话失败:', err)
     // 用户点击暂停中止请求：不算错误，提示"已停止"并恢复输入
-    if (String(err?.errMsg || err?.message || '').includes('abort')) {
+    // （流式链路抛的是 new Error('abort')，整包链路抛 AbortError，两种都要认）
+    if (
+      err?.name === 'AbortError' ||
+      String(err?.errMsg || err?.message || '').includes('abort')
+    ) {
       messages.value.push({ role: 'assistant', content: '⏸ 已停止生成，你可以继续补充需求。' })
     } else {
-      aiError.value = err?.data?.msg || err?.message || 'AI 服务暂时不可用，请稍后重试'
+      // 401 时 request.ts 抛的是 '未授权'（内部词汇）：换成用户能懂、且有出路的说法，
+      // 卡片上的按钮也会跟着变成「去登录」（见 isAuthError）
+      const raw = err?.data?.msg || err?.message || ''
+      aiError.value = /未授权|401/.test(raw)
+        ? '登录状态已过期，请重新登录后继续'
+        : raw || 'AI 服务暂时不可用，请稍后重试'
     }
   } finally {
     clearInterval(tipTimer)
@@ -687,20 +782,26 @@ async function tryStreamChat(params: ChatRequestParams): Promise<boolean> {
   let acc = ''
   let settled = false
 
+  // 流式请求的中止句柄：只有它能真正停掉 fetch（见 stopAiCall）
+  const controller = new AbortController()
+  chatAbort = controller
+
   try {
-    await chatWithAiStream(params, {
-      onDelta: (text) => {
-        if (!text) return
-        acc = appendStreamText(acc, text)
-        if (streamingBubble < 0) {
-          // 第一段到达：撤掉「思考中」气泡，改为真正的回复气泡，用户立刻看到字
-          loadingAi.value = false
-          messages.value.push({ role: 'assistant', content: '' })
-          streamingBubble = messages.value.length - 1
-        }
-        messages.value[streamingBubble].content = acc
-        scheduleScroll()
-      },
+    await chatWithAiStream(
+      params,
+      {
+        onDelta: (text) => {
+          if (!text) return
+          acc = appendStreamText(acc, text)
+          if (streamingBubble < 0) {
+            // 第一段到达：撤掉「思考中」气泡，改为真正的回复气泡，用户立刻看到字
+            loadingAi.value = false
+            messages.value.push({ role: 'assistant', content: '' })
+            streamingBubble = messages.value.length - 1
+          }
+          messages.value[streamingBubble].content = acc
+          scheduleScroll()
+        },
       onDone: (resp) => {
         settled = true
         applyChatResponse(resp)
@@ -711,9 +812,20 @@ async function tryStreamChat(params: ChatRequestParams): Promise<boolean> {
           messages.value[streamingBubble].content = resp.reply
         }
       }
-    })
+      },
+      controller.signal
+    )
     return settled
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.name === 'AbortError' || controller.signal.aborted) {
+      // 用户主动「停止生成」：不是故障，也不该回落整包接口（回落等于没停）
+      console.info('[Chat] 用户中止了流式生成')
+      if (streamingBubble >= 0) {
+        messages.value.splice(streamingBubble, 1)
+        streamingBubble = -1
+      }
+      throw new Error('abort')
+    }
     console.warn('[Chat] 流式失败，回落整包接口:', err)
     // 清掉可能已经出现的半截气泡，避免与整包结果重复
     if (streamingBubble >= 0) {
@@ -721,8 +833,13 @@ async function tryStreamChat(params: ChatRequestParams): Promise<boolean> {
       streamingBubble = -1
     }
     return false
+  } finally {
+    if (chatAbort === controller) chatAbort = null
   }
 }
+
+/** 流式请求的中止句柄（「停止生成」用；整包请求由 request.ts 的 abortRequest 管） */
+let chatAbort: AbortController | null = null
 
 /** 流式渲染时滚动很频繁，节流一下，避免每个字符都触发一次 scrollIntoView */
 let scrollTimer: ReturnType<typeof setTimeout> | null = null
@@ -736,14 +853,39 @@ function scheduleScroll() {
 
 /** 暂停/停止当前 AI 生成（只中止对话请求，不误伤槽位/地图等并发请求） */
 function stopAiCall() {
+  // 整包接口走 uni.request，登记在 pendingTasks 里
   abortRequest('chat')
-  showToast({ title: '正在停止...', icon: 'none' })
+  // 流式接口走原生 fetch，abortRequest 管不到它，必须用它自己的 signal
+  // （原来只调 abortRequest，界面上提示「正在停止…」，实际什么都没停，
+  //   而 loadingAi 要等首个 delta 才复位 —— 模型不吐字时发送按钮就一直是停止图标，点不动也发不出）
+  if (chatAbort) {
+    chatAbort.abort()
+    chatAbort = null
+  }
+  // 兜底复位：abort 之后不会再有 delta/done 回调，不复位就把输入区锁死了
+  loadingAi.value = false
+  showToast({ title: '已停止生成', icon: 'none' })
 }
 
 function retryAiCall() {
   // 重试：重新发送上一条用户消息
   const lastUserMsg = [...messages.value].reverse().find((m) => m.role === 'user')
   callAiChat(lastUserMsg?.content || '')
+}
+
+/**
+ * 这条错误是不是「登录失效」。
+ *
+ * 为什么单独判断：request.ts 在 401 时 reject 的是 `new Error('未授权')`，
+ * 直接显示在卡片上就是「未授权」这种内部词汇；而且旁边配「重新生成」的话，
+ * 用户点一次必然再失败、再被弹一次登录页 —— 死循环。
+ */
+const isAuthError = computed(() => /未授权|请先登录|登录.*过期|401/.test(aiError.value))
+
+/** 鉴权错误的自助出路：带 redirect 重新登录，回来还能继续用这个会话 */
+function goLoginAgain() {
+  aiError.value = ''
+  redirectToLogin()
 }
 
 // ==================== 槽位问答：点一下就能完善行程 ====================
@@ -819,11 +961,22 @@ const ENTRY_PROMPTS: Record<string, string> = {
 
 /**
  * 是否展示开场三选一。
- * 条件：还没建会话、对话里只有开场白（用户还没说过话）。
- * 说话之后由槽位问题接管，两者不会同时出现。
+ *
+ * 条件：还没建会话、对话里只有开场白（用户还没说过话），
+ * **并且确实没有任何上下文**（没有 currentTrip、槽位里也没有会话）。
+ *
+ * 最后那条是必须的：走问卷进来的用户，进对话前就已经写好了
+ * currentTrip（目的地/天数/预算/住宿）且会话被 reset 过 ——
+ * 少了这个判断就会出现「上方写着『我们在聊肇庆3日游』、下方又问『我还没想好去哪』」
+ * 的自相矛盾，用户会以为刚填的信息没生效。
  */
 const showEntryOptions = computed(
-  () => !sessionId.value && messages.value.length <= 1 && !finalizing.value
+  () =>
+    !sessionId.value &&
+    messages.value.length <= 1 &&
+    !finalizing.value &&
+    !currentTrip.value &&
+    !tripStore.slotState.sessionId
 )
 
 /** 当前该展示哪一组选项：开场三选一优先，其次是槽位问题 */
@@ -867,6 +1020,28 @@ const answeredCount = computed(() => Object.keys(tripStore.slotState.slots || {}
  * 判定与后端槽位就绪标记一致：目的地 + 天数已知。
  */
 const canDraw = computed(() => !!sessionId.value && ready.value.frame && !finalizing.value)
+
+/**
+ * 上一次生成行程时的对话轮数。
+ *
+ * 用途：区分「点按钮是想看刚生成的行程」还是「想按刚刚补充的需求重新生成」。
+ * 原来只要 currentTrip 有 id 就一律跳详情页 —— 用户在对话里改完需求再点底部按钮，
+ * 什么都不会重新生成（按钮文案却还写着「生成行程计划」），只能绕道「精细设置」，
+ * 而那条路会新建行程，于是「我的行程」里堆出重复条目。
+ */
+const lastGeneratedTurn = ref(0)
+const hasNewTurns = computed(() => chatHistory.value.length > lastGeneratedTurn.value)
+
+/** 底部主按钮的文案跟随实际行为，不做「文案说生成、点了其实是查看」这种事 */
+const drawBtnLabel = computed(() => {
+  if (!currentTrip.value?.id) return '生成行程计划'
+  return hasNewTurns.value ? '按最新对话重新生成' : '查看行程详情'
+})
+
+/** 已经在对话里聊过（有内容）——决定要不要显示「新对话」按钮 */
+const hasOngoingConversation = computed(
+  () => !!sessionId.value || messages.value.some((m) => m.role === 'user')
+)
 
 /**
  * 浮出工具条的显示条件（与后端 ready 标记一一对应，前端不自己算完整度）。
@@ -1128,14 +1303,30 @@ function goBack() {
  */
 async function onDrawRoute() {
   const savedId = currentTrip.value?.id
-  if (savedId) {
+
+  // 已经生成过、且生成之后没有再聊新内容 → 用户是想看那趟行程，直接进详情页
+  if (savedId && !hasNewTurns.value) {
     goPlanDetail(savedId)
     return
   }
-  if (aiPlanData.value) {
+  if (!savedId && aiPlanData.value && !hasNewTurns.value) {
     goPlanDetail('')
     return
   }
+
+  // 首次生成前必须信息够（目的地 + 天数）。
+  // canDraw 以前只用于按钮换色，点击并不校验 —— 用户只说「我想出去玩」就能提交生成任务，
+  // 结果要么在遮罩里转很久，要么产出一份无意义行程并**自动入库**，污染「我的行程」。
+  if (!savedId && !canDraw.value) {
+    // SlotQuestion 的题干字段是 text（问题文案）
+    const missing = tripStore.slotState.nextQuestion?.text
+    showToast({
+      title: missing ? `先回答一下：${missing}` : '信息还不够，再聊两句就能生成',
+      icon: 'none'
+    })
+    return
+  }
+
   if (!sessionId.value) {
     showToast({ title: '先跟小笺聊一句，我才能画路线', icon: 'none' })
     return
@@ -1167,6 +1358,12 @@ async function goItinerary() {
   if (finalizing.value) return
   // 预算约束：负数预算不允许进入智能规划
   if (!validateTripBudget()) return
+
+  // 生成前记下「这条会话是不是已经生成过行程」：
+  //   · 没有 id  → 首次生成，saveTrip 会新增一条；
+  //   · 已有 id  → 用户在对话里改了需求后重新生成，必须**覆盖同一条**，
+  //                否则「我的行程」里会堆出多条几乎一样的行程（原来就是这样）。
+  const regeneratingTripId = currentTrip.value?.id
 
   const params = buildChatRequest('请综合以上所有讨论内容，生成最终的完整旅游行程计划')
 
@@ -1210,11 +1407,15 @@ async function goItinerary() {
     // 冷启动时没有 currentTrip，目的地/出发地要从槽位快照里取，
     // 否则生成出来的行程标题和城市都是空的。
     const tripParams = {
-      fromCity: currentTrip.value?.fromCity || slotText('departCity'),
-      toCity: currentTrip.value?.toCity || slotText('destination'),
+      fromCity: slotText('departCity') || currentTrip.value?.fromCity || '',
+      toCity: slotText('destination') || currentTrip.value?.toCity || '',
       tags: currentTrip.value?.tags || []
     }
     const mappedTrip = mapPlanResponseToTripPlan(finalPlan, tripParams)
+    // 重新生成：沿用原行程 id，让保存走「更新」而不是「新增」
+    if (regeneratingTripId != null) {
+      mappedTrip.id = regeneratingTripId
+    }
     // 将会话和最终行程绑定，之后只能从该行程入口恢复对应对话。
     mappedTrip.chatSessionId = sessionId.value
     // 保留原始预算和人数信息。
@@ -1237,6 +1438,8 @@ async function goItinerary() {
       const saved = await tripStore.saveTrip(mappedTrip)
       tripId = String(saved?.id ?? '')
       currentTrip.value = saved
+      // 记下「生成时的对话轮数」：之后用户再聊新内容，底部按钮才会变成「按最新对话重新生成」
+      lastGeneratedTurn.value = chatHistory.value.length
     } catch (saveErr) {
       console.warn('行程入库失败，仍可预览（未持久化）:', saveErr)
       // 入库失败不阻断预览，但提示用户

@@ -16,6 +16,11 @@
           <AppIcon name="star" :size="22" color="var(--text-tertiary)" />
           <text>{{ formatCount(item.collectCount) }}</text>
         </view>
+        <!-- 评论数：详情页的评论区入口依赖它，卡片上不显示会让人以为没有评论功能 -->
+        <view class="stat">
+          <AppIcon name="message" :size="22" color="var(--text-tertiary)" />
+          <text>{{ formatCount(item.commentCount || 0) }}</text>
+        </view>
       </view>
       <text v-if="showDelete" class="card-delete" @tap.stop="handleDelete">删除</text>
     </view>

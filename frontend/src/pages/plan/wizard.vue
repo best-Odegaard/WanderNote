@@ -207,6 +207,7 @@ import { PROVINCE_CITIES, HOT_CITIES, searchCities } from '@/utils/cityData'
 import { useTripStore } from '@/store/trip'
 import { useLogin } from '@/hooks/useLogin'
 import { isLoggedIn, redirectToLogin } from '@/utils/auth'
+import { getActiveChatSession } from '@/utils/chatSession'
 import type { GenerateTripParams } from '@/api/trip'
 import { submitSlotAnswer } from '@/api/trip'
 import { showModal, showToast } from '@/utils/feedback'
@@ -276,23 +277,46 @@ onMounted(() => {
   }
 
   /*
-   * 刻意**不**在这里 resetForNewTrip()。
+   * 进页先判断「这次是继续对话，还是一次全新的手填」——两种情况下对残留状态的处理必须相反：
    *
-   * 精细设置是从对话里点进来的（顶栏「精细设置」），用户此时往往已经和小笺聊了几轮，
-   * 把会话和槽位清掉等于让他把刚说过的话再说一遍。所以这里改为：
-   * 用对话里已收集到的信息预填表单，让精细设置成为"继续聊"的另一种输入方式。
+   *   · 从对话页「精细设置」进来（有进行中的会话）：**不能** resetForNewTrip()。
+   *     用户已经和小笺聊了几轮，清掉等于让他重说一遍，所以用对话里收集到的信息预填表单。
+   *   · 从景点详情/游记详情/首页 banner 等入口进来（没有会话、也没有带参数）：
+   *     store 里可能还留着**上一趟行程**的槽位与 currentTrip，
+   *     直接预填会把上一趟的日期/预算/人数带进这次规划 —— 用户改了口却看到旧数据。
+   *     这时先 resetForNewTrip() 清干净，按空白表单来。
    */
-  prefillFromConversation()
-
-  const pages = getCurrentPages()
-  const page = pages[pages.length - 1] as { options?: { city?: string } }
-  if (page.options?.city) {
-    const city = decodeURIComponent(page.options.city)
-    if (city && !destination.value) {
-      destination.value = city.replace(/之旅|漫步|经典.*/, '').slice(0, 6) || city
+  const incomingCity = readIncomingCity()
+  const hasConversation = !!getActiveChatSession()
+  const hasIncomingContext = !!incomingCity || !!tripStore.pendingTripContext
+  if (!hasConversation && !hasIncomingContext) {
+    const hadLeftover = !!tripStore.currentTrip || Object.keys(tripStore.slotState.slots || {}).length > 0
+    if (hadLeftover) {
+      console.info('[wizard] 无进行中的会话，清掉上一趟行程的残留状态，按空白表单进入')
+      tripStore.resetForNewTrip()
     }
+  } else {
+    // 有上下文才预填：数据来源与优先级见 prefillFromConversation
+    prefillFromConversation()
+  }
+
+  if (incomingCity && !destination.value) {
+    destination.value = incomingCity.replace(/之旅|漫步|经典.*/, '').slice(0, 6) || incomingCity
   }
 })
+
+/** 读入口带过来的城市参数（景点详情/游记详情等入口会带 ?city=） */
+function readIncomingCity(): string {
+  const pages = getCurrentPages()
+  const page = pages[pages.length - 1] as { options?: { city?: string } }
+  const raw = page.options?.city
+  if (!raw) return ''
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
 
 /**
  * 用对话里已收集到的信息预填表单。

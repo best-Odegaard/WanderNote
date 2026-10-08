@@ -7,6 +7,17 @@
         <view class="map-redraw-spinner" />
         <text class="map-redraw-text">行程正在重新绘制中…</text>
       </view>
+      <!--
+        H5 内嵌地图依赖 VITE_MAP_KEY：没配置时 TripMap 的 SDK 加载会失败，
+        地图区永远停在「地图加载中…」转圈，用户只能干等（P2-10）。
+        这里直接给出配置提示，而不是渲染一个转不完的地图。
+      -->
+      <!-- #ifdef H5 -->
+      <view v-else-if="!MAP_JS_KEY" class="map-redrawing">
+        <text class="map-redraw-text">未配置腾讯地图 Key（VITE_MAP_KEY）</text>
+        <text class="map-redraw-text">地图无法显示，配置后重启即可查看路线</text>
+      </view>
+      <!-- #endif -->
       <TripMap
         v-else
         ref="tripMapRef"
@@ -18,7 +29,7 @@
       />
     </view>
 
-    <!-- 浮层操作按钮：返回在左，分享 / 设置（进编辑页）在右。
+    <!-- 浮层操作按钮：返回在左，设置（进编辑页）在右。
          原来的整条导航栏已去掉，行程名移进了上方拉框的头部 -->
     <view class="float-actions" :style="{ top: FLOAT_BTN_TOP + 'px' }">
       <view class="icon-btn" @tap="goBack">
@@ -26,11 +37,13 @@
       </view>
       <!-- data-preview 用于把「预览态」显式暴露到 DOM，便于自动化断言 -->
       <view class="icon-btn-group" :data-preview="isFeaturedPreview ? '1' : '0'">
-        <!-- 分享只对归属自己的行程开放；精选行程是他人的只读内容，不给分享入口 -->
-        <view v-if="!isFeaturedPreview" class="icon-btn" @tap="onShare">
-          <AppIcon name="share" :size="34" color="var(--text-main)" />
-        </view>
-        <view class="icon-btn" @tap="onEdit">
+        <!--
+          设置（进编辑页）只对归属自己的行程开放：精选行程是后端内嵌的他人内容，
+          没有本库 id，点进去只会看到一张空白表单并得到假成功（P1-20），所以整块隐藏。
+
+          分享按钮已移除：分享功能未实现，之前点了必然弹「开发中」，却占着主操作位（P2-01）。
+        -->
+        <view v-if="!isFeaturedPreview" class="icon-btn" @tap="onEdit">
           <AppIcon name="settings" :size="34" color="var(--text-main)" />
         </view>
       </view>
@@ -38,14 +51,19 @@
 
     <LoadingView v-if="loading" />
 
-    <!-- 空状态：行程不存在/获取失败/无路线数据时不展示任何假数据（盖住地图，避免与地图自身的空文案重复） -->
-    <view v-else-if="!trip || !detailSchedules.length" class="empty-state">
+    <!--
+      空状态：行程不存在/获取失败时不展示任何假数据。
+      注意只在这种「整条行程都取不到」的情况才全屏 —— 原实现把「当天没有景点」也算进来，
+      删空某天景点后整个屏幕被空态盖住，保存/删除行程等按钮全部点不到（P2-09）。
+      z-index 必须低于顶部浮层按钮（300），否则连返回都被盖住，用户只能杀进程。
+    -->
+    <view v-else-if="!trip" class="empty-state">
       <text class="empty-emoji">🗺️</text>
       <text class="empty-text">暂无行程路线数据</text>
       <text class="empty-sub">可返回重新生成行程</text>
     </view>
 
-    <template v-else-if="trip">
+    <template v-else>
       <!-- 行程摘要 + 互动数：浮在地图左上（按钮行下方） -->
       <view class="stats-bar" :style="{ top: FLOAT_ROW2_TOP + 'px' }">
         <text class="stats-tag">{{ statsSummary }}</text>
@@ -80,6 +98,14 @@
 
           <!-- 行程名：原来在顶部导航栏，导航栏去掉后移到这里（卡片区上方） -->
           <text class="sheet-title">{{ trip.title || '行程详情' }}</text>
+
+          <!--
+            缺 WebService Key 时 geocode 全部返回 null，景点会静默从地图上消失（只剩空地图），
+            用户只会觉得「地图坏了」（P2-10）；与路线页保持同一口径，明确说明原因。
+          -->
+          <text v-if="!MAP_WS_KEY" class="map-key-tip">
+            未配置腾讯地图 Key（VITE_MAP_WS_KEY），景点无法定位，地图上看不到路线
+          </text>
 
           <scroll-view scroll-x class="day-tabs" :show-scrollbar="false">
             <view
@@ -120,6 +146,15 @@
               <text class="stay-op primary" @tap.stop="onBookHotel">携程预订 →</text>
             </view>
             <text class="stay-note">参考价，以携程为准</text>
+          </view>
+
+          <!--
+            当天没有安排：空态只占时间轴这一块，底部「保存行程 / 删除行程」必须照常可用。
+            原实现遇到空排期会走整屏空态，删空景点后页面变死胡同（P2-09）。
+          -->
+          <view v-if="!currentSchedules.length" class="day-empty">
+            <text class="day-empty-text">这一天还没有安排景点</text>
+            <text class="day-empty-sub">可返回对话页让 AI 重新安排这一天的行程</text>
           </view>
 
           <view v-for="(s, i) in currentSchedules" :key="i" :id="`timeline-item-${i}`" class="timeline-item">
@@ -177,8 +212,9 @@
             </view>
           </view>
 
-          <view v-if="!isFeaturedPreview" class="add-spot" @tap="onAddSpot">
-            <text>＋ 添加景点</text>
+          <!-- 添加景点尚未实现：标注「即将开放」且不可点，避免看起来像能用的功能（P2-01） -->
+          <view v-if="!isFeaturedPreview" class="add-spot disabled">
+            <text>＋ 添加景点（即将开放）</text>
           </view>
           <view style="height: 40rpx" />
         </scroll-view>
@@ -259,6 +295,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import LoadingView from '@/components/LoadingView/LoadingView.vue'
 import TripMap from '@/components/TripMap/TripMap.vue'
 import type { TripMapSpot, RouteGroup } from '@/components/TripMap/TripMap.vue'
@@ -273,6 +310,8 @@ import type { TripPlan } from '@/api/trip'
 import { showModal, showToast } from '@/utils/feedback'
 import { openCtripHotel } from '@/utils/deeplink'
 import type { HotelOption } from '@/utils/hotels'
+// 地图 Key 是否配置，直接决定「地图有没有内容」这件事能不能解释清楚（P2-10）
+import { MAP_JS_KEY, MAP_WS_KEY } from '@/utils/constant'
 
 /** 每天路线颜色色板（总览模式按天分配，循环使用） */
 const ROUTE_COLORS = [
@@ -314,6 +353,10 @@ const { checkLogin } = useLogin()
 const trip = ref<TripPlan | null>(null)
 const detailSchedules = ref<DetailSchedule[][]>([])
 const loading = ref(true)
+/** 当前行程 id（来自页面参数）；无 id 时数据源是 store 里的草稿行程 */
+const tripId = ref('')
+/** 首次取数是否已完成：首次进入时 onShow 会与 onMounted 同时触发，用它避免重复请求 */
+const initialLoaded = ref(false)
 /** 精选行程 id（有值 = 当前在预览别人的精选行程，整页只读） */
 const featuredTripId = ref('')
 /** 是否处于精选行程预览（只读）模式 */
@@ -529,6 +572,7 @@ onMounted(async () => {
   const page = pages[pages.length - 1] as { options?: { id?: string; featuredId?: string } }
   const id = page.options?.id
   const featuredId = page.options?.featuredId
+  tripId.value = id ? String(id) : ''
 
   if (featuredId) {
     // 精选行程预览：后端返回内嵌的完整行程，直接渲染；此页为只读，不显示任何编辑操作
@@ -540,17 +584,18 @@ onMounted(async () => {
     } catch (e) {
       console.warn('[trip/detail] 获取精选行程失败:', e)
     }
-  } else if (!id) {
+  } else if (!tripId.value) {
     // 无行程 id：仅当有当前行程（如 AI 生成后跳转）时展示，否则空状态
     trip.value = tripStore.currentTrip
     if (!trip.value) {
       loading.value = false
+      initialLoaded.value = true
       showToast({ title: '暂无行程数据', icon: 'none' })
       return
     }
   } else {
     try {
-      trip.value = await tripStore.getTripDetail(id)
+      trip.value = await tripStore.getTripDetail(tripId.value)
     } catch (e) {
       console.warn('[trip/detail] 获取行程详情失败:', e)
     }
@@ -558,6 +603,7 @@ onMounted(async () => {
   // 获取失败或返回空：显示空状态，不兜底任何假数据
   if (!trip.value) {
     loading.value = false
+    initialLoaded.value = true
     showToast({ title: '行程获取失败或不存在', icon: 'none' })
     return
   }
@@ -572,6 +618,44 @@ onMounted(async () => {
   }
   // 初始绘制第 0 天路线
   buildMapSpotsForDay(0)
+  initialLoaded.value = true
+})
+
+/**
+ * 回到本页时重新取数（P1-19）。
+ *
+ * 编辑页保存后是 navigateBack 回来的，本页不会重挂载 —— 只在 onMounted 取数的话，
+ * 行程名、目的地、天数字签仍是编辑前的旧值，用户会以为修改没生效，
+ * 于是重复改、重复存。所以这里在 onShow 重新拉一次并重建时间轴与地图。
+ *
+ * 只刷新「自己名下的行程」：精选行程是后端内嵌的他人内容，不会被别处编辑；
+ * 无 id 的草稿数据源就是 store，编辑页也不会走到这里。
+ */
+onShow(async () => {
+  if (!initialLoaded.value) return // 首次进入：onMounted 正在拉取，跳过
+  if (isFeaturedPreview.value || !tripId.value || loading.value) return
+
+  const prevDay = activeDayIndex.value
+  try {
+    const detail = await tripStore.getTripDetail(tripId.value)
+    if (!detail) return
+    trip.value = detail
+  } catch (e) {
+    // 刷新失败保持页面上现有内容，不打断阅读（旧数据还在，用户可退出重进）
+    console.warn('[trip/detail] 返回详情刷新失败:', e)
+    return
+  }
+
+  // 天数/景点可能被改过：地图缓存按「天」下标对齐排期，排期变了必须整体作废重算
+  mapSpotsByDay.value = []
+  mapPathsByDay.value = []
+  buildSchedules()
+  activeDayIndex.value = Math.min(prevDay, Math.max(0, detailSchedules.value.length - 1))
+  if (viewMode.value === 'overview') {
+    await ensureAllDaysGeocoded()
+  } else {
+    buildMapSpotsForDay(activeDayIndex.value)
+  }
 })
 
 // 防误退：本页若成了 WebView 历史的第一条（如 App 冷启动恢复到行程详情），
@@ -619,7 +703,7 @@ function buildSchedules() {
       })
     )
   } else {
-    // 无行程计划：置空，由模板展示空状态（不兜底假数据）
+    // 无行程计划：置空，由模板在上拉框内展示「这一天还没有安排景点」（不兜底假数据）
     detailSchedules.value = []
   }
 }
@@ -787,12 +871,18 @@ function goBack() {
   })
 }
 
-function onShare() {
-  showToast({ title: '分享功能开发中', icon: 'none' })
-}
-
 function onEdit() {
-  uni.navigateTo({ url: `/pages/trip/edit?id=${trip.value?.id || ''}` })
+  // 精选行程没有本库 id，进编辑页只会拿到一张空表单，所以只读预览下齿轮已被隐藏；
+  // 这里再兜一层，避免任何残留入口把人带到空白表单（P1-20）
+  if (isFeaturedPreview.value) {
+    showToast({ title: '精选行程不可编辑，请用「对话修改」', icon: 'none' })
+    return
+  }
+  if (!trip.value?.id) {
+    showToast({ title: '行程尚未保存，无法编辑', icon: 'none' })
+    return
+  }
+  uni.navigateTo({ url: `/pages/trip/edit?id=${trip.value.id}` })
 }
 
 /** 当天固定时间起点（按新顺序重新分配时间段，让时间跟随顺序变化） */
@@ -833,14 +923,28 @@ function moveDown(index: number) {
   reassignTimeSlots(activeDayIndex.value)
 }
 
+/**
+ * 删除当天某个景点。
+ *
+ * 原来点一下就消失、没有二次确认也没有撤销（P2-09）：误触后只能靠「退出重进」找回，
+ * 而重进读的是服务端旧数据，本地其它调整也一起丢了。
+ * 这里补一次确认，误触成本从「丢改动」降到「多点一下」。
+ */
 function removeSchedule(index: number) {
-  detailSchedules.value[activeDayIndex.value]?.splice(index, 1)
-  // 删除后剩余项时间段重新分配，保持时间轴连续
-  reassignTimeSlots(activeDayIndex.value)
-}
-
-function onAddSpot() {
-  showToast({ title: '添加景点开发中', icon: 'none' })
+  const target = currentSchedules.value[index]
+  if (!target) return
+  showModal({
+    title: '删除景点',
+    content: `确定把「${target.title}」从当天行程中删除？`,
+    confirmText: '删除',
+    confirmColor: '#E64340',
+    success: (res) => {
+      if (!res.confirm) return
+      detailSchedules.value[activeDayIndex.value]?.splice(index, 1)
+      // 删除后剩余项时间段重新分配，保持时间轴连续
+      reassignTimeSlots(activeDayIndex.value)
+    }
+  })
 }
 
 /** 单个景点卡片：弹出导航选项（复制地址 / 高德 / 腾讯） */
@@ -943,7 +1047,7 @@ async function onSave() {
   setTimeout(() => uni.switchTab({ url: '/pages/home/index' }), 600)
 }
 
-/** 删除行程：不可恢复，必须二次确认；成功后回行程列表 */
+/** 删除行程：不可恢复，必须二次确认；成功后回来源页 */
 function onDeleteTrip() {
   const id = trip.value?.id
   if (id == null) return
@@ -957,7 +1061,14 @@ function onDeleteTrip() {
       try {
         await tripStore.deleteTrip(id)
         showToast({ title: '已删除', icon: 'success' })
-        setTimeout(() => uni.switchTab({ url: '/pages/trip/index' }), 600)
+        // 按来源返回：从行程列表进来就回列表（列表 onShow 会刷新），从首页进来就回首页。
+        // 原来一律 switchTab 到行程 tab，从首页进来的用户会被扔到一个没去过的页面（P2-13）；
+        // 只有确实没有上一页（冷启动/外链直达）时才退回行程 tab。
+        setTimeout(() => {
+          uni.navigateBack({
+            fail: () => uni.switchTab({ url: '/pages/trip/index' })
+          })
+        }, 600)
       } catch (e) {
         console.warn('[trip/detail] 删除行程失败:', e)
         showToast({ title: '删除失败，请重试', icon: 'none' })
@@ -1283,14 +1394,15 @@ function onChatModify() {
 }
 
 /* 空状态：行程/路线数据不存在时的提示 */
-/* 空状态：盖在地图之上，避免与地图自身的「暂无路线坐标」文案叠在一起 */
+/* 空状态：盖在地图之上，避免与地图自身的「暂无路线坐标」文案叠在一起。
+   z-index 必须低于顶部浮层按钮（300）：否则连返回按钮也被盖住，页面成死胡同（P2-09）。 */
 .empty-state {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 400;
+  z-index: 150;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1660,6 +1772,40 @@ function onChatModify() {
   text-align: center;
   color: $mint-primary;
   font-size: 28rpx;
+
+  /* 未实现的功能：不响应点击也不给主色，避免看起来像可用入口（P2-01） */
+  &.disabled {
+    color: var(--text-tertiary);
+    border-color: var(--border);
+  }
+}
+
+/* 缺地图 Key 的说明：与「地图空白」同时出现，解释地图为什么没内容（P2-10） */
+.map-key-tip {
+  display: block;
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: var(--danger, #ef4444);
+  padding-bottom: 16rpx;
+}
+
+/* 当天排期为空：只占时间轴区域，底部操作照常可用（P2-09） */
+.day-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+  padding: 60rpx 0;
+}
+
+.day-empty-text {
+  font-size: 28rpx;
+  color: var(--text-body);
+}
+
+.day-empty-sub {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
 }
 
 .sheet-footer .btn-mint-outline {
