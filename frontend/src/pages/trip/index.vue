@@ -53,7 +53,7 @@
  * 首页改成对话界面后，这套卡片整体迁到这里；原来行程页自绘的卡片上独有的
  * 「进入行程对话」入口合并进了 MyPlanCard（showChatEntry），迁移不丢能力。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import MyPlanCard from '@/components/MyPlanCard/MyPlanCard.vue'
 import LoadingView from '@/components/LoadingView/LoadingView.vue'
 import AppIcon from '@/components/AppIcon/AppIcon.vue'
@@ -77,9 +77,10 @@ const cards = computed(() =>
   trips.value.map((trip, i) => ({ trip, item: toMyPlanItem(trip, i) }))
 )
 
+// 只在 onShow 里加载（useTabBarPage 内部就是 onShow）：
+// 之前这里还额外挂了 onMounted(() => loadTrips())，首次进页会并发两次 /trip/list ——
+// 令牌过期时表现为连弹两次「请先登录」+ 两个登录页叠栈。
 useTabBarPage(1, loadTrips)
-
-onMounted(() => loadTrips())
 
 async function loadTrips() {
   loading.value = true

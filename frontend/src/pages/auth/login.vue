@@ -63,9 +63,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/AppIcon/AppIcon.vue'
 import { useLogin } from '@/hooks/useLogin'
+import { resetLoginRedirectLock } from '@/utils/auth'
 import { showToast } from '@/utils/feedback'
 
 const { loading, handleLogin } = useLogin()
@@ -85,6 +86,12 @@ onLoad((options?: Record<string, string>) => {
       redirect.value = options.redirect
     }
   }
+})
+
+// 登录页已经浮现：解除「同一波 401 只跳一次」的闩锁，
+// 否则用户从这里返回内页后再次 401 就跳不过来了。
+onShow(() => {
+  resetLoginRedirectLock()
 })
 
 async function submit() {

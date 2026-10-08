@@ -922,13 +922,23 @@ function syncSchedulesToTrip() {
 async function onSave() {
   // 调整后的顺序/时间/坐标同步回行程数据，确保保存生效
   syncSchedulesToTrip()
-  try {
-    if (trip.value) await tripStore.saveTrip(trip.value)
-    showToast({ title: '行程已保存', icon: 'success' })
-  } catch {
-    showToast({ title: '行程已保存', icon: 'success' })
+  const toSave = trip.value
+  if (!toSave) {
+    showToast({ title: '没有可保存的行程', icon: 'none' })
+    return
   }
-  // 保存后回首页（设计稿里 itinerary 的「保存行程」就是回首页），
+  try {
+    await tripStore.saveTrip(toSave)
+    showToast({ title: '行程已保存', icon: 'success' })
+  } catch (e) {
+    // 失败要如实告知，并留在本页让用户重试。
+    // 原来 catch 里也弹「行程已保存」再跳首页：断网/500 时用户以为存好了，
+    // 重新进来发现调序、删除、改时间全部复原 —— 改动丢失却被告知成功，是最坏的一种反馈。
+    console.warn('[trip/detail] 保存行程失败:', e)
+    showToast({ title: '保存失败，请检查网络后重试', icon: 'none' })
+    return
+  }
+  // 保存成功后才离开：回首页（设计稿里「保存行程」就是回首页），
   // 顺带离开详情页，重新进入时地图按需重绘
   setTimeout(() => uni.switchTab({ url: '/pages/home/index' }), 600)
 }

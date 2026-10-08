@@ -3,7 +3,7 @@
  * 支持：Token 自动携带、Loading 控制、统一错误处理、401 跳转登录
  */
 import { API_BASE_URL, REQUEST_TIMEOUT, USE_MOCK } from './constant'
-import { getToken, redirectToLogin } from './auth'
+import { getToken, redirectToLogin, clearAuthStorage } from './auth'
 import { hideLoading, showLoading, showToast } from '@/utils/feedback'
 export interface RequestConfig {
   url: string
@@ -135,6 +135,10 @@ function request<T = unknown>(config: RequestConfig): Promise<T> {
           // 没带令牌     => 本地存储里根本没有令牌（登录没存住）。
           // 这两种原因的修法完全不同，所以别只打一句"请先登录"。
           console.warn('[HTTP 401]', url, 'tokenAttached=', !!token)
+          // 先清本地登录态再跳登录页。
+          // 不清的话旧令牌一直躺在 storage 里，isLoggedIn() 恒为 true，
+          // 用户会在「登录页 ↔ 内页」之间无限循环（跳登录页的闩锁只防叠层，不解决状态失真）。
+          clearAuthStorage()
           showToast({ title: '请先登录', icon: 'none' })
           redirectToLogin()
           reject(new Error('未授权'))

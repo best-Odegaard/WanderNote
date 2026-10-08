@@ -16,8 +16,12 @@
       </view>
 
       <view class="bottom-bar safe-bottom">
-        <button class="bar-btn" @tap="toggleCollect">{{ detail.isCollected ? '已收藏' : '收藏' }}</button>
-        <button class="bar-btn primary" @tap="enroll">立即报名</button>
+        <button class="bar-btn" :disabled="collecting" @tap="toggleCollect">
+          {{ detail.isCollected ? '已收藏' : '收藏' }}
+        </button>
+        <button class="bar-btn primary" :disabled="enrolling" @tap="enroll">
+          {{ enrolling ? '报名中…' : '立即报名' }}
+        </button>
       </view>
     </view>
   </view>
@@ -29,10 +33,15 @@ import LoadingView from '@/components/LoadingView/LoadingView.vue'
 import { getActivityDetail, collectActivity, uncollectActivity, enrollActivity } from '@/api/activity'
 import { formatDate } from '@/utils/format'
 import type { ActivityItem } from '@/api/activity'
+import { isLoggedIn, redirectToLogin } from '@/utils/auth'
 import { showToast } from '@/utils/feedback'
 
 const loading = ref(true)
 const detail = ref<ActivityItem | null>(null)
+/** 收藏请求进行中：防连点（乐观更新只在前端，连点会把状态与服务端搞反） */
+const collecting = ref(false)
+/** 报名请求进行中：报名是真实动作，必须防重复提交 */
+const enrolling = ref(false)
 
 onMounted(async () => {
   const pages = getCurrentPages()
@@ -42,19 +51,71 @@ onMounted(async () => {
   loading.value = false
 })
 
-async function toggleCollect() {
-  if (!detail.value) return
-  detail.value.isCollected = !detail.value.isCollected
-  showToast({ title: detail.value.isCollected ? '已收藏' : '已取消', icon: 'none' })
+/** 需要登录才能做的动作：未登录先跳登录（带 redirect 回跳，回来还能接着点） */
+function ensureLogin(): boolean {
+  if (isLoggedIn()) return true
+  showToast({ title: '请先登录', icon: 'none' })
+  setTimeout(() => redirectToLogin(), 300)
+  return false
 }
 
+/**
+ * 收藏活动：真的要调接口。
+ *
+ * 原来是「只翻转本地值 + toast」的假动作：点了变「已收藏」，退出重进又变回来，
+ * 而「我的收藏」读的是服务端 —— 用户资产与界面直接对不上。
+ * 现在：乐观更新 → 失败回滚并如实提示。
+ */
+async function toggleCollect() {
+  if (!detail.value || collecting.value) return
+  if (!ensureLogin()) return
+
+  const target = !detail.value.isCollected
+  const before = detail.value.isCollected
+  detail.value.isCollected = target
+  collecting.value = true
+  try {
+    if (target) {
+      await collectActivity(detail.value.id)
+    } else {
+      await uncollectActivity(detail.value.id)
+    }
+    showToast({ title: target ? '已收藏' : '已取消', icon: 'none' })
+  } catch (e) {
+    // 失败必须回滚：不能让界面停在一个服务端并不存在的状态上
+    detail.value.isCollected = before
+    console.warn('[activity/detail] 收藏失败:', e)
+    showToast({ title: '操作失败，请重试', icon: 'none' })
+  } finally {
+    collecting.value = false
+  }
+}
+
+/**
+ * 立即报名：失败就是失败。
+ *
+ * 原来 catch 里提示的是「报名成功（演示）」—— 接口 404/断网/未登录都被伪装成成功，
+ * 而报名是真实世界动作（占名额、可能付费），用户到现场才发现没报上。
+ */
 async function enroll() {
-  if (!detail.value) return
+  if (!detail.value || enrolling.value) return
+  if (!ensureLogin()) return
+
+  enrolling.value = true
   try {
     await enrollActivity(detail.value.id)
     showToast({ title: '报名成功', icon: 'success' })
-  } catch {
-    showToast({ title: '报名成功（演示）', icon: 'success' })
+    // 回拉一次详情，让状态以服务端为准（不要只信本地假设）
+    try {
+      detail.value = await getActivityDetail(detail.value.id)
+    } catch (e) {
+      console.warn('[activity/detail] 报名后刷新详情失败:', e)
+    }
+  } catch (e) {
+    console.warn('[activity/detail] 报名失败:', e)
+    showToast({ title: '报名失败，请稍后重试', icon: 'none' })
+  } finally {
+    enrolling.value = false
   }
 }
 </script>

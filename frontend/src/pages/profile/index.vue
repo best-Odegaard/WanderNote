@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/store/app'
 import AppTabBar from '@/components/AppTabBar/AppTabBar.vue'
@@ -69,13 +69,16 @@ import CustomNavbar from '@/components/CustomNavbar/CustomNavbar.vue'
 import { useUserStore } from '@/store/user'
 import { useTripStore } from '@/store/trip'
 import { getMyCollects, getMyJournals } from '@/api/community'
-import { isLoggedIn } from '@/utils/auth'
 import { showModal, showToast } from '@/utils/feedback'
 
 const appStore = useAppStore()
 const userStore = useUserStore()
 const tripStore = useTripStore()
-const { userInfo } = storeToRefs(userStore)
+// isLogin 必须取 store 里那个响应式的（store/user.ts: computed(() => !!token.value)）。
+// 原来写成 `computed(() => isLoggedIn())` —— isLoggedIn() 读的是 uni.getStorageSync，
+// 没有响应式依赖，computed 只求值一次：登录成功回到本页，页面仍然按「未登录」渲染，
+// 「退出登录」按钮不出现、点「我的行程」还被判未登录跳登录页，形成循环。
+const { userInfo, isLogin } = storeToRefs(userStore)
 
 const systemInfo = uni.getSystemInfoSync()
 const navHeight = (systemInfo.statusBarHeight || 20) + 44
@@ -83,8 +86,6 @@ const defaultAvatar = 'https://picsum.photos/seed/default/200/200'
 const tripCount = ref(0)
 const collectCount = ref(0)
 const journalCount = ref(0)
-
-const isLogin = computed(() => isLoggedIn())
 
 const menuItems = [
   { icon: 'star', color: '#F5B942', bg: 'rgba(245, 185, 66, 0.14)', label: '我的收藏', path: '/pages/profile/journals?type=collect' },

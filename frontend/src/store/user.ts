@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { storage } from '@/utils/storage'
 import { TOKEN_KEY, USER_INFO_KEY } from '@/utils/constant'
-import { setToken, removeToken } from '@/utils/auth'
+import { setToken, clearAuthStorage } from '@/utils/auth'
 import { clearActiveChatSession } from '@/utils/chatSession'
 import * as userApi from '@/api/user'
 import type { UserInfo, LoginParams, RegisterParams } from '@/api/user'
@@ -34,12 +34,22 @@ export const useUserStore = defineStore('user', () => {
     return userApi.register(params)
   }
 
-  /** 退出登录 */
-  function logout() {
+  /**
+   * 只复位内存里的登录态，不碰 storage、不跳转。
+   *
+   * 给 utils/auth.ts 的 clearAuthStorage() 用：请求层发现 401 时已经把 storage 清干净了，
+   * 这里只负责让页面上的响应式状态（isLogin / 昵称）跟着变，
+   * 否则会出现「storage 没有令牌，界面仍显示已登录」的错位。
+   */
+  function clearLocal() {
     token.value = ''
     userInfo.value = null
-    removeToken()
-    storage.remove(USER_INFO_KEY)
+  }
+
+  /** 退出登录 */
+  function logout() {
+    // 走统一的清理入口：storage + 内存（clearAuthStorage 会回调 clearLocal）一起清
+    clearAuthStorage()
     clearActiveChatSession()
     uni.reLaunch({ url: '/pages/auth/login' })
   }
@@ -68,6 +78,7 @@ export const useUserStore = defineStore('user', () => {
     login,
     register,
     logout,
+    clearLocal,
     getUserInfo,
     updateUserInfo
   }

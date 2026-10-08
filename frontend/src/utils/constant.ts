@@ -13,12 +13,17 @@ export const MAP_JS_KEY = import.meta.env.VITE_MAP_KEY || ''
 export const MAP_WS_KEY = import.meta.env.VITE_MAP_WS_KEY || ''
 
 /**
- * 是否使用本地 Mock（默认 true，后端就绪后在 .env 设置 VITE_USE_MOCK=false）
+ * 是否使用本地 Mock（**默认 false**：默认连真实后端）。
+ *
+ * 为什么默认值必须是 false：
+ *   曾经默认 true，再加上 `.env.*.local` 被 gitignore，干净 clone / CI / 打包机
+ *   缺配置时会静默走 mock —— `api/trip.ts` 返回写死的回复、且不带
+ *   `slot_state` / `suggested_questions`，界面看起来「正常」但整条 AI 链路是假的，
+ *   排查了半天才发现压根没连后端。
+ *   现在：只有显式写 `VITE_USE_MOCK=true`（离线演示包）才走 mock；
+ *   配置缺失由 vite.config.ts 在构建期直接报错，不再静默降级。
  */
-export const USE_MOCK =
-  import.meta.env.VITE_USE_MOCK === undefined
-    ? true
-    : import.meta.env.VITE_USE_MOCK === 'true'
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 /** Token 存储键名（与后端 user-token-name 一致） */
 export const TOKEN_KEY = 'Authentication'
