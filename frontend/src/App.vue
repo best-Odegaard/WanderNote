@@ -20,6 +20,7 @@ import { onAuthCleared, isLoggedIn } from '@/utils/auth'
 const PROTECTED_PAGES = [
   'pages/plan/survey',
   'pages/plan/hotel',
+  'pages/plan/ticket',
   'pages/plan/wizard',
   'pages/plan/import',
   'pages/ai/chat',

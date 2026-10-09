@@ -348,12 +348,27 @@ if ($runningBackend) {
     Write-Info "后端 :$BackendPort 已在运行，跳过"
 } else {
     Write-Info "启动后端 :$BackendPort ..."
+
+    # 先把 jar 复制到 logs/run/ 再从副本启动。
+    #
+    # 为什么必须这样：直接跑 target/ 里的 jar 时，只要有人（IDE、mvn package、
+    # 本脚本的 -Rebuild）重新构建，Maven 会 clean 掉 target 目录、重写这个 jar ——
+    # 运行中的 JVM 是按需从 jar 里读 class 的，文件被换掉/删掉之后就抛
+    # ClassNotFoundException 然后直接退出，**没有 shutdown 日志也没有堆栈**，
+    # 看起来像「无缘无故挂了」（2026-10-02 和 2026-10-08 各踩过一次）。
+    # 从副本启动后，构建再也影响不到正在跑的这个进程。
+    $runDir = Join-Path $LogDir 'run'
+    $runJar = Join-Path $runDir 'gkv-server.jar'
+    if (-not (Test-Path $runDir)) { New-Item -ItemType Directory -Path $runDir -Force | Out-Null }
+    Copy-Item $BackendJar $runJar -Force
+    Write-Info "已复制运行副本：logs\run\gkv-server.jar"
+
     # 命令里刻意只用相对路径 + ASCII 标题：
     # 本脚本所在路径含中文（AI文旅），而 Start-Process 的命令串在 Windows PowerShell 下
     # 会受控制台编码影响，把中文路径拼进命令串有启动失败的风险。
     # -WorkingDirectory 是真正的参数（不走字符串解析），中文目录由它来承载。
-    Open-ServiceWindow -Title "WanderNote Backend :$BackendPort" -WorkDir $BackendDir -LogFile (Join-Path $LogDir 'backend.log') `
-        -Command 'java -jar gkv-server\target\gkv-server-1.0-SNAPSHOT.jar'
+    Open-ServiceWindow -Title "WanderNote Backend :$BackendPort" -WorkDir $Root -LogFile (Join-Path $LogDir 'backend.log') `
+        -Command 'java -jar logs\run\gkv-server.jar'
 }
 
 if ($SkipAgent) {

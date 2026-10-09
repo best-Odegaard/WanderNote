@@ -2,10 +2,18 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as tripApi from '@/api/trip'
 import { selectHotel, getTripHotel } from '@/api/hotel'
+import { selectTicket, getTripTickets, clearTripTicket } from '@/api/ticket'
 import { clearActiveChatSession } from '@/utils/chatSession'
 import { emptySlotState } from '@/api/trip'
 import type { TripPlan, PlanResponse, SlotState } from '@/api/trip'
 import { toHotelOption, type HotelOption } from '@/utils/hotels'
+import { toTicketOption, type TicketOption, type TicketDirection } from '@/utils/tickets'
+
+/** 行程的票务：去程 + 返程各一条；单程就是「只有去程」 */
+export interface SelectedTickets {
+  outbound: TicketOption | null
+  return: TicketOption | null
+}
 
 export const useTripStore = defineStore('trip', () => {
   const currentTrip = ref<TripPlan | null>(null)
@@ -142,6 +150,118 @@ export const useTripStore = defineStore('trip', () => {
   }
 
   /**
+   * 用户选中的票（去程 / 返程）。
+   *
+   * 为什么放 store：订票页、行程详情页要读同一份数据，
+   * 而且「单程」这个语义就是「返程为空」，用两个字段表达比加一个 mode 字段更直白。
+   */
+  const selectedTickets = ref<SelectedTickets>({ outbound: null, return: null })
+
+  function setSelectedTicket(direction: TicketDirection, ticket: TicketOption | null) {
+    selectedTickets.value = { ...selectedTickets.value, [direction]: ticket }
+  }
+
+  /** 取某个方向的票（没有则 null），模板里少写一层可选链 */
+  function ticketOf(direction: TicketDirection): TicketOption | null {
+    return selectedTickets.value[direction] ?? null
+  }
+
+  /**
+   * 把当前选中的票落到行程上（trip_ticket，去程/返程各一条）。
+   *
+   * 为什么单独一个函数：用户选票时行程可能还没保存（没有 id）。
+   * 选了之后才生成/保存行程的话，那次选择就得在这里补写一次 ——
+   * 否则行程详情页看不到「怎么去、怎么回」。
+   *
+   * 只写有值的那个方向；**清空**由 {@link clearSelectedTicket} 显式触发 ——
+   * 免得每次保存行程都白跑一次 delete（绝大多数方向本来就没选过）。
+   *
+   * 失败不抛：票务落库是增强项，接口挂了不能把「保存行程」这件事一起带崩。
+   */
+  async function persistSelectedTickets(tripId: number | string) {
+    if (!tripId) return
+    const outbound = selectedTickets.value.outbound
+    const back = selectedTickets.value.return
+    if (outbound) {
+      await persistOne(tripId, 'outbound', outbound)
+    }
+    if (back) {
+      await persistOne(tripId, 'return', back)
+    }
+  }
+
+  async function persistOne(tripId: number | string, direction: TicketDirection, ticket: TicketOption) {
+    try {
+      await selectTicket({
+        tripId,
+        direction,
+        ticketCode: ticket.id,
+        transportType: ticket.transportType,
+        carrier: ticket.carrier,
+        ticketNo: ticket.ticketNo,
+        fromCity: ticket.fromCity,
+        toCity: ticket.toCity,
+        fromStation: ticket.fromStation,
+        toStation: ticket.toStation,
+        departDate: direction === 'return' ? currentTrip.value?.endDate : currentTrip.value?.startDate,
+        departTime: ticket.departTime,
+        arriveTime: ticket.arriveTime,
+        durationMin: ticket.durationMin,
+        // 自驾这类无班次方式没有车次号，靠里程+耗时表达「多久、多远」；
+        // 后端对 drive 不再要求 ticketNo 非空（TicketUrlBuilder.isModeOnly）
+        distanceKm: ticket.distanceKm,
+        seatClass: ticket.seatClass,
+        price: ticket.price
+      })
+    } catch (e) {
+      console.warn(`[trip] ${direction} 票务未能随行程落库:`, e)
+    }
+  }
+
+  /**
+   * 清掉某个方向的票（内存 + 数据库）。
+   *
+   * 场景：用户把往返改成单程、或者在订票页取消勾选。
+   * 不删库的话，详情页的交通卡片会消失（读的是接口），但库里那条记录还在，
+   * 下次换个入口打开又会「复活」。
+   */
+  async function clearSelectedTicket(direction: TicketDirection, tripId?: number | string) {
+    setSelectedTicket(direction, null)
+    const id = tripId ?? currentTrip.value?.id
+    if (!id) return
+    try {
+      await clearTripTicket(id, direction)
+    } catch (e) {
+      console.warn(`[trip] ${direction} 票务未能清除:`, e)
+    }
+  }
+
+  /**
+   * 读行程已保存的票，恢复 selectedTickets。
+   *
+   * 场景：用户杀进程/换设备重新打开一条旧行程 —— 内存里的选择没了，
+   * 但 trip_ticket 里存着车次与时刻，读回来后详情页才能显示「怎么去、怎么回」。
+   */
+  async function loadTripTickets(tripId: number | string) {
+    if (!tripId) return null
+    try {
+      const items = await getTripTickets(tripId)
+      const list = items || []
+      const outbound = list.find((t) => t.direction !== 'return')
+      const back = list.find((t) => t.direction === 'return')
+      selectedTickets.value = {
+        outbound: outbound ? toTicketOption(outbound) : null,
+        return: back ? toTicketOption(back) : null
+      }
+      return selectedTickets.value
+    } catch (e) {
+      // 旧行程本来就可能没有票务记录；接口异常也不该挡住行程详情
+      console.warn('[trip] 票务信息读取失败:', e)
+      return null
+    }
+  }
+
+  /**
    * 会话版本号：`resetForNewTrip()` 每次调用递增。
    *
    * 为什么需要它：对话状态里有一半在 store（槽位/完整度/选中的酒店），另一半在
@@ -164,6 +284,7 @@ export const useTripStore = defineStore('trip', () => {
     answeredSlots.value = []
     hotelPreference.value = ''
     selectedHotel.value = null
+    selectedTickets.value = { outbound: null, return: null }
     clearActiveChatSession()
     sessionVersion.value++
   }
@@ -182,6 +303,8 @@ export const useTripStore = defineStore('trip', () => {
     // 行程第一次保存拿到 id 后，把之前选好的酒店补写进 trip_hotel
     if (saved.id != null) {
       await persistSelectedHotel(saved.id)
+      // 票务同理：选票可能发生在行程生成之前，那时没有 id，只能等这里补写
+      await persistSelectedTickets(saved.id)
     }
     await loadHistory()
     return saved
@@ -226,6 +349,12 @@ export const useTripStore = defineStore('trip', () => {
     setSelectedHotel,
     persistSelectedHotel,
     loadTripHotel,
+    selectedTickets,
+    setSelectedTicket,
+    ticketOf,
+    persistSelectedTickets,
+    clearSelectedTicket,
+    loadTripTickets,
     sessionVersion,
     resetForNewTrip,
     saveTrip,

@@ -149,6 +149,122 @@
           </view>
 
           <!--
+            交通（去程 / 返程）：推荐方式 → 用户选 → 加入行程；已选的只展示信息 + 跳 12306/携程。
+            本站不代购、不做站内下单；自驾这类「无班次方式」没有购买链接，只有估算耗时/里程/费用。
+            单程时只有一行去程 —— 「单程」在数据上就是「返程为空」，不需要额外的模式开关。
+          -->
+          <view v-if="showTransportCard" class="transport-card soft-shadow">
+            <view class="transport-head">
+              <text class="transport-title">🚄 交通</text>
+              <!-- 已经选过：默认显示结果，想看推荐再点「更换」=>
+                   没选过：直接进推荐态，省一次点击 -->
+              <text
+                v-if="!isFeaturedPreview && tripTickets.length && !pickingTransport"
+                class="stay-op"
+                @tap.stop="startPickingTransport"
+              >更换交通</text>
+              <text
+                v-else-if="!isFeaturedPreview && pickingTransport && tripTickets.length"
+                class="stay-op"
+                @tap.stop="pickingTransport = false"
+              >取消</text>
+            </view>
+
+            <!-- ══ 已选：去程 / 返程两行 ══ -->
+            <template v-if="tripTickets.length && !pickingTransport">
+              <view v-for="t in tripTickets" :key="t.direction || t.ticketNo || t.id" class="transport-line">
+                <view class="transport-dir" :class="{ outbound: t.direction !== 'return' }">
+                  <text class="transport-dir-text">{{ t.direction === 'return' ? '返程' : '去程' }}</text>
+                </view>
+                <view class="transport-body">
+                  <text class="transport-no">
+                    {{ transportTitle(t) }}
+                    <text v-if="t.carrier" class="transport-carrier">{{ t.carrier }}</text>
+                  </text>
+                  <text class="transport-time">
+                    <template v-if="t.departTime">{{ t.departTime }} → {{ t.arriveTime }}</template>
+                    <template v-else>约 {{ formatTicketDuration(t.durationMin) }}</template>
+                    <text v-if="t.distanceKm" class="transport-duration">{{ formatTicketDistance(t.distanceKm) }}</text>
+                  </text>
+                  <text class="transport-station">
+                    {{ t.fromStation }} → {{ t.toStation }}{{ t.departDate ? ` · ${t.departDate}` : '' }}
+                  </text>
+                </view>
+                <!-- 无班次方式（自驾）没有查询页：purchaseUrl 为空时不显示按钮，改给「选具体班次」 -->
+                <text
+                  v-if="t.purchaseUrl && t.transportType !== 'drive'"
+                  class="transport-op"
+                  @tap.stop="onBuyTicket(t)"
+                >去{{ t.transportType === 'flight' ? '携程' : '12306' }} →</text>
+                <text v-else-if="!isFeaturedPreview" class="transport-op" @tap.stop="onPickConcrete(t)">
+                  选车次 →
+                </text>
+              </view>
+              <text class="stay-note">
+                {{ hasEstimatedRow ? '估算耗时与费用，仅供参考 · ' : '' }}价格以 12306 / 携程为准 · 本站不代购
+              </text>
+            </template>
+
+            <!-- ══ 未选 / 更换中：推荐方案 ══ -->
+            <template v-else>
+              <text class="advice-hint">
+                {{
+                  adviceLoading
+                    ? '正在按两地距离规划交通方式…'
+                    : adviceList.length
+                      ? `按距离推荐（${adviceBasisText}，估算参考值）`
+                      : '拿不到两地距离，暂时无法推荐'
+                }}
+              </text>
+
+              <!-- 去程 / 返程分别设置：往返行程两段各记一条，单程只记去程 -->
+              <view v-if="roundTripTrip" class="advice-seg">
+                <view
+                  v-for="d in ADVICE_DIRECTIONS"
+                  :key="d"
+                  class="advice-seg-item"
+                  :class="{ active: d === modeTarget }"
+                  @tap="modeTarget = d"
+                >{{ d === 'return' ? '返程' : '去程' }}{{ modeTarget === d ? '（当前）' : '' }}</view>
+              </view>
+
+              <view
+                v-for="a in adviceList"
+                :key="a.mode"
+                class="advice-row"
+                :class="{ picked: pickedMode === a.mode, best: a.recommended }"
+                @tap="pickedMode = a.mode"
+              >
+                <text class="advice-emoji">{{ MODE_EMOJI[a.mode] }}</text>
+                <view class="advice-body">
+                  <view class="advice-line1">
+                    <text class="advice-label">{{ MODE_LABEL[a.mode] }}</text>
+                    <text v-if="a.recommended" class="advice-best">推荐</text>
+                  </view>
+                  <text class="advice-meta">
+                    门到门约 {{ formatTicketDuration(a.durationMin) }} · {{ formatTicketDistance(a.distanceKm) }} ·
+                    估算 {{ adviceCostText(a) }}
+                  </text>
+                  <text class="advice-reason">{{ a.reason }}</text>
+                </view>
+                <view class="radio" :class="{ on: pickedMode === a.mode }" />
+              </view>
+
+              <view v-if="adviceList.length" class="advice-actions">
+                <text
+                  v-if="pickedMode && pickedMode !== 'drive'"
+                  class="advice-op"
+                  @tap.stop="onPickConcreteMode"
+                >选具体{{ pickedMode === 'flight' ? '航班' : '车次' }} →</text>
+                <text class="advice-op primary" @tap.stop="onConfirmMode">加入行程</text>
+              </view>
+              <text v-if="adviceList.length" class="stay-note">
+                耗时与费用是按里程系数估算的，不是实时报价；具体车次/航班与票价以 12306 / 携程为准
+              </text>
+            </template>
+          </view>
+
+          <!--
             当天没有安排：空态只占时间轴这一块，底部「保存行程 / 删除行程」必须照常可用。
             原实现遇到空排期会走整屏空态，删空景点后页面变死胡同（P2-09）。
           -->
@@ -308,8 +424,20 @@ import { useLogin } from '@/hooks/useLogin'
 import { getFeaturedDetail, copyFeaturedToMine } from '@/api/featured'
 import type { TripPlan } from '@/api/trip'
 import { showModal, showToast } from '@/utils/feedback'
-import { openCtripHotel } from '@/utils/deeplink'
+import { openCtripHotel, openTicketPurchase } from '@/utils/deeplink'
 import type { HotelOption } from '@/utils/hotels'
+// 历时/里程文案与订票页共用同一套格式化函数，避免两处口径不一致
+import {
+  formatDuration as formatTicketDuration,
+  formatDistance as formatTicketDistance,
+  formatTicketPrice,
+  TRANSPORT_MODE_LABEL as MODE_LABEL,
+  TRANSPORT_MODE_EMOJI as MODE_EMOJI,
+  type TicketOption,
+  type TicketDirection,
+  type TransportMode
+} from '@/utils/tickets'
+import { recommendTransports, type TransportAdvice } from '@/utils/transportAdvice'
 // 地图 Key 是否配置，直接决定「地图有没有内容」这件事能不能解释清楚（P2-10）
 import { MAP_JS_KEY, MAP_WS_KEY } from '@/utils/constant'
 
@@ -389,6 +517,179 @@ const tripHotel = computed<HotelOption | null>(() => {
     desc: ''
   }
 })
+/**
+ * 交通信息（怎么去、怎么回）。
+ *
+ * 数据源只有 store：选中即写 store（订票页/推荐卡确认时同步落 trip_ticket），
+ * 杀进程后由 loadTripTickets() 从 /ticket/trip/{tripId} 读回来。
+ * 不用 trip 上的字段 —— trip_plan 里本来就没有票务字段，也不打算为此加列。
+ */
+const tripTickets = computed<TicketOption[]>(() => {
+  const picked = tripStore.selectedTickets
+  return [picked.outbound, picked.return].filter((t): t is TicketOption => !!t)
+})
+
+// ── 交通方式推荐（高铁 / 飞机 / 自驾）──────────────────────────
+// 为什么要有它：候选班次库只覆盖少量线路，而「怎么去」是每条行程都绕不开的问题。
+// 推荐只用两地距离 + 系数估算（见 utils/transportAdvice.ts），不接任何交通数据源，
+// 用户选定后记进 trip_ticket（无班次方式 transportType='drive'），再由详情页展示。
+const ADVICE_DIRECTIONS: TicketDirection[] = ['outbound', 'return']
+const adviceList = ref<TransportAdvice[]>([])
+/** 距离来源：route=地图路线规划，estimate=直线估算；空串=还没算 */
+const adviceBasis = ref<'route' | 'estimate' | ''>('')
+const adviceLoading = ref(false)
+const adviceLoaded = ref(false)
+/** 推荐态里当前选中的方式 */
+const pickedMode = ref<TransportMode | null>(null)
+/** 是否处于「选交通方式」态（没选过交通时默认就是它） */
+const pickingTransport = ref(false)
+/** 这次设置的是去程还是返程（往返行程两段各一条，单程只设去程） */
+const modeTarget = ref<TicketDirection>('outbound')
+
+const canAdvise = computed(() => {
+  const from = trip.value?.fromCity || ''
+  const to = trip.value?.toCity || ''
+  return !!from && !!to && from !== to
+})
+
+/** 交通卡显示条件：有已选交通，或者能算出推荐（精选行程只读，不显示推荐态） */
+const showTransportCard = computed(
+  () => tripTickets.value.length > 0 || (!isFeaturedPreview.value && canAdvise.value)
+)
+
+/** 行程超过 1 天才有「返程」的概念（当天往返的行程不需要切换） */
+const roundTripTrip = computed(() => (trip.value?.days ?? 1) > 1)
+
+const adviceBasisText = computed(() =>
+  adviceBasis.value === 'estimate' ? '按直线距离估算' : '按驾车里程'
+)
+
+/** 已选行里有没有估算口径（自驾），有就要在脚注里说明「估算」 */
+const hasEstimatedRow = computed(() => tripTickets.value.some((t) => t.transportType === 'drive'))
+
+/** 一行交通的主标题：有车次号就用车次号，无班次方式用方式名 */
+function transportTitle(t: TicketOption): string {
+  return t.ticketNo || MODE_LABEL[t.transportType]
+}
+
+/** 估算费用文案：区间用「起」，自驾注明是整车口径（不是人均） */
+function adviceCostText(a: TransportAdvice): string {
+  const from = formatTicketPrice(a.costFrom)
+  if (a.costTo > a.costFrom) return `${from} 起`
+  return `${from}${a.mode === 'drive' ? '/车' : ''}`
+}
+
+/**
+ * 算推荐（同一条线路结果有缓存，切去程/返程不会重复请求地图）。
+ * @param force 用户点「更换交通」时强制刷新一次
+ */
+async function loadAdvice(force = false) {
+  if (adviceLoading.value) return
+  if (adviceLoaded.value && !force) return
+  if (!canAdvise.value) return
+  adviceLoading.value = true
+  try {
+    const r = await recommendTransports(trip.value?.fromCity, trip.value?.toCity)
+    adviceList.value = r?.list ?? []
+    adviceBasis.value = r?.basis ?? ''
+    adviceLoaded.value = true
+    // 默认落在推荐项上：用户什么都不点也能直接「加入行程」
+    if (!pickedMode.value) {
+      pickedMode.value =
+        adviceList.value.find((a) => a.recommended)?.mode ?? adviceList.value[0]?.mode ?? null
+    }
+  } finally {
+    adviceLoading.value = false
+  }
+}
+
+/** 进推荐态：默认编辑「还没设置的那一段」，并把当前选择回显出来 */
+function startPickingTransport() {
+  pickingTransport.value = true
+  const outbound = tripStore.selectedTickets.outbound
+  const back = tripStore.selectedTickets.return
+  modeTarget.value = outbound && !back ? 'return' : 'outbound'
+  pickedMode.value = tripStore.selectedTickets[modeTarget.value]?.transportType ?? null
+  void loadAdvice(true)
+}
+
+/**
+ * 把选中的方式加入行程（去程或返程）。
+ *
+ * 无班次方式（自驾）只带估算的耗时/里程/费用；
+ * 高铁/飞机在这一步只记「打算坐它」，具体车次/航班由「选具体车次 →」去订票页挑，
+ * 挑完会覆盖同一方向的记录（后端按 (tripId, direction) upsert）。
+ */
+async function onConfirmMode() {
+  if (!pickedMode.value) {
+    showToast({ title: '先选一个交通方式', icon: 'none' })
+    return
+  }
+  const advice = adviceList.value.find((a) => a.mode === pickedMode.value)
+  if (!advice) return
+
+  const back = modeTarget.value === 'return'
+  const fromCity = (back ? trip.value?.toCity : trip.value?.fromCity) || ''
+  const toCity = (back ? trip.value?.fromCity : trip.value?.toCity) || ''
+  const option: TicketOption = {
+    id: `mode-${advice.mode}-${fromCity}-${toCity}`,
+    transportType: advice.mode,
+    carrier: '',
+    ticketNo: '',
+    fromCity,
+    toCity,
+    fromStation: fromCity,
+    toStation: toCity,
+    departDate: back ? trip.value?.endDate : trip.value?.startDate,
+    departTime: '',
+    arriveTime: '',
+    durationMin: advice.durationMin,
+    distanceKm: advice.distanceKm,
+    seatClass: '',
+    price: advice.costFrom,
+    stops: 0,
+    tags: []
+  }
+
+  tripStore.setSelectedTicket(modeTarget.value, option)
+  const id = trip.value?.id
+  if (id) {
+    try {
+      await tripStore.persistSelectedTickets(id)
+    } catch (e) {
+      // 落库失败不影响继续看：选中状态已在 store 里（与住宿那条链路的取舍一致）
+      console.warn('[trip/detail] 交通方式落库失败（本地仍保留选择）:', e)
+    }
+  }
+  pickingTransport.value = false
+  showToast({ title: `${MODE_LABEL[advice.mode]}已加入行程`, icon: 'none' })
+}
+
+/** 去订票页挑具体车次/航班（带票种、方向与两段日期） */
+function gotoConcrete(type: TransportMode, direction: TicketDirection) {
+  if (type === 'drive') return
+  const params = [
+    `type=${type}`,
+    `dep=${encodeURIComponent(trip.value?.fromCity || '')}`,
+    `city=${encodeURIComponent(trip.value?.toCity || '')}`,
+    `start=${encodeURIComponent(trip.value?.startDate || '')}`,
+    `end=${encodeURIComponent(trip.value?.endDate || '')}`,
+    direction === 'return' ? 'seg=return' : '',
+    'from=detail'
+  ].filter(Boolean)
+  uni.navigateTo({ url: `/pages/plan/ticket?${params.join('&')}` })
+}
+
+/** 推荐行上的「选具体车次/航班 →」 */
+function onPickConcreteMode() {
+  if (pickedMode.value) gotoConcrete(pickedMode.value, modeTarget.value)
+}
+
+/** 已选行上的「选车次 →」：无班次（自驾）换成具体班次时走这里 */
+function onPickConcrete(t: TicketOption) {
+  gotoConcrete(t.transportType, t.direction === 'return' ? 'return' : 'outbound')
+}
+
 const activeDayIndex = ref(0)
 /** 地图视图：day=只显示当天路线；overview=总览全部天路线（每天一色） */
 const viewMode = ref<'day' | 'overview'>('day')
@@ -615,6 +916,12 @@ onMounted(async () => {
   // （比如酒店是在行程生成前选的），那时更该读一次 —— 接口没有住宿记录就返回 null，代价很小。
   if (!isFeaturedPreview.value && trip.value.id) {
     await tripStore.loadTripHotel(trip.value.id)
+    // 票务同理：内存里没有票时要读回来，否则详情页看不到「怎么去、怎么回」
+    await tripStore.loadTripTickets(trip.value.id)
+  }
+  // 还没定交通方式：直接把推荐算出来（没算出来时卡片显示「拿不到距离，无法推荐」）
+  if (!isFeaturedPreview.value && !tripTickets.value.length) {
+    await loadAdvice()
   }
   // 初始绘制第 0 天路线
   buildMapSpotsForDay(0)
@@ -655,6 +962,14 @@ onShow(async () => {
     await ensureAllDaysGeocoded()
   } else {
     buildMapSpotsForDay(activeDayIndex.value)
+  }
+  // 从订票页返回时交通可能已被改（选中/清空），这里重新读一次库；
+  // 若仍未选交通且推荐还没算过，顺手把推荐补上（结果有缓存，不会重复请求地图）
+  if (trip.value?.id) {
+    await tripStore.loadTripTickets(trip.value.id)
+  }
+  if (!tripTickets.value.length) {
+    await loadAdvice()
   }
 })
 
@@ -979,6 +1294,22 @@ function onChangeHotel() {
     'from=detail'
   ]
   uni.navigateTo({ url: `/pages/plan/hotel?${params.join('&')}` })
+}
+
+/**
+ * 购票：跳外部 H5（12306 / 携程），本站不做站内下单、不代购。
+ * 后端给了深链就用它，没有就按同一套模板现拼（utils/deeplink.ts）。
+ */
+function onBuyTicket(t: TicketOption) {
+  openTicketPurchase(t.purchaseUrl, {
+    type: t.transportType,
+    fromStation: t.fromStation,
+    toStation: t.toStation,
+    fromCity: t.fromCity || trip.value?.fromCity || '',
+    toCity: t.toCity || trip.value?.toCity || '',
+    date: t.departDate,
+    ticketNo: t.ticketNo
+  })
 }
 
 /**
@@ -1391,6 +1722,223 @@ function onChatModify() {
   font-size: 20rpx;
   color: var(--text-tertiary);
   margin-top: 10rpx;
+}
+
+/* ── 交通卡片（上拉框内，紧跟在住宿卡片之后） ── */
+.transport-card {
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  background: var(--bg-card);
+  border-radius: 24rpx;
+  border: 1rpx solid var(--border);
+}
+
+.transport-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.transport-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* 一行一个方向：去程在上、返程在下（后端也是按这个顺序返回的） */
+.transport-line {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+/* 去程/返程角标：用主色区分去程，返程用中性色，避免两条看起来一样 */
+.transport-dir {
+  flex-shrink: 0;
+  padding: 6rpx 14rpx;
+  border-radius: 8rpx;
+  background: var(--bg-muted);
+
+  &.outbound {
+    background: var(--brand-soft);
+  }
+}
+
+.transport-dir-text {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+
+.transport-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.transport-no {
+  display: block;
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.transport-carrier {
+  font-weight: 400;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+  margin-left: 8rpx;
+}
+
+.transport-time {
+  display: block;
+  font-size: var(--fs-meta);
+  color: var(--text-body);
+  margin-top: 4rpx;
+}
+
+.transport-duration {
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+  margin-left: 8rpx;
+}
+
+.transport-station {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+  margin-top: 4rpx;
+  line-height: 1.5;
+}
+
+.transport-op {
+  flex-shrink: 0;
+  font-size: var(--fs-caption);
+  color: var(--brand-deep);
+  padding: 10rpx 20rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--brand);
+  background: var(--bg-card);
+}
+
+/* ── 交通方式推荐（未选交通 / 更换交通时显示） ── */
+.advice-hint {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+  line-height: 1.6;
+  margin-top: 12rpx;
+}
+
+/* 去程 / 返程切换：往返行程两段各记一条 */
+.advice-seg {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.advice-seg-item {
+  flex: 1;
+  text-align: center;
+  padding: 12rpx 0;
+  border-radius: 16rpx;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+
+  &.active {
+    background: var(--brand-soft);
+    color: var(--brand-ink);
+    font-weight: 600;
+  }
+}
+
+.advice-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  margin-top: 16rpx;
+  padding: 20rpx;
+  border-radius: 20rpx;
+  background: var(--bg-input);
+  border: 2rpx solid transparent;
+
+  /* 推荐项：描边主色，和「已选」的填充态区分开（推荐 ≠ 选中） */
+  &.best {
+    border-color: var(--brand);
+  }
+
+  &.picked {
+    background: var(--brand-soft);
+  }
+}
+
+.advice-emoji {
+  font-size: 40rpx;
+  line-height: 1.2;
+}
+
+.advice-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.advice-line1 {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.advice-label {
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.advice-best {
+  font-size: 20rpx;
+  color: var(--on-brand);
+  background: var(--brand-grad);
+  padding: 2rpx 12rpx;
+  border-radius: 999rpx;
+}
+
+.advice-meta {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-body);
+  margin-top: 6rpx;
+}
+
+.advice-reason {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  margin-top: 6rpx;
+}
+
+.advice-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.advice-op {
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  padding: 12rpx 24rpx;
+  border-radius: 999rpx;
+  background: var(--bg-muted);
+
+  &.primary {
+    background: var(--brand-grad);
+    color: var(--on-brand);
+    font-weight: 600;
+  }
 }
 
 /* 空状态：行程/路线数据不存在时的提示 */

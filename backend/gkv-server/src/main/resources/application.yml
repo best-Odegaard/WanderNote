@@ -78,6 +78,24 @@ ctrip:
   hotel:
     url-template: ${CTRIP_HOTEL_URL_TEMPLATE:https://m.ctrip.com/webapp/hotel/hotellist?cityName={city}&checkin={checkin}&checkout={checkout}&keyword={keyword}}
 
+# 订票深链（构造逻辑唯一出口：com.gkv.utils.TicketUrlBuilder）
+#
+# 为什么也放配置：12306 与携程都没有公开 API，跳转靠 H5 深链，参数名随它们前端改版而变。
+#   放这里，改版时只动这两行、重启即可，不用改代码重新打包。
+#
+# ★ 下面两行都不是官方承诺的参数格式 ★
+#   12306：linktypeid=dc 是单程查询页，flag=N,N,Y 是默认勾选位。
+#   携程：H5 机票搜索页的公开参数。
+#   上线前请真机各跑一次，把核对后的模板写在这里（会覆盖代码里的内置默认）。
+#
+# 占位符：{from} {to}（站名/机场，没有则退化为城市名）{fromCity} {toCity} {date} {no}
+# 留空则用 TicketUrlBuilder 内置的同名默认模板（行为一致，只是少一处可配点）。
+ticket:
+  train:
+    url-template: ${TICKET_TRAIN_URL_TEMPLATE:https://kyfw.12306.cn/otn/leftTicket/init?linktypeid=dc&fs={from}&ts={to}&date={date}&flag=N,N,Y}
+  flight:
+    url-template: ${TICKET_FLIGHT_URL_TEMPLATE:https://m.ctrip.com/webapp/flight/search?dcity={fromCity}&acity={toCity}&ddate={date}}
+
 sky:
   # 用户历史画像是否回灌给大模型。
   # false（默认）= 停用：对话里不会带上用户过往偏好，前端也不再展示「记住的偏好」开关。

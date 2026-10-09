@@ -63,6 +63,13 @@
       }
     },
     {
+      "path": "pages/plan/ticket",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "订票"
+      }
+    },
+    {
       "path": "pages/ai/chat",
       "style": {
         "navigationStyle": "custom",

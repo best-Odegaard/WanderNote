@@ -214,14 +214,20 @@
       </view>
 
       <!--
-        完整度浮出工具条（设计稿 3.3）：≥50% 出「选酒店」，≥60% 且已知住宿偏好出「生成完整路线」。
+        完整度浮出工具条（设计稿 3.3）：≥50% 出「选酒店」，≥60% 且已知出发地出「查车票」，
+        ≥60% 且已知住宿偏好出「生成完整路线」。
         为什么必须有这个入口：底部只有一个「生成行程计划」，用户生成完行程就再也找不到
-        「晚上住哪」这一步，而住宿决定了当天路线能不能闭环（见 pages/trip/route.vue 的 resolveHotel）——
-        后端 ready.hotel 早就把这个能力位留好了（SlotReadyVO.hotel），前端一直没用。
+        「晚上住哪」「怎么去怎么回」这两步，而住宿决定了当天路线能不能闭环
+        （见 pages/trip/route.vue 的 resolveHotel），车票决定了行程首尾两天的安排 ——
+        后端 ready.hotel / ready.transport 早就把这两个能力位留好了（SlotReadyVO），
+        前端一直没用 transport 那个。
       -->
       <view v-if="showToolbar" class="chat-toolbar">
         <view v-if="hotelEntryReady" class="tool-btn" @tap="onPickHotel">
           🏨 {{ hotelEntryLabel }}
+        </view>
+        <view v-if="ticketEntryReady" class="tool-btn" @tap="onPickTicket">
+          🚂 {{ ticketEntryLabel }}
         </view>
         <view v-if="routeEntryReady" class="tool-btn primary" @tap="onFullRoute">🗺️ 生成完整路线</view>
       </view>
@@ -1112,16 +1118,30 @@ const hasOngoingConversation = computed(
 /**
  * 浮出工具条的显示条件（与后端 ready 标记一一对应，前端不自己算完整度）。
  *   ready.hotel     = 完整度 ≥ 阈值 且已知住宿偏好
+ *   ready.transport = 完整度 ≥ 路线阈值 且已知出发地（没有出发地就查不了票）
  *   ready.fullRoute = 完整度 ≥ 路线阈值 且已知住宿偏好
  */
 const hotelEntryReady = computed(() => !!sessionId.value && ready.value.hotel)
+const ticketEntryReady = computed(() => !!sessionId.value && ready.value.transport)
 const routeEntryReady = computed(() => !!sessionId.value && ready.value.fullRoute)
-const showToolbar = computed(() => hotelEntryReady.value || routeEntryReady.value)
+const showToolbar = computed(
+  () => hotelEntryReady.value || ticketEntryReady.value || routeEntryReady.value
+)
 
 /** 「选酒店」已经选过就把店名带出来，用户一眼知道这步做完了 */
 const hotelEntryLabel = computed(() => {
   const picked = tripStore.selectedHotel
   return picked?.name ? `已选：${picked.name}` : '选酒店'
+})
+
+/** 「查车票」同理：已经选过去程/返程就把车次带出来 */
+const ticketEntryLabel = computed(() => {
+  const outbound = tripStore.selectedTickets.outbound
+  const back = tripStore.selectedTickets.return
+  if (outbound && back) return `已选：${outbound.ticketNo} / ${back.ticketNo}`
+  if (outbound) return `已选：${outbound.ticketNo}`
+  if (back) return `已选：${back.ticketNo}`
+  return '查车票'
 })
 
 /**
@@ -1136,6 +1156,27 @@ function onPickHotel() {
   const level = slotValue('hotelStyle') || tripStore.hotelPreference || ''
   const params = [`city=${encodeURIComponent(city)}`, `level=${encodeURIComponent(level)}`, 'from=chat']
   uni.navigateTo({ url: `/pages/plan/hotel?${params.join('&')}` })
+}
+
+/**
+ * 进订票页（火车票 / 飞机票，往返）。
+ *
+ * 出发地优先取槽位 departCity（ready.transport 成立就说明它已知），
+ * 其次取行程里的 fromCity —— 两个都没有时订票页会给出「回对话页补出发地」的提示，
+ * 而不是给一个查不出东西的空列表。
+ * 带 from=chat：订票页确认后要 navigateBack 回对话，而不是再 push 一个对话页。
+ */
+function onPickTicket() {
+  const dest = tripStore.currentTrip?.toCity || slotValue('destination') || ''
+  const dep = slotValue('departCity') || tripStore.currentTrip?.fromCity || ''
+  const params = [
+    `dep=${encodeURIComponent(dep)}`,
+    `city=${encodeURIComponent(dest)}`,
+    `start=${encodeURIComponent(tripStore.currentTrip?.startDate || '')}`,
+    `end=${encodeURIComponent(tripStore.currentTrip?.endDate || '')}`,
+    'from=chat'
+  ]
+  uni.navigateTo({ url: `/pages/plan/ticket?${params.join('&')}` })
 }
 
 /**
